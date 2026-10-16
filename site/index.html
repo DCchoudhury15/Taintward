@@ -7,105 +7,177 @@
 <meta name="description" content="AgentWard tracks sensitive data through AI agent tool chains on OpenTelemetry and redacts it before it leaves.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
+  /* OpenTelemetry palette: blue #425CC7 + amber #F5A800 on deep navy */
   :root {
-    --bg: #0d0507;
-    --panel: #170a0d;
-    --panel-2: #1f0e12;
-    --border: #2e151b;
-    --text: #f5e9eb;
-    --muted: #b89aa0;
-    --dim: #7d5f65;
-    --accent: #e11d48;
-    --accent-2: #fb7185;
-    --safe: #34d399;
-    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --bg: #060914;
+    --panel: #0b1124;
+    --panel-2: #10183a;
+    --line: #1b2550;
+    --line-2: #2b3a78;
+    --text: #eaeefb;
+    --muted: #919cc4;
+    --dim: #58638c;
+    --blue: #425cc7;
+    --blue-2: #8a9cf0;
+    --amber: #f5a800;
+    --amber-2: #ffcb52;
+    --red: #ff6b6b;
+    --green: #3ecf8e;
+    --mono: "Space Mono", ui-monospace, monospace;
+    --sans: "Space Grotesk", system-ui, sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
-  body { background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; line-height: 1.6; overflow-x: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.55; overflow-x: hidden; }
   canvas#bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
-  a { color: var(--accent-2); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  a { color: var(--blue-2); text-decoration: none; }
+  a:hover { color: var(--amber-2); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
 
-  nav { position: sticky; top: 0; z-index: 10; background: rgba(13, 5, 7, 0.75); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+  nav { position: sticky; top: 0; z-index: 20; background: rgba(6, 9, 20, 0.82); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
   nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
-  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); }
-  .logo:hover { text-decoration: none; }
-  .logo-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; }
-  .nav-links { display: flex; gap: 22px; font-size: 14px; }
-  .nav-links a { color: var(--muted); }
-  .nav-links a:hover { color: var(--text); text-decoration: none; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; color: var(--text); letter-spacing: -0.01em; }
+  .brand:hover { color: var(--text); }
+  .links { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+  .links a { color: var(--muted); padding: 6px 12px; border-radius: 999px; }
+  .links a:hover { color: var(--text); background: var(--panel); }
+  .links a.gh { border: 1px solid var(--amber); color: var(--amber-2); }
+  .links a.gh:hover { background: var(--amber); color: var(--bg); }
 
-  .hero { padding: 96px 0 72px; }
-  .pill { display: inline-block; font-size: 13px; color: var(--accent-2); background: rgba(225, 29, 72, 0.08); border: 1px solid rgba(225, 29, 72, 0.25); padding: 4px 12px; border-radius: 999px; margin-bottom: 24px; }
-  h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; max-width: 840px; }
-  h1 span { color: var(--accent-2); }
-  .lead { margin-top: 22px; font-size: clamp(16px, 2vw, 19px); color: var(--muted); max-width: 660px; }
-  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 15px; transition: background 0.15s, border-color 0.15s; cursor: pointer; font-family: inherit; }
-  .btn:hover { text-decoration: none; }
-  .btn-primary { background: var(--accent); color: #fff; border: 0; }
-  .btn-primary:hover { background: #be123c; }
-  .btn-ghost { border: 1px solid var(--border); color: var(--text); background: var(--panel); }
-  .btn-ghost:hover { border-color: #4a2129; }
+  /* hero */
+  .hero { padding: 72px 0 28px; text-align: center; }
+  .chip { display: inline-flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 14px; margin-bottom: 26px; }
+  .chip b { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+  h1 { font-size: clamp(36px, 6.2vw, 72px); line-height: 1.02; font-weight: 700; letter-spacing: -0.035em; max-width: 960px; margin: 0 auto; }
+  h1 .hl { color: var(--amber); }
+  h1 .bl { color: var(--blue-2); }
+  .lead { margin: 22px auto 0; color: var(--muted); font-size: clamp(16px, 2vw, 19px); max-width: 700px; }
+  .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px; font: 600 15px var(--sans); cursor: pointer; border: 1px solid transparent; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+  .btn-amber { background: var(--amber); color: #0a0d1a; }
+  .btn-amber:hover { background: var(--amber-2); color: #0a0d1a; }
+  .btn-line { border-color: var(--line-2); color: var(--text); background: rgba(11, 17, 36, 0.7); }
+  .btn-line:hover { border-color: var(--blue-2); color: var(--blue-2); }
 
-  section { scroll-margin-top: 60px; padding: 72px 0; border-top: 1px solid rgba(46, 21, 27, 0.6); }
-  h2 { font-size: clamp(26px, 3.5vw, 36px); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 14px; }
-  .sub { color: var(--muted); max-width: 700px; margin-bottom: 32px; }
+  /* flow graph */
+  .stage { margin-top: 48px; background: linear-gradient(180deg, rgba(11, 17, 36, 0.92), rgba(8, 12, 28, 0.92)); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
+  .stage-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 6px 14px; }
+  .switch { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+  .switch button { border: 0; background: transparent; color: var(--muted); font: 600 13.5px var(--sans); padding: 8px 16px; border-radius: 999px; cursor: pointer; }
+  .switch button.on { background: var(--blue); color: #fff; }
+  .switch button.on.off-mode { background: var(--red); }
+  .stage-top .meta { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  .graph-wrap { position: relative; }
+  svg.graph { width: 100%; height: auto; display: block; }
+  .zone-label { font-family: var(--mono); font-size: 12px; fill: var(--dim); letter-spacing: 0.08em; }
+  .edge { stroke: var(--line-2); stroke-width: 2; fill: none; }
+  .edge.lit { stroke: var(--blue-2); }
+  .edge.hot { stroke: var(--red); }
+  .node circle.ring { fill: var(--panel); stroke: var(--line-2); stroke-width: 2; transition: stroke 0.3s, fill 0.3s; }
+  .node text.t { font-family: var(--mono); font-size: 13px; fill: var(--text); text-anchor: middle; }
+  .node text.d { font-family: var(--mono); font-size: 10.5px; fill: var(--dim); text-anchor: middle; letter-spacing: 0.08em; text-transform: uppercase; }
+  .node .icon { fill: var(--muted); transition: fill 0.3s; }
+  .node.safe circle.ring { stroke: var(--blue-2); fill: #121c45; }
+  .node.safe .icon { fill: var(--blue-2); }
+  .node.redact circle.ring { stroke: var(--amber); fill: #2a2108; }
+  .node.redact .icon { fill: var(--amber); }
+  .node.leak circle.ring { stroke: var(--red); fill: #2c0f14; }
+  .node.leak .icon { fill: var(--red); }
+  .node.policy circle.ring { stroke-dasharray: 5 4; stroke: var(--amber-2); }
+  .node { cursor: pointer; }
+  .packet { fill: var(--amber); filter: drop-shadow(0 0 8px rgba(245, 168, 0, 0.9)); }
+  .packet.raw { fill: var(--red); filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.9)); }
+  .readout { display: grid; grid-template-columns: 1.1fr 2fr 1fr; gap: 10px; margin-top: 10px; }
+  .cell { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .cell .k { font-family: var(--mono); font-size: 10.5px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+  .cell .v { font-family: var(--mono); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
+  .v.raw { color: #ffc4c4; }
+  .v.tok { color: var(--blue-2); }
+  .v.mask { color: var(--amber-2); }
+  .v.good { color: var(--green); }
+  .v.bad { color: var(--red); }
 
-  .toggle { display: inline-flex; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 22px; }
-  .toggle button { border: 0; background: transparent; color: var(--muted); font: 600 14px Inter, sans-serif; padding: 9px 16px; border-radius: 9px; cursor: pointer; }
-  .toggle button.active { background: var(--panel-2); color: var(--text); }
+  section { padding: 84px 0; scroll-margin-top: 60px; }
+  .kicker { font-family: var(--mono); font-size: 12px; color: var(--amber); letter-spacing: 0.1em; text-transform: uppercase; }
+  h2 { font-size: clamp(28px, 3.8vw, 44px); line-height: 1.08; letter-spacing: -0.03em; margin-top: 10px; max-width: 760px; }
+  .intro { color: var(--muted); margin-top: 14px; max-width: 680px; font-size: 16.5px; }
 
-  .chain { display: grid; gap: 10px; }
-  .hop { display: grid; grid-template-columns: 34px 1.1fr 0.8fr 1.6fr 1fr; align-items: center; gap: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; opacity: 0.4; transform: translateX(-6px); transition: opacity 0.35s, transform 0.35s, border-color 0.35s; }
-  .hop.on { opacity: 1; transform: none; }
-  .hop.leak { border-color: rgba(225, 29, 72, 0.55); }
-  .idx { font-family: var(--mono); font-size: 12px; color: var(--dim); }
-  .tool { font-family: var(--mono); font-size: 14px; }
-  .dest { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-  .val { font-family: var(--mono); font-size: 13px; background: var(--panel-2); padding: 6px 10px; border-radius: 7px; overflow-wrap: anywhere; }
-  .val.raw { color: #fecdd3; }
-  .val.tok { color: #fde68a; }
-  .val.mask { color: var(--safe); }
-  .verdict { font-size: 13px; font-weight: 600; text-align: right; }
-  .verdict.bad { color: var(--accent-2); }
-  .verdict.ok { color: var(--safe); }
-  .chain-foot { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; color: var(--muted); font-size: 14px; }
+  /* policy */
+  .policy { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; margin-top: 36px; align-items: start; }
+  .code { background: #070b18; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .code-head { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .code pre { padding: 14px 0; font-family: var(--mono); font-size: 13px; line-height: 1.75; overflow-x: auto; }
+  .code .ln { display: block; padding: 0 16px; border-left: 3px solid transparent; color: #c7cff0; white-space: pre; }
+  .code .rule { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+  .code .rule.on { background: rgba(245, 168, 0, 0.08); border-left-color: var(--amber); }
+  .code .cm { color: var(--dim); }
+  .code .kw { color: var(--blue-2); }
+  .code .st { color: var(--amber-2); }
+  .rule-cards { display: grid; gap: 12px; }
+  .rc { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; cursor: pointer; transition: border-color 0.2s, transform 0.2s; }
+  .rc:hover, .rc.on { border-color: var(--amber); transform: translateY(-2px); }
+  .rc h3 { font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .rc h3 i { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--bg); background: var(--amber); border-radius: 4px; padding: 1px 6px; }
+  .rc p { color: var(--muted); font-size: 14.5px; margin-top: 6px; }
+  .rc .hits { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .rc .hits span { font-family: var(--mono); font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--blue-2); }
 
-  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px; transition: border-color 0.2s; }
-  .card:hover { border-color: #4a2129; }
-  .card .n { font-family: var(--mono); color: var(--accent-2); font-size: 13px; margin-bottom: 10px; }
-  .card h3 { font-size: 17px; margin-bottom: 8px; }
-  .card p { color: var(--muted); font-size: 14.5px; }
-  code { font-family: var(--mono); font-size: 0.92em; background: var(--panel-2); padding: 1px 6px; border-radius: 5px; color: #f3d5da; }
+  /* stepper */
+  .stepper { margin-top: 36px; display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
+  .steps { display: grid; gap: 6px; align-content: start; }
+  .steps button { text-align: left; background: transparent; border: 1px solid transparent; color: var(--muted); font: 500 15px var(--sans); padding: 12px 14px; border-radius: 12px; cursor: pointer; display: flex; gap: 12px; align-items: center; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .steps button span { font-family: var(--mono); font-size: 11px; color: var(--dim); width: 22px; }
+  .steps button:hover { color: var(--text); background: var(--panel); }
+  .steps button.on { color: var(--text); background: var(--panel); border-color: var(--line-2); }
+  .steps button.on span { color: var(--amber); }
+  .step-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px; min-height: 260px; position: relative; overflow: hidden; }
+  .step-panel .big { position: absolute; right: -10px; bottom: -40px; font-family: var(--mono); font-size: 180px; font-weight: 700; color: rgba(66, 92, 199, 0.08); line-height: 1; pointer-events: none; }
+  .step-panel h3 { font-size: 24px; letter-spacing: -0.02em; }
+  .step-panel .replaces { font-family: var(--mono); font-size: 12px; color: var(--amber-2); margin-top: 6px; }
+  .step-panel p { color: var(--muted); margin-top: 14px; max-width: 560px; font-size: 16px; position: relative; }
+  .step-panel code, .rc code, .intro code { font-family: var(--mono); font-size: 0.86em; color: var(--amber-2); background: rgba(245, 168, 0, 0.08); padding: 1px 6px; border-radius: 4px; }
 
-  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; font-size: 14.5px; }
-  th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; background: var(--panel-2); }
-  tr:last-child td { border-bottom: 0; }
-  td:first-child { color: var(--muted); }
-  .table-wrap { overflow-x: auto; }
+  /* compare */
+  .compare { margin-top: 36px; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+  .cmp-row { display: grid; grid-template-columns: 180px 1fr 1fr; border-top: 1px solid var(--line); }
+  .cmp-row:first-child { border-top: 0; }
+  .cmp-row > div { padding: 16px 18px; font-size: 15px; }
+  .cmp-row .what { font-family: var(--mono); font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding-top: 19px; }
+  .cmp-row .old { color: var(--muted); background: rgba(11, 17, 36, 0.7); }
+  .cmp-row .old::before { content: "- "; font-family: var(--mono); color: var(--red); }
+  .cmp-row .new { background: rgba(66, 92, 199, 0.08); }
+  .cmp-row .new::before { content: "+ "; font-family: var(--mono); color: var(--green); }
+  .cmp-row.head > div { font-weight: 700; font-size: 14px; padding: 12px 18px; }
+  .cmp-row.head .old::before, .cmp-row.head .new::before { content: ""; }
+  .cmp-row.head .new { color: var(--amber-2); }
 
-  pre.term { background: #0a0405; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px; line-height: 1.8; color: #f3d5da; }
-  pre.term .c { color: var(--dim); }
+  .term { margin-top: 36px; background: #070b18; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .term-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .copy { font: 700 12px var(--mono); background: var(--panel-2); color: var(--text); border: 1px solid var(--line-2); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+  .copy:hover { border-color: var(--amber); color: var(--amber-2); }
+  .term pre { padding: 18px; font-family: var(--mono); font-size: 13px; line-height: 1.9; overflow-x: auto; color: #d4dbf6; }
+  .term .c { color: var(--dim); }
+  .term .p { color: var(--amber); user-select: none; }
 
-  footer { padding: 40px 0 56px; border-top: 1px solid var(--border); color: var(--dim); font-size: 14px; }
-  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
+  footer { border-top: 1px solid var(--line); padding: 34px 0 50px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 
-  @media (max-width: 760px) {
-    .grid3 { grid-template-columns: 1fr; }
-    .hop { grid-template-columns: 1fr 1fr; }
-    .hop .idx { display: none; }
-    .hop .val { grid-column: 1 / -1; }
-    .verdict { text-align: left; }
-    .nav-links { gap: 14px; }
-    .nav-links .hide-sm { display: none; }
-    .hero { padding: 64px 0 48px; }
+  @media (max-width: 900px) {
+    .policy, .stepper { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: repeat(3, 1fr); }
+    .steps button { justify-content: center; font-size: 13.5px; padding: 10px; }
+    .readout { grid-template-columns: 1fr 1fr; }
+    .readout .cell:nth-child(2) { grid-column: 1 / -1; order: 3; }
+    .cmp-row { grid-template-columns: 1fr 1fr; }
+    .cmp-row .what { grid-column: 1 / -1; padding-bottom: 0; }
+  }
+  @media (max-width: 560px) {
+    .links a:not(.gh) { display: none; }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .cmp-row { grid-template-columns: 1fr; }
+    .stage { padding: 12px; }
   }
 </style>
 </head>
@@ -114,203 +186,341 @@
 
 <nav>
   <div class="wrap">
-    <a class="logo" href="#">
-      <span class="logo-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+    <a class="brand" href="#">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#425CC7"/><circle cx="12" cy="11" r="3" fill="#F5A800" stroke="none"/></svg>
       AgentWard
     </a>
-    <div class="nav-links">
-      <a href="#demo">Demo</a>
-      <a href="#how" class="hide-sm">How it works</a>
-      <a href="#vs" class="hide-sm">vs AgentRaft</a>
-      <a href="https://github.com/DCchoudhury15/agentward">GitHub</a>
+    <div class="links">
+      <a href="#policy">Policy</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#vs">vs AgentRaft</a>
+      <a class="gh" href="https://github.com/DCchoudhury15/agentward">GitHub</a>
     </div>
   </div>
 </nav>
 
-<header class="hero">
-  <div class="wrap">
-    <span class="pill">OpenTelemetry &middot; SigNoz &middot; Rego</span>
-    <h1>A GPS tracker for <span>sensitive data inside AI agents.</span></h1>
-    <p class="lead">Agents chain tool calls: read a database, hand the result to an LLM, call an API, write a log. Somewhere in that chain an SSN or an API key slips out. AgentWard tracks where sensitive data actually goes, live, and redacts it before it leaves.</p>
-    <div class="cta">
-      <a class="btn btn-primary" href="https://github.com/DCchoudhury15/agentward">View on GitHub</a>
-      <a class="btn btn-ghost" href="https://gitlab.com/divyanshuchoudhury51/agentward">GitLab mirror</a>
-      <a class="btn btn-ghost" href="#demo">See the demo</a>
+<div class="wrap">
+  <header class="hero">
+    <div class="chip"><b></b> OpenTelemetry &middot; SigNoz &middot; Rego</div>
+    <h1>A <span class="bl">GPS tracker</span> for the sensitive data <span class="hl">inside your AI agent.</span></h1>
+    <p class="lead">Agents chain tool calls together. Somewhere between the database and the LLM, an SSN or an API key slips out. AgentWard follows the data along the call chain, live, and redacts it before it leaves.</p>
+    <div class="actions">
+      <a class="btn btn-amber" href="https://github.com/DCchoudhury15/agentward">View source</a>
+      <a class="btn btn-line" href="https://gitlab.com/divyanshuchoudhury51/agentward">GitLab mirror</a>
+      <a class="btn btn-line" href="#run">Run it yourself</a>
     </div>
-  </div>
-</header>
 
-<section id="demo">
-  <div class="wrap">
-    <h2>One fake SSN, six tool calls</h2>
-    <p class="sub">The breach simulator plants a fake SSN in an HR bot's database, then lets the agent run its normal chain. Switch between the two runs to see what ends up in storage.</p>
-    <div class="toggle" role="tablist">
-      <button type="button" data-mode="off">Without AgentWard</button>
-      <button type="button" data-mode="on" class="active">With AgentWard</button>
+    <div class="stage" id="stage">
+      <div class="stage-top">
+        <div class="switch" role="tablist">
+          <button type="button" data-mode="off">Without AgentWard</button>
+          <button type="button" data-mode="on" class="on">With AgentWard</button>
+        </div>
+        <span class="meta">breach simulator &middot; hr_bot &middot; fake SSN planted</span>
+      </div>
+      <div class="graph-wrap">
+        <svg class="graph" id="graph" viewBox="0 0 1000 330" role="img" aria-label="Agent tool chain with a taint packet moving through six tools">
+          <rect id="zIn" rx="16" fill="rgba(66,92,199,0.06)" stroke="#1b2550" stroke-dasharray="4 6"/>
+          <rect id="zOut" rx="16" fill="rgba(245,168,0,0.035)" stroke="#2a2108" stroke-dasharray="4 6"/>
+          <text class="zone-label" id="lIn">INSIDE THE BOUNDARY</text>
+          <text class="zone-label" id="lOut">LEAVES THE BOUNDARY</text>
+          <g id="edges"></g>
+          <g id="nodes"></g>
+          <circle id="packet" class="packet" r="7" cx="-50" cy="-50"/>
+        </svg>
+      </div>
+      <div class="readout">
+        <div class="cell"><div class="k">span</div><div class="v" id="rTool">click a tool</div></div>
+        <div class="cell"><div class="k">stored in SigNoz</div><div class="v" id="rVal">&nbsp;</div></div>
+        <div class="cell"><div class="k">decision</div><div class="v" id="rDec">&nbsp;</div></div>
+      </div>
     </div>
-    <div class="chain" id="chain"></div>
-    <div class="chain-foot">
-      <button class="btn btn-primary" id="replay" type="button">Replay</button>
-      <span id="summary"></span>
+  </header>
+</div>
+
+<section id="policy">
+  <div class="wrap">
+    <div class="kicker">The decision</div>
+    <h2>No LLM judge. A policy file you can read.</h2>
+    <p class="intro">The sidecar collector evaluates this Rego policy on every span before it is stored. Hover a rule to see which tools it fires on in the breach run.</p>
+    <div class="policy">
+      <div class="code">
+        <div class="code-head"><span>collector/policy/pii_egress.rego</span><span>excerpt</span></div>
+<pre><span class="ln"><span class="kw">package</span> agentward</span><span class="ln"> </span><span class="ln"><span class="cm"># Sinks where raw sensitive data must not land.</span></span><span class="ln">sensitive_sinks := {<span class="st">"external"</span>, <span class="st">"llm"</span>, <span class="st">"log"</span>}</span><span class="ln">non_adequate_jurisdictions := {<span class="st">"us"</span>}</span><span class="ln"> </span><span class="ln rule" data-rule="egress"><span class="cm"># Rule 1: sensitive data reaching an external / llm / log sink.</span></span><span class="ln rule" data-rule="egress"><span class="kw">violation contains</span> {<span class="st">"rule"</span>: <span class="st">"pii_egress"</span>, ...} <span class="kw">if</span> {</span><span class="ln rule" data-rule="egress">    input.sensitive == true</span><span class="ln rule" data-rule="egress">    input.destination <span class="kw">in</span> sensitive_sinks</span><span class="ln rule" data-rule="egress">}</span><span class="ln"> </span><span class="ln rule" data-rule="transfer"><span class="cm"># Rule 2: PII to a non-adequate jurisdiction (GDPR Art. 44).</span></span><span class="ln rule" data-rule="transfer"><span class="kw">transfer_violation contains</span> {<span class="st">"rule"</span>: <span class="st">"transfer"</span>, ...} <span class="kw">if</span> {</span><span class="ln rule" data-rule="transfer">    has_class(input.classes, <span class="st">"pii"</span>)</span><span class="ln rule" data-rule="transfer">    input.jurisdiction <span class="kw">in</span> non_adequate_jurisdictions</span><span class="ln rule" data-rule="transfer">}</span><span class="ln"> </span><span class="ln rule" data-rule="redact"><span class="cm"># Always redact raw sensitive values from stored spans.</span></span><span class="ln rule" data-rule="redact"><span class="kw">redact if</span> {</span><span class="ln rule" data-rule="redact">    input.sensitive == true</span><span class="ln rule" data-rule="redact">}</span></pre>
+      </div>
+      <div class="rule-cards">
+        <div class="rc" data-rule="egress"><h3><i>rule 1</i> Egress</h3><p>Sensitive data headed to an LLM, an external API or a log is a violation.</p><div class="hits"><span>ask_llm</span><span>call_external_api</span><span>write_log</span></div></div>
+        <div class="rc" data-rule="transfer"><h3><i>rule 2</i> Cross-border transfer</h3><p>PII sent to a non-adequate jurisdiction, the GDPR Art. 44 case. Fires on top of rule 1.</p><div class="hits"><span>ask_llm</span><span>call_external_api</span></div></div>
+        <div class="rc" data-rule="redact"><h3><i>always</i> Redact before storage</h3><p>SigNoz never stores the raw value, even for tools that legitimately need it internally.</p><div class="hits"><span>every sensitive span</span></div></div>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="how">
+<section id="pipeline">
   <div class="wrap">
-    <h2>How it works</h2>
-    <p class="sub">Six stages, each one running in real time with no LLM in the hot path.</p>
-    <div class="grid3">
-      <div class="card"><div class="n">01 / detect</div><h3>Find the sensitive fields</h3><p>Presidio plus secret patterns scan every tool's input and output as it passes through.</p></div>
-      <div class="card"><div class="n">02 / propagate</div><h3>Tag the call chain</h3><p>A compact tag (<code>taint.id</code>, <code>taint.classes</code>, never the value) rides in OTel baggage to every downstream span. It survives even when an LLM rewrites the data.</p></div>
-      <div class="card"><div class="n">03 / decide</div><h3>Policy at the sink</h3><p>A Rego policy in a sidecar collector decides: sensitive data headed to an LLM, an external API or a log is a violation. Cross-border PII is flagged too.</p></div>
-      <div class="card"><div class="n">04 / redact</div><h3>Context-aware redaction</h3><p>Internal tools get a reversible token with the same shape. Anything leaving gets a one-way mask, before it is ever stored.</p></div>
-      <div class="card"><div class="n">05 / record</div><h3>Evidence you can verify</h3><p>A tamper-evident Merkle log plus SigNoz dashboards for lineage, blast radius and SLOs, usable as GDPR Art. 30 records.</p></div>
-      <div class="card"><div class="n">06 / recover</div><h3>Suggest the fix</h3><p>A fix suggester walks the agent's source code for unguarded sinks and proposes a one-line patch.</p></div>
+    <div class="kicker">The pipeline</div>
+    <h2>Six stages, all in real time.</h2>
+    <p class="intro">Each stage replaces a piece of the AgentRaft research pipeline with something that runs live on OpenTelemetry.</p>
+    <div class="stepper">
+      <div class="steps" id="steps"></div>
+      <div class="step-panel" id="panel"></div>
     </div>
   </div>
 </section>
 
 <section id="vs">
   <div class="wrap">
-    <h2>From research to runtime</h2>
-    <p class="sub">AgentRaft (Lin et al., 2026) showed data over-exposure in 57% of the agent call chains it analyzed. AgentWard keeps its formal model and makes it run live on infrastructure you already have.</p>
-    <div class="table-wrap">
-      <table>
-        <tr><th></th><th>AgentRaft</th><th>AgentWard</th></tr>
-        <tr><td>Propagation</td><td>LLM-judged semantic dependency</td><td>OTel baggage and span links, real time, no LLM</td></tr>
-        <tr><td>"Was it necessary?"</td><td>Vote of three LLMs</td><td>Deterministic, auditable Rego policy</td></tr>
-        <tr><td>Input</td><td>Custom benchmark trace format</td><td>Standard OTel <code>gen_ai.*</code> spans in SigNoz</td></tr>
-        <tr><td>Outcome</td><td>Offline detection</td><td>Runtime enforcement, redacted before egress</td></tr>
-        <tr><td>Output</td><td>Metrics</td><td>Lineage and blast radius as verifiable evidence</td></tr>
-      </table>
+    <div class="kicker">Research to runtime</div>
+    <h2>AgentRaft measured the leak. AgentWard stops it.</h2>
+    <p class="intro">AgentRaft (Lin et al., 2026) found data over-exposure in 57% of the agent call chains it analyzed. AgentWard keeps its formal model, <code>D_OE = (D_trans \ (D_nec &cup; D_int)) &cap; D_total</code>, and makes it enforceable.</p>
+    <div class="compare">
+      <div class="cmp-row head"><div class="what"></div><div class="old">AgentRaft</div><div class="new">AgentWard</div></div>
+      <div class="cmp-row"><div class="what">propagation</div><div class="old">LLM-judged semantic dependency</div><div class="new">OTel baggage and span links, no LLM</div></div>
+      <div class="cmp-row"><div class="what">necessity</div><div class="old">Majority vote of three LLMs</div><div class="new">Deterministic, auditable Rego policy</div></div>
+      <div class="cmp-row"><div class="what">input</div><div class="old">Custom benchmark trace format</div><div class="new">Standard OTel <code>gen_ai.*</code> spans in SigNoz</div></div>
+      <div class="cmp-row"><div class="what">outcome</div><div class="old">Offline detection</div><div class="new">Runtime enforcement, redacted before egress</div></div>
+      <div class="cmp-row"><div class="what">evidence</div><div class="old">Metrics</div><div class="new">Merkle-logged lineage and blast radius</div></div>
     </div>
   </div>
 </section>
 
-<section>
+<section id="run">
   <div class="wrap">
-    <h2>Run it yourself</h2>
-    <p class="sub">Unit tests run without anything else. The end-to-end demo needs SigNoz and the sidecar collector.</p>
-<pre class="term"><span class="c"># unit tests</span>
-python3 -m unittest discover tests
-cd collector/processor/taintpolicy &amp;&amp; go test ./...
-<span class="c"># end-to-end: start SigNoz and the sidecar collector, then</span>
-python3 demo/hr_bot/breach_simulator.py --endpoint http://localhost:4319/v1/traces
-<span class="c"># open http://localhost:8080 and filter on agentward.violation=true</span></pre>
+    <div class="kicker">Try it</div>
+    <h2>Run the breach yourself.</h2>
+    <p class="intro">Unit tests need nothing else. The end-to-end run needs SigNoz and the sidecar collector.</p>
+    <div class="term">
+      <div class="term-head"><span>bash</span><button class="copy" id="copy" type="button">copy</button></div>
+<pre id="cmds"><span class="p">$ </span>git clone https://github.com/DCchoudhury15/agentward &amp;&amp; cd agentward
+<span class="p">$ </span>python3 -m unittest discover tests
+<span class="p">$ </span>python3 demo/hr_bot/breach_simulator.py --endpoint http://localhost:4319/v1/traces
+<span class="c"># open SigNoz at http://localhost:8080 and filter on agentward.violation=true</span></pre>
+    </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <span>AgentWard &middot; by Divyanshu Choudhury</span>
-    <span><a href="https://github.com/DCchoudhury15/agentward">GitHub</a> &middot; <a href="https://gitlab.com/divyanshuchoudhury51/agentward">GitLab</a></span>
+    <span>AgentWard &middot; Divyanshu Choudhury</span>
+    <span><a href="https://github.com/DCchoudhury15/agentward">github</a> &middot; <a href="https://gitlab.com/divyanshuchoudhury51/agentward">gitlab</a></span>
   </div>
 </footer>
 
 <script>
-// Interactive background: dot grid lit around the pointer, over slow deep crimson glows.
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Background: drifting nodes linked by thin lines; the pointer taints nearby nodes amber.
 (() => {
-  const DOT = "251, 113, 133", GLOW_A = "136, 19, 55", GLOW_B = "76, 5, 25";
-  const GAP = 28, RADIUS = 200;
-  const canvas = document.getElementById("bg");
-  const ctx = canvas.getContext("2d");
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const p = { x: -9999, y: -9999, tx: -9999, ty: -9999 };
-  let w = 0, h = 0, frame = 0;
+  const canvas = document.getElementById("bg"), ctx = canvas.getContext("2d");
+  const p = { x: -9999, y: -9999 };
+  let w = 0, h = 0, nodes = [];
   const resize = () => {
     const dpr = Math.min(devicePixelRatio || 1, 2);
     w = innerWidth; h = innerHeight;
     canvas.width = w * dpr; canvas.height = h * dpr;
     canvas.style.width = w + "px"; canvas.style.height = h + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.round((w * h) / 16000);
+    nodes = Array.from({ length: n }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25, t: 0 }));
   };
-  const move = (x, y) => { p.tx = x; p.ty = y; if (p.x < -1000) { p.x = x; p.y = y; } };
-  addEventListener("mousemove", e => move(e.clientX, e.clientY), { passive: true });
-  addEventListener("touchmove", e => e.touches[0] && move(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-  document.addEventListener("mouseleave", () => { p.tx = -9999; p.ty = -9999; });
+  addEventListener("mousemove", e => { p.x = e.clientX; p.y = e.clientY; }, { passive: true });
+  addEventListener("touchmove", e => { if (e.touches[0]) { p.x = e.touches[0].clientX; p.y = e.touches[0].clientY; } }, { passive: true });
   addEventListener("resize", resize);
-  const glow = (x, y, r, c) => {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, c); g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-  };
+  const LINK = 120;
   const draw = () => {
-    frame++; const t = frame / 60, d = still ? 0 : 1, s = Math.max(w, h);
-    p.x += (p.tx - p.x) * 0.12; p.y += (p.ty - p.y) * 0.12;
     ctx.clearRect(0, 0, w, h);
-    glow(w * (0.2 + 0.05 * Math.sin(t * 0.15) * d), h * (0.15 + 0.05 * Math.cos(t * 0.11) * d), s * 0.55, `rgba(${GLOW_A}, 0.16)`);
-    glow(w * (0.85 + 0.04 * Math.cos(t * 0.13) * d), h * (0.8 + 0.05 * Math.sin(t * 0.09) * d), s * 0.5, `rgba(${GLOW_B}, 0.24)`);
-    if (p.x > -1000) glow(p.x, p.y, RADIUS * 2, `rgba(${GLOW_A}, 0.12)`);
-    for (let x = GAP / 2; x < w; x += GAP) for (let y = GAP / 2; y < h; y += GAP) {
-      const dist = Math.hypot(x - p.x, y - p.y), near = dist < RADIUS ? 1 - dist / RADIUS : 0;
-      ctx.fillStyle = near > 0 ? `rgba(${DOT}, ${0.07 + near * 0.38})` : "rgba(170, 130, 140, 0.08)";
-      const z = 1 + near * 1.2; ctx.fillRect(x - z / 2, y - z / 2, z, z);
+    const g = ctx.createRadialGradient(w * 0.5, 0, 0, w * 0.5, 0, Math.max(w, h) * 0.75);
+    g.addColorStop(0, "rgba(66, 92, 199, 0.15)"); g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    for (const n of nodes) {
+      if (!still) { n.x += n.vx; n.y += n.vy; if (n.x < 0 || n.x > w) n.vx *= -1; if (n.y < 0 || n.y > h) n.vy *= -1; }
+      if (Math.hypot(n.x - p.x, n.y - p.y) < 110) n.t = 1;
+      n.t *= 0.985;
+    }
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (d > LINK) continue;
+      const k = 1 - d / LINK, t = Math.max(a.t, b.t);
+      if (t > 0.3) { a.t = Math.max(a.t, t * 0.97); b.t = Math.max(b.t, t * 0.97); }
+      ctx.strokeStyle = t > 0.05 ? `rgba(245, 168, 0, ${k * 0.45 * t})` : `rgba(66, 92, 199, ${k * 0.16})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (const n of nodes) {
+      ctx.fillStyle = n.t > 0.05 ? `rgba(255, 203, 82, ${0.25 + n.t * 0.6})` : "rgba(138, 156, 240, 0.25)";
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.t > 0.05 ? 2 : 1.4, 0, Math.PI * 2); ctx.fill();
     }
     requestAnimationFrame(draw);
   };
   resize(); draw();
 })();
 
-// The breach simulator chain, with and without AgentWard (values from the README run).
+// Flow graph. Stored values come from the README's breach run against live SigNoz.
+const RAW = '"ssn": "421-58-9036"';
+const TOOLS = [
+  { id: "query_db", dest: "internal", x: 95, y: 175, on: ['"ssn": "[PII]"', "mask", "safe, redacted in storage", "good"], icon: "M-7 -5h14v10h-14z" },
+  { id: "internal_store", dest: "internal", x: 255, y: 105, on: ['"ssn": "103-48-0677" (reversible token)', "tok", "safe, reversible token", "good"], icon: "M-6 -6h12v12h-12z" },
+  { id: "ask_llm", dest: "llm", x: 440, y: 225, on: ['"ssn": "[PII]"', "mask", "violation + transfer, masked", "bad"], icon: "M0 -7l7 7l-7 7l-7 -7z", rules: ["egress", "transfer", "redact"] },
+  { id: "rag_retrieve", dest: "rag", x: 610, y: 110, on: ["[PII]", "mask", "masked (embeddings are invertible)", "good"], icon: "M-7 -3h14v6h-14z" },
+  { id: "call_external_api", dest: "external", x: 775, y: 230, on: ["[PII]", "mask", "violation + transfer, masked", "bad"], icon: "M-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0", rules: ["egress", "transfer", "redact"] },
+  { id: "write_log", dest: "log", x: 920, y: 120, on: ["[PII]", "mask", "violation, masked", "bad"], icon: "M-6 -7h12v14h-12z", rules: ["egress", "redact"] },
+];
+TOOLS[0].rules = ["redact"]; TOOLS[1].rules = ["redact"]; TOOLS[3].rules = ["redact"];
+
 (() => {
-  const SSN = '"ssn": "421-58-9036"';
-  const hops = [
-    { tool: "query_db", dest: "internal", on: ['"ssn": "[PII]"', "mask"], off: [SSN, "raw"], leak: false },
-    { tool: "internal_store", dest: "internal", on: ['"ssn": "103-48-0677" (reversible token)', "tok"], off: [SSN, "raw"], leak: false },
-    { tool: "ask_llm", dest: "llm", on: ['"ssn": "[PII]"', "mask"], off: [SSN, "raw"], leak: true },
-    { tool: "rag_retrieve", dest: "rag", on: ["[PII]", "mask"], off: [SSN, "raw"], leak: false },
-    { tool: "call_external_api", dest: "external", on: ["[PII]", "mask"], off: [SSN, "raw"], leak: true },
-    { tool: "write_log", dest: "log", on: ["[PII]", "mask"], off: [SSN, "raw"], leak: true },
-  ];
-  const chain = document.getElementById("chain");
-  const summary = document.getElementById("summary");
-  const buttons = document.querySelectorAll(".toggle button");
-  let mode = "on", timer;
-
-  const render = () => {
-    chain.innerHTML = "";
-    hops.forEach((hop, i) => {
-      const [value, cls] = hop[mode];
-      let verdict, vcls;
-      if (mode === "off") { verdict = hop.dest === "internal" ? "stored in plain text" : "leaked"; vcls = "bad"; }
-      else { verdict = hop.leak ? "violation, redacted" : "safe"; vcls = hop.leak ? "bad" : "ok"; }
-      const row = document.createElement("div");
-      row.className = "hop";
-      row.innerHTML = `<span class="idx">0${i + 1}</span><span class="tool">${hop.tool}</span><span class="dest">${hop.dest}</span><span class="val ${cls}"></span><span class="verdict ${vcls}">${verdict}</span>`;
-      row.querySelector(".val").textContent = value;
-      chain.appendChild(row);
-    });
-    summary.textContent = "";
-    clearInterval(timer);
-    const rows = [...chain.children];
-    let i = 0;
-    timer = setInterval(() => {
-      if (i < rows.length) {
-        rows[i].classList.add("on");
-        if (mode === "off" && hops[i].dest !== "internal") rows[i].classList.add("leak");
-        i++;
-      } else {
-        clearInterval(timer);
-        summary.textContent = mode === "on"
-          ? "The real SSN never reaches storage. 3 violations caught and redacted."
-          : "The real SSN is stored in every span and sent to the LLM, an external API and the logs.";
-      }
-    }, 380);
+  const NS = "http://www.w3.org/2000/svg";
+  const edgesG = document.getElementById("edges"), nodesG = document.getElementById("nodes");
+  const packet = document.getElementById("packet");
+  const rTool = document.getElementById("rTool"), rVal = document.getElementById("rVal"), rDec = document.getElementById("rDec");
+  const btns = document.querySelectorAll(".switch button");
+  let mode = "on", raf, idleTimer;
+  // Wide screens: left to right. Narrow screens: top to bottom, so labels stay readable.
+  const LAYOUTS = {
+    wide: { box: "0 0 1000 330", zIn: [10, 20, 330, 290], zOut: [360, 20, 630, 290], lIn: [28, 46], lOut: [378, 46],
+      pts: TOOLS.map(t => [t.x, t.y]), vertical: false },
+    narrow: { box: "0 0 360 800", zIn: [10, 10, 340, 250], zOut: [10, 275, 340, 515], lIn: [26, 36], lOut: [26, 301],
+      pts: [[100, 105], [255, 180], [100, 360], [255, 470], [100, 580], [255, 690]], vertical: true },
   };
-
-  buttons.forEach(b => b.addEventListener("click", () => {
+  const svg = document.getElementById("graph");
+  const edges = [], nodeEls = [];
+  let layoutName = "";
+  const build = () => {
+    const name = svg.parentElement.clientWidth < 600 ? "narrow" : "wide";
+    if (name === layoutName) return false;
+    layoutName = name;
+    const L = LAYOUTS[name];
+    svg.setAttribute("viewBox", L.box);
+    for (const [id, v] of [["zIn", L.zIn], ["zOut", L.zOut]]) {
+      const r = document.getElementById(id);
+      ["x", "y", "width", "height"].forEach((a, k) => r.setAttribute(a, v[k]));
+    }
+    for (const [id, v] of [["lIn", L.lIn], ["lOut", L.lOut]]) {
+      const t = document.getElementById(id); t.setAttribute("x", v[0]); t.setAttribute("y", v[1]);
+    }
+    edgesG.innerHTML = ""; nodesG.innerHTML = ""; edges.length = 0; nodeEls.length = 0;
+    for (let i = 0; i < TOOLS.length - 1; i++) {
+      const [ax, ay] = L.pts[i], [bx, by] = L.pts[i + 1];
+      const path = document.createElementNS(NS, "path");
+      const d = L.vertical
+        ? `M ${ax} ${ay} C ${ax} ${(ay + by) / 2}, ${bx} ${(ay + by) / 2}, ${bx} ${by}`
+        : `M ${ax} ${ay} C ${(ax + bx) / 2} ${ay}, ${(ax + bx) / 2} ${by}, ${bx} ${by}`;
+      path.setAttribute("d", d);
+      path.setAttribute("class", "edge");
+      edgesG.appendChild(path);
+      edges.push(path);
+    }
+    TOOLS.forEach((t, i) => {
+      const g = document.createElementNS(NS, "g");
+      g.setAttribute("class", "node");
+      g.setAttribute("transform", `translate(${L.pts[i][0]} ${L.pts[i][1]})`);
+      g.setAttribute("tabindex", "0");
+      g.innerHTML = `<circle class="ring" r="30"/><path class="icon" d="${t.icon}"/><text class="t" y="52">${t.id}</text><text class="d" y="68">${t.dest}</text>`;
+      g.addEventListener("click", () => { stop(); show(i, true); });
+      g.addEventListener("keydown", e => { if (e.key === "Enter") { stop(); show(i, true); } });
+      nodesG.appendChild(g);
+      nodeEls.push(g);
+    });
+    return true;
+  };
+  build();
+  addEventListener("resize", () => { if (build() && raf) run(); });
+  const valueFor = t => mode === "on" ? t.on : [RAW, "raw", t.dest === "internal" ? "stored in plain text" : "leaked in plain text", "bad"];
+  const show = (i, all) => {
+    const t = TOOLS[i], [v, vc, d, dc] = valueFor(t);
+    rTool.textContent = `${t.id} → ${t.dest}`;
+    rVal.textContent = v; rVal.className = "v " + vc;
+    rDec.textContent = d; rDec.className = "v " + dc;
+    nodeEls.forEach((g, j) => {
+      g.classList.remove("safe", "redact", "leak");
+      if (all || j <= i) {
+        const tt = TOOLS[j];
+        if (mode === "off") g.classList.add(tt.dest === "internal" ? "safe" : "leak");
+        else g.classList.add(tt.on[3] === "bad" ? "redact" : "safe");
+      }
+    });
+    edges.forEach((e, j) => { e.classList.toggle("lit", (all || j < i) && mode === "on"); e.classList.toggle("hot", (all || j < i) && mode === "off"); });
+  };
+  const stop = () => { cancelAnimationFrame(raf); clearTimeout(idleTimer); packet.setAttribute("cx", -50); };
+  const run = () => {
+    stop();
+    nodeEls.forEach(g => g.classList.remove("safe", "redact", "leak"));
+    edges.forEach(e => e.classList.remove("lit", "hot"));
+    packet.classList.toggle("raw", mode === "off");
+    if (still) { show(TOOLS.length - 1, true); return; }
+    let seg = 0, t0 = performance.now();
+    show(0, false);
+    const SEG_MS = 900;
+    const tick = now => {
+      const k = Math.min(1, (now - t0) / SEG_MS);
+      const e = edges[seg], L = e.getTotalLength(), pt = e.getPointAtLength(L * k);
+      packet.setAttribute("cx", pt.x); packet.setAttribute("cy", pt.y);
+      if (k >= 1) {
+        seg++;
+        show(seg, false);
+        if (seg >= edges.length) { packet.setAttribute("cx", -50); idleTimer = setTimeout(run, 3200); return; }
+        t0 = now;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  };
+  btns.forEach(b => b.addEventListener("click", () => {
     mode = b.dataset.mode;
-    buttons.forEach(x => x.classList.toggle("active", x === b));
-    render();
+    btns.forEach(x => { x.classList.toggle("on", x === b); x.classList.toggle("off-mode", x === b && mode === "off"); });
+    run();
   }));
-  document.getElementById("replay").addEventListener("click", render);
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { if (!raf) run(); } }), { threshold: 0.2 });
+  io.observe(document.getElementById("stage"));
 
-  const io = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting) { io.disconnect(); render(); }
-  }, { threshold: 0.3 });
-  io.observe(chain);
+  // Policy hover highlights the tools each rule fires on.
+  const lines = document.querySelectorAll(".code .rule"), cards = document.querySelectorAll(".rc");
+  const light = rule => {
+    lines.forEach(l => l.classList.toggle("on", l.dataset.rule === rule));
+    cards.forEach(c => c.classList.toggle("on", c.dataset.rule === rule));
+    nodeEls.forEach((g, i) => g.classList.toggle("policy", !!rule && (TOOLS[i].rules || []).includes(rule)));
+  };
+  [...lines, ...cards].forEach(el => {
+    el.addEventListener("mouseenter", () => light(el.dataset.rule));
+    el.addEventListener("mouseleave", () => light(null));
+    el.addEventListener("click", () => { light(el.dataset.rule); document.getElementById("stage").scrollIntoView({ behavior: "smooth", block: "center" }); });
+  });
 })();
+
+// Pipeline stepper.
+(() => {
+  const STEPS = [
+    ["Detect", "replaces: static field lists", "Presidio plus secret patterns scan every tool's input and output as it passes through, so new sensitive data introduced mid-chain is still caught."],
+    ["Propagate", "replaces: AgentRaft's LLM-judged propagation", "A compact tag (<code>taint.id</code>, <code>taint.classes</code>, never the value) rides in OTel baggage to every downstream span. It survives even when an LLM rewrites the data beyond recognition."],
+    ["Decide", "replaces: the three-LLM voting committee", "A Rego policy in a sidecar collector decides per span: sensitive data to an external, llm or log sink is a violation. Admins edit the policy without rebuilding the SDK."],
+    ["Redact", "replaces: static field-name masking", "Context-aware: internal tools get a reversible token with the same shape as the original, anything leaving gets a one-way mask, before it is ever stored."],
+    ["Record", "turns metrics into evidence", "A tamper-evident Merkle log plus SigNoz dashboards for lineage, blast radius and SLOs, usable as GDPR Art. 30 records."],
+    ["Recover", "AgentRaft has no recovery step", "A fix suggester walks the agent's source code (AST) for unguarded sinks and proposes a one-line patch, prioritized by the dashboards."],
+  ];
+  const steps = document.getElementById("steps"), panel = document.getElementById("panel");
+  let cur = 0, timer;
+  const render = i => {
+    cur = i;
+    [...steps.children].forEach((b, j) => b.classList.toggle("on", j === i));
+    const [t, r, d] = STEPS[i];
+    panel.innerHTML = `<div class="big">0${i + 1}</div><h3>${t}</h3><div class="replaces">${r}</div><p>${d}</p>`;
+  };
+  STEPS.forEach(([t], i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `<span>0${i + 1}</span>${t}`;
+    b.addEventListener("click", () => { clearInterval(timer); render(i); });
+    steps.appendChild(b);
+  });
+  render(0);
+  if (!still) timer = setInterval(() => render((cur + 1) % STEPS.length), 4500);
+})();
+
+document.getElementById("copy").addEventListener("click", e => {
+  const text = document.getElementById("cmds").innerText.split("\n").filter(l => l.startsWith("$ ")).map(l => l.slice(2)).join("\n");
+  try { navigator.clipboard.writeText(text); e.target.textContent = "copied"; } catch { e.target.textContent = "select + copy"; }
+  setTimeout(() => (e.target.textContent = "copy"), 1500);
+});
 </script>
 </body>
 </html>
