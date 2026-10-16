@@ -9,22 +9,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  /* OpenTelemetry palette: blue #425CC7 + amber #F5A800 on deep navy */
+  /* Dark brown-black with a copper accent */
   :root {
-    --bg: #060914;
-    --panel: #0b1124;
-    --panel-2: #10183a;
-    --line: #1b2550;
-    --line-2: #2b3a78;
-    --text: #eaeefb;
-    --muted: #919cc4;
-    --dim: #58638c;
-    --blue: #425cc7;
-    --blue-2: #8a9cf0;
-    --amber: #f5a800;
-    --amber-2: #ffcb52;
-    --red: #ff6b6b;
-    --green: #3ecf8e;
+    --bg: #0c0907;
+    --panel: #14100c;
+    --panel-2: #1b150f;
+    --line: #2a2018;
+    --line-2: #3d2f23;
+    --text: #f2ebe3;
+    --muted: #ab9c8c;
+    --dim: #6f6152;
+    --blue: #8b5e3c;
+    --blue-2: #d6a77a;
+    --amber: #d4894a;
+    --amber-2: #ecc195;
+    --red: #e5735f;
+    --green: #9cc59a;
     --mono: "Space Mono", ui-monospace, monospace;
     --sans: "Space Grotesk", system-ui, sans-serif;
   }
@@ -36,7 +36,7 @@
   a:hover { color: var(--amber-2); }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
 
-  nav { position: sticky; top: 0; z-index: 20; background: rgba(6, 9, 20, 0.82); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  nav { position: sticky; top: 0; z-index: 20; background: rgba(12, 9, 7, 0.82); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
   nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; color: var(--text); letter-spacing: -0.01em; }
   .brand:hover { color: var(--text); }
@@ -56,13 +56,13 @@
   .lead { margin: 22px auto 0; color: var(--muted); font-size: clamp(16px, 2vw, 19px); max-width: 700px; }
   .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px; font: 600 15px var(--sans); cursor: pointer; border: 1px solid transparent; transition: background 0.15s, border-color 0.15s, color 0.15s; }
-  .btn-amber { background: var(--amber); color: #0a0d1a; }
-  .btn-amber:hover { background: var(--amber-2); color: #0a0d1a; }
-  .btn-line { border-color: var(--line-2); color: var(--text); background: rgba(11, 17, 36, 0.7); }
+  .btn-amber { background: var(--amber); color: #120d09; }
+  .btn-amber:hover { background: var(--amber-2); color: #120d09; }
+  .btn-line { border-color: var(--line-2); color: var(--text); background: rgba(20, 16, 12, 0.7); }
   .btn-line:hover { border-color: var(--blue-2); color: var(--blue-2); }
 
   /* flow graph */
-  .stage { margin-top: 48px; background: linear-gradient(180deg, rgba(11, 17, 36, 0.92), rgba(8, 12, 28, 0.92)); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
+  .stage { margin-top: 48px; background: linear-gradient(180deg, rgba(20, 16, 12, 0.92), rgba(14, 11, 8, 0.92)); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
   .stage-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 6px 14px; }
   .switch { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
   .switch button { border: 0; background: transparent; color: var(--muted); font: 600 13.5px var(--sans); padding: 8px 16px; border-radius: 999px; cursor: pointer; }
@@ -79,21 +79,21 @@
   .node text.t { font-family: var(--mono); font-size: 13px; fill: var(--text); text-anchor: middle; }
   .node text.d { font-family: var(--mono); font-size: 10.5px; fill: var(--dim); text-anchor: middle; letter-spacing: 0.08em; text-transform: uppercase; }
   .node .icon { fill: var(--muted); transition: fill 0.3s; }
-  .node.safe circle.ring { stroke: var(--blue-2); fill: #121c45; }
+  .node.safe circle.ring { stroke: var(--blue-2); fill: #241a12; }
   .node.safe .icon { fill: var(--blue-2); }
-  .node.redact circle.ring { stroke: var(--amber); fill: #2a2108; }
+  .node.redact circle.ring { stroke: var(--amber); fill: #2b1d10; }
   .node.redact .icon { fill: var(--amber); }
-  .node.leak circle.ring { stroke: var(--red); fill: #2c0f14; }
+  .node.leak circle.ring { stroke: var(--red); fill: #2a120c; }
   .node.leak .icon { fill: var(--red); }
   .node.policy circle.ring { stroke-dasharray: 5 4; stroke: var(--amber-2); }
   .node { cursor: pointer; }
-  .packet { fill: var(--amber); filter: drop-shadow(0 0 8px rgba(245, 168, 0, 0.9)); }
-  .packet.raw { fill: var(--red); filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.9)); }
+  .packet { fill: var(--amber); filter: drop-shadow(0 0 8px rgba(212, 137, 74, 0.9)); }
+  .packet.raw { fill: var(--red); filter: drop-shadow(0 0 8px rgba(229, 115, 95, 0.9)); }
   .readout { display: grid; grid-template-columns: 1.1fr 2fr 1fr; gap: 10px; margin-top: 10px; }
   .cell { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
   .cell .k { font-family: var(--mono); font-size: 10.5px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
   .cell .v { font-family: var(--mono); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
-  .v.raw { color: #ffc4c4; }
+  .v.raw { color: #f3c2b6; }
   .v.tok { color: var(--blue-2); }
   .v.mask { color: var(--amber-2); }
   .v.good { color: var(--green); }
@@ -106,12 +106,12 @@
 
   /* policy */
   .policy { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; margin-top: 36px; align-items: start; }
-  .code { background: #070b18; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .code { background: #0a0806; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
   .code-head { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--muted); }
   .code pre { padding: 14px 0; font-family: var(--mono); font-size: 13px; line-height: 1.75; overflow-x: auto; }
-  .code .ln { display: block; padding: 0 16px; border-left: 3px solid transparent; color: #c7cff0; white-space: pre; }
+  .code .ln { display: block; padding: 0 16px; border-left: 3px solid transparent; color: #e2d6c8; white-space: pre; }
   .code .rule { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-  .code .rule.on { background: rgba(245, 168, 0, 0.08); border-left-color: var(--amber); }
+  .code .rule.on { background: rgba(212, 137, 74, 0.08); border-left-color: var(--amber); }
   .code .cm { color: var(--dim); }
   .code .kw { color: var(--blue-2); }
   .code .st { color: var(--amber-2); }
@@ -133,11 +133,11 @@
   .steps button.on { color: var(--text); background: var(--panel); border-color: var(--line-2); }
   .steps button.on span { color: var(--amber); }
   .step-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px; min-height: 260px; position: relative; overflow: hidden; }
-  .step-panel .big { position: absolute; right: -10px; bottom: -40px; font-family: var(--mono); font-size: 180px; font-weight: 700; color: rgba(66, 92, 199, 0.08); line-height: 1; pointer-events: none; }
+  .step-panel .big { position: absolute; right: -10px; bottom: -40px; font-family: var(--mono); font-size: 180px; font-weight: 700; color: rgba(139, 94, 60, 0.08); line-height: 1; pointer-events: none; }
   .step-panel h3 { font-size: 24px; letter-spacing: -0.02em; }
   .step-panel .replaces { font-family: var(--mono); font-size: 12px; color: var(--amber-2); margin-top: 6px; }
   .step-panel p { color: var(--muted); margin-top: 14px; max-width: 560px; font-size: 16px; position: relative; }
-  .step-panel code, .rc code, .intro code { font-family: var(--mono); font-size: 0.86em; color: var(--amber-2); background: rgba(245, 168, 0, 0.08); padding: 1px 6px; border-radius: 4px; }
+  .step-panel code, .rc code, .intro code { font-family: var(--mono); font-size: 0.86em; color: var(--amber-2); background: rgba(212, 137, 74, 0.08); padding: 1px 6px; border-radius: 4px; }
 
   /* compare */
   .compare { margin-top: 36px; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
@@ -145,19 +145,19 @@
   .cmp-row:first-child { border-top: 0; }
   .cmp-row > div { padding: 16px 18px; font-size: 15px; }
   .cmp-row .what { font-family: var(--mono); font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding-top: 19px; }
-  .cmp-row .old { color: var(--muted); background: rgba(11, 17, 36, 0.7); }
+  .cmp-row .old { color: var(--muted); background: rgba(20, 16, 12, 0.7); }
   .cmp-row .old::before { content: "- "; font-family: var(--mono); color: var(--red); }
-  .cmp-row .new { background: rgba(66, 92, 199, 0.08); }
+  .cmp-row .new { background: rgba(139, 94, 60, 0.08); }
   .cmp-row .new::before { content: "+ "; font-family: var(--mono); color: var(--green); }
   .cmp-row.head > div { font-weight: 700; font-size: 14px; padding: 12px 18px; }
   .cmp-row.head .old::before, .cmp-row.head .new::before { content: ""; }
   .cmp-row.head .new { color: var(--amber-2); }
 
-  .term { margin-top: 36px; background: #070b18; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .term { margin-top: 36px; background: #0a0806; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
   .term-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--muted); }
   .copy { font: 700 12px var(--mono); background: var(--panel-2); color: var(--text); border: 1px solid var(--line-2); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
   .copy:hover { border-color: var(--amber); color: var(--amber-2); }
-  .term pre { padding: 18px; font-family: var(--mono); font-size: 13px; line-height: 1.9; overflow-x: auto; color: #d4dbf6; }
+  .term pre { padding: 18px; font-family: var(--mono); font-size: 13px; line-height: 1.9; overflow-x: auto; color: #eadfd2; }
   .term .c { color: var(--dim); }
   .term .p { color: var(--amber); user-select: none; }
 
@@ -187,14 +187,14 @@
 <nav>
   <div class="wrap">
     <a class="brand" href="#">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#425CC7"/><circle cx="12" cy="11" r="3" fill="#F5A800" stroke="none"/></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#8b5e3c"/><circle cx="12" cy="11" r="3" fill="#d4894a" stroke="none"/></svg>
       AgentWard
     </a>
     <div class="links">
       <a href="#policy">Policy</a>
       <a href="#pipeline">Pipeline</a>
       <a href="#vs">vs AgentRaft</a>
-      <a class="gh" href="https://github.com/DCchoudhury15/agentward">GitHub</a>
+      <a class="gh" href="https://gitlab.com/divyanshuchoudhury51/agentward">GitLab</a>
     </div>
   </div>
 </nav>
@@ -205,8 +205,7 @@
     <h1>A <span class="bl">GPS tracker</span> for the sensitive data <span class="hl">inside your AI agent.</span></h1>
     <p class="lead">Agents chain tool calls together. Somewhere between the database and the LLM, an SSN or an API key slips out. AgentWard follows the data along the call chain, live, and redacts it before it leaves.</p>
     <div class="actions">
-      <a class="btn btn-amber" href="https://github.com/DCchoudhury15/agentward">View source</a>
-      <a class="btn btn-line" href="https://gitlab.com/divyanshuchoudhury51/agentward">GitLab mirror</a>
+      <a class="btn btn-amber" href="https://gitlab.com/divyanshuchoudhury51/agentward">View source</a>
       <a class="btn btn-line" href="#run">Run it yourself</a>
     </div>
 
@@ -220,8 +219,8 @@
       </div>
       <div class="graph-wrap">
         <svg class="graph" id="graph" viewBox="0 0 1000 330" role="img" aria-label="Agent tool chain with a taint packet moving through six tools">
-          <rect id="zIn" rx="16" fill="rgba(66,92,199,0.06)" stroke="#1b2550" stroke-dasharray="4 6"/>
-          <rect id="zOut" rx="16" fill="rgba(245,168,0,0.035)" stroke="#2a2108" stroke-dasharray="4 6"/>
+          <rect id="zIn" rx="16" fill="rgba(139,94,60,0.06)" stroke="#2a2018" stroke-dasharray="4 6"/>
+          <rect id="zOut" rx="16" fill="rgba(212,137,74,0.035)" stroke="#2b1d10" stroke-dasharray="4 6"/>
           <text class="zone-label" id="lIn">INSIDE THE BOUNDARY</text>
           <text class="zone-label" id="lOut">LEAVES THE BOUNDARY</text>
           <g id="edges"></g>
@@ -292,7 +291,7 @@
     <p class="intro">Unit tests need nothing else. The end-to-end run needs SigNoz and the sidecar collector.</p>
     <div class="term">
       <div class="term-head"><span>bash</span><button class="copy" id="copy" type="button">copy</button></div>
-<pre id="cmds"><span class="p">$ </span>git clone https://github.com/DCchoudhury15/agentward &amp;&amp; cd agentward
+<pre id="cmds"><span class="p">$ </span>git clone https://gitlab.com/divyanshuchoudhury51/agentward &amp;&amp; cd agentward
 <span class="p">$ </span>python3 -m unittest discover tests
 <span class="p">$ </span>python3 demo/hr_bot/breach_simulator.py --endpoint http://localhost:4319/v1/traces
 <span class="c"># open SigNoz at http://localhost:8080 and filter on agentward.violation=true</span></pre>
@@ -303,7 +302,7 @@
 <footer>
   <div class="wrap">
     <span>AgentWard &middot; Divyanshu Choudhury</span>
-    <span><a href="https://github.com/DCchoudhury15/agentward">github</a> &middot; <a href="https://gitlab.com/divyanshuchoudhury51/agentward">gitlab</a></span>
+    <span><a href="https://gitlab.com/divyanshuchoudhury51/agentward">gitlab</a></span>
   </div>
 </footer>
 
@@ -331,7 +330,7 @@ const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const draw = () => {
     ctx.clearRect(0, 0, w, h);
     const g = ctx.createRadialGradient(w * 0.5, 0, 0, w * 0.5, 0, Math.max(w, h) * 0.75);
-    g.addColorStop(0, "rgba(66, 92, 199, 0.15)"); g.addColorStop(1, "rgba(0,0,0,0)");
+    g.addColorStop(0, "rgba(139, 94, 60, 0.15)"); g.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     for (const n of nodes) {
       if (!still) { n.x += n.vx; n.y += n.vy; if (n.x < 0 || n.x > w) n.vx *= -1; if (n.y < 0 || n.y > h) n.vy *= -1; }
@@ -343,12 +342,12 @@ const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (d > LINK) continue;
       const k = 1 - d / LINK, t = Math.max(a.t, b.t);
       if (t > 0.3) { a.t = Math.max(a.t, t * 0.97); b.t = Math.max(b.t, t * 0.97); }
-      ctx.strokeStyle = t > 0.05 ? `rgba(245, 168, 0, ${k * 0.45 * t})` : `rgba(66, 92, 199, ${k * 0.16})`;
+      ctx.strokeStyle = t > 0.05 ? `rgba(212, 137, 74, ${k * 0.45 * t})` : `rgba(139, 94, 60, ${k * 0.16})`;
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     }
     for (const n of nodes) {
-      ctx.fillStyle = n.t > 0.05 ? `rgba(255, 203, 82, ${0.25 + n.t * 0.6})` : "rgba(138, 156, 240, 0.25)";
+      ctx.fillStyle = n.t > 0.05 ? `rgba(236, 193, 149, ${0.25 + n.t * 0.6})` : "rgba(214, 167, 122, 0.25)";
       ctx.beginPath(); ctx.arc(n.x, n.y, n.t > 0.05 ? 2 : 1.4, 0, Math.PI * 2); ctx.fill();
     }
     requestAnimationFrame(draw);
