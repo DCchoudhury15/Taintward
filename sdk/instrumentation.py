@@ -28,11 +28,13 @@ linear flows are automatic via OTel context.
 
 from __future__ import annotations
 
+import contextvars
 import functools
+import inspect
 import json
 import logging
 import threading
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 from opentelemetry import baggage, context as context_api, trace
 
@@ -58,6 +60,7 @@ _EGRESS_SINKS = {DEST_EXTERNAL, DEST_LLM, DEST_LOG}
 ATTR_DEST = "agentward.destination"
 ATTR_JURISDICTION = "agentward.jurisdiction"  # GDPR Art. 44 (us|eu|""...)
 ATTR_VIOLATION = "agentward.violation"
+ATTR_REDACTED = "agentward.redacted"  # the gate changed the sink's input
 ATTR_TaintSource = "agentward.taint.source_span"  # noqa: N816 - keep readable
 
 # When a Phase 3 sidecar collector applies the authoritative Rego redaction,
@@ -109,6 +112,179 @@ def _jsonable(obj: Any) -> str:
         return repr(obj)
 
 
+class GuardedCall:
+    """One call into a sink, run under the egress gate.
+
+    This is the shared core behind ``instrument_tool`` and the framework
+    adapters in ``sdk.integrations``. Use it as a context manager::
+
+        with GuardedCall("send_email", destination=DEST_EXTERNAL,
+                         kwargs={"to": to, "body": body}) as call:
+            result = real_send(*call.args, **call.kwargs)  # redacted args
+            call.record_result(result)
+
+    On enter it reads the chain taint, detects sensitive data in the input,
+    redacts the input for ``destination`` and opens the span. ``call.args`` /
+    ``call.kwargs`` hold the redacted input the sink must receive. On exit it
+    sets the egress violation flag, ends the span and carries the outgoing
+    taint forward to the next call. It works the same inside ``async`` code.
+
+    ``redact`` replaces ``redact_payload`` when a caller needs a structure-aware
+    walk (LLM message lists). ``passthrough`` names keyword args that are an
+    explicit, reviewed exception and reach the sink unredacted (they are still
+    scanned, so the taint label stays correct). ``attributes`` adds extra span attributes and
+    ``input_attr`` / ``output_attr`` name the attributes that store the
+    (redacted / masked) input and output.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        destination: str = DEST_INTERNAL,
+        jurisdiction: str = "",
+        tracer: trace.Tracer | None = None,
+        args: tuple | list = (),
+        kwargs: Mapping[str, Any] | None = None,
+        links: list | None = None,
+        attributes: Mapping[str, Any] | None = None,
+        input_attr: str = "gen_ai.tool.call.arguments",
+        output_attr: str = "gen_ai.tool.call.result",
+        input_view: Callable[[list, dict], Any] | None = None,
+        redact: Callable[[Any, str], Any] | None = None,
+        kind: trace.SpanKind = trace.SpanKind.INTERNAL,
+        passthrough: Iterable[str] = (),
+    ) -> None:
+        self.name = name
+        self.destination = destination
+        self.jurisdiction = jurisdiction
+        self._tracer = tracer
+        self._raw_args = list(args)
+        self._raw_kwargs = dict(kwargs or {})
+        self._link_ctxs = links or []
+        self._attributes = dict(attributes or {})
+        self._input_attr = input_attr
+        self._output_attr = output_attr
+        self._input_view = input_view
+        self._redact = redact or redact_payload
+        self._kind = kind
+        self._passthrough = frozenset(passthrough)
+        self.args: list = []
+        self.kwargs: dict = {}
+        self.span = None
+        self.merged_in: tnt.TaintLabel | None = None
+        self.merged_out: tnt.TaintLabel | None = None
+        self._cm = None
+
+    # -- enter: detect, redact, open span ----------------------------------
+    def __enter__(self) -> "GuardedCall":
+        links = []
+        for sc in self._link_ctxs:
+            try:
+                links.append(trace.Link(sc))
+            except Exception:
+                pass
+
+        tr = self._tracer or trace.get_tracer("agentward")
+        incoming = _incoming_taint()  # chain-level taint (baggage + run box)
+
+        # Field-level taint on the input, computed from the ORIGINAL input so
+        # the label reflects what was actually requested.
+        payload = [*self._raw_args, *self._raw_kwargs.values()]
+        in_detections = detect_mapping(payload) if payload else []
+        input_label = taint_for(in_detections)
+
+        # Phase 4 egress gate: redact the ACTUAL input for this destination
+        # BEFORE the call. internal -> reversible token; external/llm/log/rag
+        # -> non-reversible mask. DLP simulation mode (DRY_RUN) skips it.
+        if DRY_RUN:
+            self.args, self.kwargs = list(self._raw_args), dict(self._raw_kwargs)
+        else:
+            self.args = [self._redact(a, self.destination) for a in self._raw_args]
+            self.kwargs = {
+                k: (v if k in self._passthrough else self._redact(v, self.destination))
+                for k, v in self._raw_kwargs.items()
+            }
+
+        merged_in = (incoming or tnt.TaintLabel.of(set())).merge(input_label)
+        self.merged_in = merged_in
+        ctx = tnt.attach(merged_in)  # nested calls inherit the taint
+
+        view = (self._input_view(self.args, self.kwargs) if self._input_view
+                else {"args": self.args, "kwargs": self.kwargs})
+        attrs = dict(self._attributes)
+        attrs[self._input_attr] = _jsonable(view)  # already redacted
+        self._cm = tr.start_as_current_span(
+            self.name, kind=self._kind, context=ctx, links=links, attributes=attrs,
+        )
+        span = self._cm.__enter__()
+        self.span = span
+        if merged_in.is_tainted:
+            span.set_attributes(merged_in.to_span_attrs())
+            span.set_attribute(ATTR_TaintSource, merged_in.source_span_id or "")
+        else:
+            span.set_attributes(merged_in.to_span_attrs())
+        span.set_attribute(ATTR_DEST, self.destination)
+        span.set_attribute(ATTR_JURISDICTION, self.jurisdiction)
+        # True when the gate changed what the sink receives.
+        try:
+            changed = bool(self.args != self._raw_args or self.kwargs != self._raw_kwargs)
+        except Exception:
+            changed = True
+        span.set_attribute(ATTR_REDACTED, changed)
+        if DRY_RUN:
+            span.set_attribute("agentward.dry_run", True)
+        return self
+
+    # -- output ------------------------------------------------------------
+    def record_result(self, result: Any, *, view: Any = None) -> None:
+        """Detect taint in the sink's output and store it masked on the span.
+
+        ``view`` is what gets scanned and stored when the raw result is not a
+        plain value (for example a framework message object).
+        """
+        seen = result if view is None else view
+        out_detections = detect_mapping([seen])
+        output_label = taint_for(
+            out_detections,
+            source_span_id=format(self.span.get_span_context().span_id, "016x"),
+        )
+        self.merged_out = self.merged_in.merge(output_label)
+        if self.merged_out.is_tainted:
+            self.span.set_attributes(self.merged_out.to_span_attrs())
+        stored = mask_value(seen) if MASK_IN_PROCESS else seen
+        self.span.set_attribute(self._output_attr, _jsonable(stored))
+
+    # -- exit: violation flag, end span, carry taint forward ---------------
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        span = self.span
+        if exc is not None:
+            if isinstance(exc, Exception):
+                span.record_exception(exc)
+                span.set_attribute("agentward.tool.error", str(exc))
+        else:
+            final = self.merged_out or self.merged_in
+            # SDK-side egress gate: the input was already redacted; this flag
+            # records that a tainted chain reached an egress sink, the same
+            # policy decision the collector also makes.
+            if self.destination in _EGRESS_SINKS and final.is_tainted:
+                span.set_attribute(ATTR_VIOLATION, True)
+                span.set_attribute(
+                    "agentward.violation.reason",
+                    f"tainted chain reached {self.destination} sink",
+                )
+        self._cm.__exit__(exc_type, exc, tb)
+
+        # Outside the span: carry the outgoing chain taint to the *next*
+        # sibling call (value-independent propagation, survives any LLM
+        # transformation). Tokens are tracked so end_run() can reset.
+        if exc is None:
+            final = self.merged_out or self.merged_in
+            if final.is_tainted:
+                _attach_outgoing(final)
+        return False
+
+
 def instrument_tool(
     name: str | None = None,
     *,
@@ -121,113 +297,36 @@ def instrument_tool(
     The wrapped function's positional/keyword args are treated as the tool's
     input payload; the return value as the output. The caller may pass an
     extra ``agentward_links=[span_context, ...]`` kwarg to add span links
-    for fan-out/fan-in (consumed, not forwarded to the tool).
+    for fan-out/fan-in (consumed, not forwarded to the tool). ``async def``
+    tools are supported: the span then covers the awaited call.
     """
     def decorator(fn: Callable) -> Callable:
         span_name = name or fn.__name__
+        attrs = {"gen_ai.tool.name": span_name}
+
+        def _call(args, kwargs) -> GuardedCall:
+            # Pop our private link contexts (for fan-out/fan-in) before calling.
+            link_ctxs = kwargs.pop("agentward_links", None) or []
+            return GuardedCall(
+                span_name, destination=destination, jurisdiction=jurisdiction,
+                tracer=tracer, args=args, kwargs=kwargs, links=link_ctxs,
+                attributes=attrs,
+            )
+
+        if inspect.iscoroutinefunction(fn):
+            @functools.wraps(fn)
+            async def async_wrapper(*args, **kwargs):
+                with _call(args, kwargs) as call:
+                    result = await fn(*call.args, **call.kwargs)
+                    call.record_result(result)
+                return result
+            return async_wrapper
 
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-            # Pop our private link contexts (for fan-out/fan-in) before calling.
-            link_ctxs = kwargs.pop("agentward_links", None) or []
-            links = []
-            for sc in link_ctxs:
-                try:
-                    links.append(trace.Link(sc))
-                except Exception:
-                    pass
-
-            tr = tracer or trace.get_tracer("agentward")
-            incoming = tnt.current()  # chain-level taint from baggage
-
-            # Field-level taint on the tool's input (computed from the ORIGINAL
-            # args so the taint label reflects what was actually requested).
-            input_payload = [*args, *kwargs.values()] if (args or kwargs) else []
-            in_detections = detect_mapping(input_payload) if input_payload else []
-            input_label = taint_for(in_detections)
-
-            # Phase 4 egress gate: redact the tool's ACTUAL input args for this
-            # destination BEFORE the call. internal -> reversible FPE token;
-            # external/llm/log/rag -> non-reversible mask. The tool operates on
-            # redacted data, so raw PII never reaches the sink. The collector
-            # remains the authoritative policy decider + redaction backstop.
-            # DLP simulation mode (DRY_RUN) skips redaction (audit-only).
-            if DRY_RUN:
-                redacted_args, redacted_kwargs = list(args), dict(kwargs)
-            else:
-                redacted_args = [redact_payload(a, destination) for a in args]
-                redacted_kwargs = {k: redact_payload(v, destination) for k, v in kwargs.items()}
-
-            merged_in = (incoming or tnt.TaintLabel.of(set())).merge(input_label)
-            # Attach merged taint to the context so nested calls inherit it.
-            ctx = tnt.attach(merged_in)
-
-            span_attrs = dict(merged_in.to_span_attrs())
-            span_attrs[ATTR_DEST] = destination
-            span_attrs[ATTR_JURISDICTION] = jurisdiction
-            if merged_in.is_tainted:
-                span_attrs[ATTR_TaintSource] = merged_in.source_span_id or ""
-
-            with tr.start_as_current_span(
-                span_name,
-                kind=trace.SpanKind.INTERNAL,
-                context=ctx,
-                links=links,
-                attributes={
-                    "gen_ai.tool.name": span_name,
-                    # Store what the tool actually received (already redacted).
-                    "gen_ai.tool.call.arguments": _jsonable(
-                        {"args": redacted_args, "kwargs": redacted_kwargs}
-                    ),
-                },
-            ) as span:
-                # Re-mark chain taint on the span after we have a span id for lineage.
-                if merged_in.is_tainted:
-                    span.set_attributes(merged_in.to_span_attrs())
-                    span.set_attribute(ATTR_TaintSource, merged_in.source_span_id or "")
-                span.set_attribute(ATTR_DEST, destination)
-                span.set_attribute(ATTR_JURISDICTION, jurisdiction)
-                if DRY_RUN:
-                    span.set_attribute("agentward.dry_run", True)
-
-                try:
-                    result = fn(*redacted_args, **redacted_kwargs)
-                except Exception as exc:
-                    span.record_exception(exc)
-                    span.set_attribute("agentward.tool.error", str(exc))
-                    raise
-
-                # Field-level taint on the tool's output.
-                out_detections = detect_mapping([result])
-                output_label = taint_for(
-                    out_detections,
-                    source_span_id=format(span.get_span_context().span_id, "016x"),
-                )
-                merged_out = merged_in.merge(output_label)
-                if merged_out.is_tainted:
-                    span.set_attributes(merged_out.to_span_attrs())
-
-                stored_result = mask_value(result) if MASK_IN_PROCESS else result
-                span.set_attribute("gen_ai.tool.call.result", _jsonable(stored_result))
-
-                # SDK-side egress gate: the args above were already redacted
-                # (Phase 4); this flag records that a tainted chain reached an
-                # egress sink, the same policy decision the collector also makes.
-                if destination in _EGRESS_SINKS and merged_out.is_tainted:
-                    span.set_attribute(ATTR_VIOLATION, True)
-                    span.set_attribute(
-                        "agentward.violation.reason",
-                        f"tainted chain reached {destination} sink",
-                    )
-
-            # Outside the span: attach the outgoing chain taint to the ambient
-            # context so the *next* sibling tool inherits it. This is the
-            # value-independent propagation that survives any LLM transformation
-            # (the tag is not tied to the secret's surface form). Tokens are
-            # tracked so end_run() can reset between independent agent runs.
-            if merged_out.is_tainted:
-                _attach_outgoing(merged_out)
-
+            with _call(args, kwargs) as call:
+                result = fn(*call.args, **call.kwargs)
+                call.record_result(result)
             return result
 
         return wrapper
@@ -248,25 +347,61 @@ def instrument_tool(
 _run_state = threading.local()
 
 
+class _RunTaint:
+    """Mutable taint holder shared by every call inside one run.
+
+    Agent frameworks often run a tool inside a *copied* context (LangChain
+    runs ``_run`` via ``Context.run``, LangGraph uses a thread pool, asyncio
+    runs each task in its own copy). Taint attached to the ambient context in
+    such a copy is lost when the copy ends, so the next tool would not see it.
+    A copied context still points at the same object stored in a context
+    variable, so a run-scoped box keeps the chain taint visible across all of
+    those copies. It only ever grows within a run (safe over-approximation)
+    and is replaced on the next ``begin_run``.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.label: tnt.TaintLabel | None = None
+
+    def merge(self, label: tnt.TaintLabel) -> None:
+        with self._lock:
+            self.label = label if self.label is None else self.label.merge(label)
+
+
+_RUN_TAINT: contextvars.ContextVar[_RunTaint | None] = contextvars.ContextVar(
+    "agentward_run_taint", default=None
+)
+
+
 def _run_lists() -> tuple[list, list]:
     if not hasattr(_run_state, "attach_tokens"):
         _run_state.attach_tokens = []
         _run_state.root_spans = []
+        _run_state.box_tokens = []
     return _run_state.attach_tokens, _run_state.root_spans
 
 
-def begin_run(name: str = "agent.run") -> object:
+def begin_run(name: str = "agent.run", *, tracer: trace.Tracer | None = None) -> object:
     """Start a run: attach a root span as current so every tool span in the
     run shares one trace, and reset the taint slate. Pair with ``end_run()``.
+    ``tracer`` defaults to the global ``agentward`` tracer.
     """
     attach_tokens, root_spans = _run_lists()
     attach_tokens.clear()
     root_spans.clear()
-    tracer = trace.get_tracer("agentward")
-    root = tracer.start_span(name, kind=trace.SpanKind.INTERNAL)
+    _run_state.box_tokens.clear()
+    tr = tracer or trace.get_tracer("agentward")
+    root = tr.start_span(name, kind=trace.SpanKind.INTERNAL)
     root_spans.append(root)
-    tok = context_api.attach(trace.set_span_in_context(root))
+    # Drop taint baggage left on the ambient context by calls made outside a
+    # run, so the new run really starts clean.
+    base = context_api.get_current()
+    for key in (tnt.KEY_ID, tnt.KEY_CLASSES, tnt.KEY_LEVEL):
+        base = baggage.remove_baggage(key, context=base)
+    tok = context_api.attach(trace.set_span_in_context(root, context=base))
     attach_tokens.append(tok)
+    _run_state.box_tokens.append(_RUN_TAINT.set(_RunTaint()))
     return root
 
 
@@ -280,6 +415,12 @@ def end_run() -> None:
         except Exception:
             pass
     attach_tokens.clear()
+    for tok in reversed(_run_state.box_tokens):
+        try:
+            _RUN_TAINT.reset(tok)
+        except Exception:
+            _RUN_TAINT.set(None)
+    _run_state.box_tokens.clear()
     for root in root_spans:
         try:
             root.end()
@@ -288,9 +429,28 @@ def end_run() -> None:
     root_spans.clear()
 
 
+def _incoming_taint() -> tnt.TaintLabel | None:
+    """Chain taint seen by the next call: ambient baggage plus the run box."""
+    label = tnt.current()
+    box = _RUN_TAINT.get()
+    if box is not None and box.label is not None:
+        label = box.label if label is None else label.merge(box.label)
+    return label
+
+
 def _attach_outgoing(label: tnt.TaintLabel) -> None:
     """Attach an outgoing taint label to the ambient context (frame leaks
-    forward within the run by design); record the token for ``end_run``."""
+    forward within the run by design); record the token for ``end_run``.
+
+    Inside a run (``begin_run``) the label goes into the run box instead:
+    every later call reads the box, in this context or in a framework's copied
+    one, and puts the label back into baggage on its own span. Skipping the
+    ambient attach there also avoids tokens that were attached in a copied
+    context and can never be detached from ``end_run``."""
+    box = _RUN_TAINT.get()
+    if box is not None:
+        box.merge(label)
+        return
     attach_tokens, _ = _run_lists()
     ctx = tnt.attach(label)  # base = current ambient; adds baggage
     tok = context_api.attach(ctx)
@@ -298,5 +458,6 @@ def _attach_outgoing(label: tnt.TaintLabel) -> None:
 
 
 def current_taint() -> tnt.TaintLabel | None:
-    """Convenience: the taint label on the current OTel context."""
-    return tnt.current()
+    """Convenience: the taint label on the current OTel context (including
+    taint recorded earlier in the current run)."""
+    return _incoming_taint()
