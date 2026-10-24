@@ -17,6 +17,14 @@ points (``run`` / ``arun`` for tools, ``invoke`` / ``ainvoke`` and
 ``_convert_input`` for chat models). So ``isinstance`` checks, LangGraph's
 ``ToolNode`` and ``bind_tools`` keep working, and the original object is not
 modified.
+
+Placeholders (on by default): the model gets ``<PERSON_1>`` style
+placeholders instead of masks, and the ``AIMessage`` it returns from
+``invoke`` / ``ainvoke`` (text, ``tool_calls`` args, ``additional_kwargs``) is
+restored to the real values. A wrapped tool restores any placeholder still in
+its input from the run's map, then the normal destination gate runs on the
+real values (internal: reversible token, external/log/rag: mask, ``allow``
+arguments: real value).
 """
 
 from __future__ import annotations
@@ -33,8 +41,12 @@ from opentelemetry import trace
 from sdk.destinations import DEST_LLM
 from sdk.instrumentation import GuardedCall
 from sdk.integrations import ToolPolicy, Ward, _resolve
+from sdk.integrations._payload import (
+    allow_masked_view,
+    payload_redactor,
+    redact_structure,
+)
 from sdk.integrations._payload import plain_view as _plain_view
-from sdk.integrations._payload import redact_structure
 from sdk.redact import redact_payload
 
 _POLICY_ATTR = "__agentward_policy__"
@@ -59,13 +71,22 @@ def _split_input(tool: BaseTool, tool_input: dict) -> tuple[dict, dict]:
 
 def _guard(tool: BaseTool, tool_input: Any, ward: Ward):
     """Build the GuardedCall for one tool run plus a function that rebuilds the
-    tool input from the redacted values."""
+    tool input from the redacted values.
+
+    With a run placeholder map, placeholders in the input are first swapped
+    for the real values, so the gate (taint label, redaction, ``allow``) sees
+    exactly what the tool would get without placeholders. The gate also
+    redacts every value the map knows, even where the detector misses it."""
     policy: ToolPolicy = getattr(type(tool), _POLICY_ATTR)
+    pmap = ward.placeholder_map()
+    restore = pmap.restore if pmap is not None else (lambda v: v)
     common = dict(
         destination=policy.destination,
         jurisdiction=policy.jurisdiction,
         tracer=ward.tracer,
         passthrough=policy.allow,
+        redact=payload_redactor(pmap),
+        input_view=allow_masked_view(policy.allow, pmap),
         attributes={
             "gen_ai.tool.name": tool.name,
             "gen_ai.operation.name": "execute_tool",
@@ -75,13 +96,13 @@ def _guard(tool: BaseTool, tool_input: Any, ward: Ward):
     # A raw ToolCall dict passed straight to run(): redact its "args".
     if isinstance(tool_input, dict) and tool_input.get("type") == "tool_call":
         visible, injected = _split_input(tool, dict(tool_input.get("args") or {}))
-        call = GuardedCall(tool.name, kwargs=visible, **common)
+        call = GuardedCall(tool.name, kwargs=restore(visible), **common)
         return call, lambda c: {**tool_input, "args": {**injected, **c.kwargs}}
     if isinstance(tool_input, dict):
         visible, injected = _split_input(tool, tool_input)
-        call = GuardedCall(tool.name, kwargs=visible, **common)
+        call = GuardedCall(tool.name, kwargs=restore(visible), **common)
         return call, lambda c: {**injected, **c.kwargs}
-    call = GuardedCall(tool.name, args=[tool_input], **common)
+    call = GuardedCall(tool.name, args=[restore(tool_input)], **common)
     return call, lambda c: c.args[0]
 
 
@@ -147,28 +168,54 @@ def wrap_tools(tools: Iterable[BaseTool], mapping: Mapping[str, Any] | None = No
 # ---------------------------------------------------------------------------
 
 
-def redact_message(msg: BaseMessage, destination: str = DEST_LLM) -> BaseMessage:
+def redact_message(msg: BaseMessage, destination: str = DEST_LLM, *,
+                   placeholders=None) -> BaseMessage:
     """A copy of ``msg`` with user content, tool call args and extra kwargs
-    redacted for ``destination``."""
+    redacted for ``destination`` (``placeholders``: see ``sdk.placeholders``)."""
     update: dict[str, Any] = {}
     content = msg.content
     if isinstance(content, str):
-        new = redact_payload(content, destination)
+        new = redact_payload(content, destination, placeholders=placeholders)
     else:
-        new = redact_structure(content, destination)
+        new = redact_structure(content, destination, placeholders)
     if new != content:
         update["content"] = new
     tool_calls = getattr(msg, "tool_calls", None)
     if tool_calls:
         update["tool_calls"] = [
-            {**tc, "args": redact_payload(tc.get("args", {}), destination)}
+            {**tc, "args": redact_payload(tc.get("args", {}), destination,
+                                          placeholders=placeholders)}
             for tc in tool_calls
         ]
     invalid = getattr(msg, "invalid_tool_calls", None)
     if invalid:
-        update["invalid_tool_calls"] = [redact_structure(tc, destination) for tc in invalid]
+        update["invalid_tool_calls"] = [redact_structure(tc, destination, placeholders)
+                                        for tc in invalid]
     if msg.additional_kwargs:
-        update["additional_kwargs"] = redact_structure(msg.additional_kwargs, destination)
+        update["additional_kwargs"] = redact_structure(msg.additional_kwargs, destination,
+                                                       placeholders)
+    return msg.model_copy(update=update) if update else msg
+
+
+def restore_message(msg: Any, placeholders) -> Any:
+    """A copy of a model's message with placeholders swapped back to the real
+    values (text, tool call args, invalid tool calls, extra kwargs)."""
+    if placeholders is None or not len(placeholders) or not isinstance(msg, BaseMessage):
+        return msg
+    update: dict[str, Any] = {}
+    content = placeholders.restore(msg.content)
+    if content != msg.content:
+        update["content"] = content
+    for field in ("tool_calls", "invalid_tool_calls", "tool_call_chunks"):
+        value = getattr(msg, field, None)
+        if value:
+            new = placeholders.restore(value)
+            if new != value:
+                update[field] = new
+    if msg.additional_kwargs:
+        new = placeholders.restore(msg.additional_kwargs)
+        if new != msg.additional_kwargs:
+            update["additional_kwargs"] = new
     return msg.model_copy(update=update) if update else msg
 
 
@@ -179,8 +226,10 @@ def _message_view(msg: BaseMessage) -> dict:
     return view
 
 
-def _redact_messages(messages: list[BaseMessage], destination: str) -> list[BaseMessage]:
-    return [redact_message(m, destination) for m in messages]
+def _messages_redactor(placeholders):
+    def redact(messages: list[BaseMessage], destination: str) -> list[BaseMessage]:
+        return [redact_message(m, destination, placeholders=placeholders) for m in messages]
+    return redact
 
 
 def _model_name(model: BaseChatModel) -> str:
@@ -201,7 +250,8 @@ _IN_GUARDED_INVOKE: contextvars.ContextVar[bool] = contextvars.ContextVar(
 )
 
 
-def _llm_call(model: BaseChatModel, messages: list[BaseMessage], ward: Ward) -> GuardedCall:
+def _llm_call(model: BaseChatModel, messages: list[BaseMessage], ward: Ward,
+              placeholders=None) -> GuardedCall:
     name = _model_name(model)
     return GuardedCall(
         f"chat {name}",
@@ -209,7 +259,7 @@ def _llm_call(model: BaseChatModel, messages: list[BaseMessage], ward: Ward) -> 
         jurisdiction=ward.llm_jurisdiction,
         tracer=ward.tracer,
         kwargs={"messages": messages},
-        redact=_redact_messages,
+        redact=_messages_redactor(placeholders),
         input_attr="gen_ai.input.messages",
         output_attr="gen_ai.output.messages",
         input_view=lambda _a, kw: [_message_view(m) for m in kw["messages"]],
@@ -238,13 +288,15 @@ def _protected_model_class(base: type, ward: Ward) -> type:
             if _IN_GUARDED_INVOKE.get():
                 return pv
             # stream / astream / direct generate: redact, record a request span.
-            with _llm_call(self, pv.to_messages(), ward) as call:
+            # The streamed output is not restored (see docs/integrations.md).
+            with _llm_call(self, pv.to_messages(), ward, ward.llm_placeholder_map()) as call:
                 pass
             return ChatPromptValue(messages=call.kwargs["messages"])
 
         def invoke(self, input, config=None, **kwargs):
             messages = super()._convert_input(input).to_messages()
-            with _llm_call(self, messages, ward) as call:
+            pmap = ward.llm_placeholder_map()
+            with _llm_call(self, messages, ward, pmap) as call:
                 tok = _IN_GUARDED_INVOKE.set(True)
                 try:
                     out = super().invoke(
@@ -252,12 +304,13 @@ def _protected_model_class(base: type, ward: Ward) -> type:
                     )
                 finally:
                     _IN_GUARDED_INVOKE.reset(tok)
-                call.record_result(out, view=_message_view(out))
-            return out
+                call.record_result(out, view=_message_view(out))  # placeholder version
+            return restore_message(out, pmap)
 
         async def ainvoke(self, input, config=None, **kwargs):
             messages = super()._convert_input(input).to_messages()
-            with _llm_call(self, messages, ward) as call:
+            pmap = ward.llm_placeholder_map()
+            with _llm_call(self, messages, ward, pmap) as call:
                 tok = _IN_GUARDED_INVOKE.set(True)
                 try:
                     out = await super().ainvoke(
@@ -265,8 +318,8 @@ def _protected_model_class(base: type, ward: Ward) -> type:
                     )
                 finally:
                     _IN_GUARDED_INVOKE.reset(tok)
-                call.record_result(out, view=_message_view(out))
-            return out
+                call.record_result(out, view=_message_view(out))  # placeholder version
+            return restore_message(out, pmap)
 
     Protected.__name__ = f"Protected{base.__name__}"
     Protected.__qualname__ = Protected.__name__
@@ -293,4 +346,5 @@ def protect_chat_model(model: BaseChatModel, *, ward: Ward | None = None) -> Bas
     return copy
 
 
-__all__ = ["wrap_tool", "wrap_tools", "protect_chat_model", "redact_message"]
+__all__ = ["wrap_tool", "wrap_tools", "protect_chat_model", "redact_message",
+           "restore_message"]

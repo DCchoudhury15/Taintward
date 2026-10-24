@@ -6,6 +6,9 @@ the framework is not installed. They check that:
   * the raw SSN and AWS key never reach an external tool or an outgoing LLM
     request,
   * internal tools receive the reversible token (not the raw value, not a mask),
+  * the LLM gets stable placeholders (<SSN_1>) by default, masks when
+    placeholders are turned off (end-to-end placeholder tests are in
+    tests/test_placeholders.py),
   * spans carry the destination, taint, violation and gen_ai.* attributes,
   * no raw secret is stored on any span.
 """
@@ -312,7 +315,9 @@ class TestLangChain:
         assert len(requests) == 4
         for raw in RAW:
             assert raw not in text
-        assert "[PII]" in text and "[SECRET]" in text
+        # placeholders (on by default) instead of masks, stable across turns
+        assert "<SSN_1>" in text and "<AWS_KEY_1>" in text
+        assert "[PII]" not in text and "<SSN_2>" not in text
         # internal tool: reversible token
         _assert_internal_token(seen["store"])
 
@@ -328,6 +333,24 @@ class TestLangChain:
         assert "agentward.violation" not in _spans(exporter, "store")[0].attributes
         # one trace for the whole run
         assert len({s.context.trace_id for s in _spans(exporter)}) == 1
+        _assert_no_raw_in_spans(exporter)
+
+    def test_agent_loop_with_placeholders_off_uses_masks(self, otel):
+        tracer, exporter = otel
+        w = Ward({"lookup": "internal", "store": "internal", "send_email": "external"},
+                 tracer=tracer, placeholders=False)
+        seen, requests = {}, []
+        model = w.protect_langchain_model(_fake_model(LC_SCRIPT, requests))
+        agent = _build_agent("langgraph.create_react_agent", model,
+                             w.wrap_langchain_tools(_lc_tools(seen)))
+        with w.run("lg.masks"):
+            agent.invoke({"messages": [("user", f"my ssn is {SSN}, email it")]})
+        text = _request_text(requests)
+        for raw in RAW:
+            assert raw not in text
+        assert "[PII]" in text and "[SECRET]" in text
+        assert "<SSN_1>" not in text
+        _assert_internal_token(seen["store"])
         _assert_no_raw_in_spans(exporter)
 
     def test_agent_loop_async(self, ward, otel):

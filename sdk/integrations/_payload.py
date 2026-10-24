@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from sdk.destinations import DEST_LOG
 from sdk.redact import redact_payload
 
 # Keys whose values are protocol data, never user content.
@@ -35,21 +36,56 @@ def to_plain(obj: Any) -> Any:
     return obj
 
 
-def redact_structure(value: Any, destination: str) -> Any:
-    """Redact user content in an LLM payload, leaving protocol fields alone."""
+def redact_structure(value: Any, destination: str, placeholders=None) -> Any:
+    """Redact user content in an LLM payload, leaving protocol fields alone.
+
+    ``placeholders`` (a PlaceholderMap) switches the ``llm`` destination from
+    masks to stable placeholders (see ``sdk.placeholders``)."""
     value = to_plain(value)
     if isinstance(value, str):
-        return redact_payload(value, destination)
+        return redact_payload(value, destination, placeholders=placeholders)
     if isinstance(value, Mapping):
         return {
-            k: (v if k in STRUCTURAL_KEYS else redact_structure(v, destination))
+            k: (v if k in STRUCTURAL_KEYS else redact_structure(v, destination, placeholders))
             for k, v in value.items()
         }
     if isinstance(value, list):
-        return [redact_structure(v, destination) for v in value]
+        return [redact_structure(v, destination, placeholders) for v in value]
     if isinstance(value, tuple):
-        return tuple(redact_structure(v, destination) for v in value)
+        return tuple(redact_structure(v, destination, placeholders) for v in value)
     return value
+
+
+def structure_redactor(placeholders):
+    """A ``redact(value, destination)`` callable for GuardedCall that uses the
+    placeholder map (or the plain masks when ``placeholders`` is None)."""
+    if placeholders is None:
+        return redact_structure
+    return lambda value, destination: redact_structure(value, destination, placeholders)
+
+
+def payload_redactor(placeholders):
+    """Like ``structure_redactor`` but for tool arguments (``redact_payload``)."""
+    if placeholders is None:
+        return redact_payload
+    return lambda value, destination: redact_payload(value, destination,
+                                                     placeholders=placeholders)
+
+
+def allow_masked_view(allow, placeholders=None):
+    """Span ``input_view`` for a tool with an ``allow`` list.
+
+    Allow-listed arguments reach the tool unredacted, but the span is a log
+    sink, so the stored copy of those arguments is redacted for ``log``.
+    Returns None (the default view) when nothing is allow-listed."""
+    if not allow:
+        return None
+
+    def view(args, kwargs):
+        return {"args": args, "kwargs": {
+            k: (redact_payload(v, DEST_LOG, placeholders=placeholders) if k in allow else v)
+            for k, v in kwargs.items()}}
+    return view
 
 
 def plain_view(out: Any) -> Any:
