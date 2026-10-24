@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from evidence.merkle import MerkleLog, InclusionProof, verify_inclusion
+from evidence.merkle import InclusionProof, MerkleLog, verify_inclusion
 from evidence.recorder import record_violations
 
 DEFAULT_LOG = Path(__file__).resolve().parent / "violations.logl"

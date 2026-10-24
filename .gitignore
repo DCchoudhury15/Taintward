@@ -25,3 +25,6 @@ signoz-data/
 .idea/
 .vscode/
 *.swp.vercel
+
+# CI caches
+.cache/

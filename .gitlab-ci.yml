@@ -1,0 +1,53 @@
+# Runs on merge requests and on main only, to keep the pipeline count low.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+stages:
+  - test
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  GOPATH: "$CI_PROJECT_DIR/.cache/go"
+  GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
+
+.python:
+  image: python:3.12
+  cache:
+    key:
+      files: [pyproject.toml]
+      prefix: pip
+    paths: [.cache/pip]
+
+python-tests:
+  extends: .python
+  stage: test
+  script:
+    - python -m pip install -e ".[dev]"
+    - python -m spacy download en_core_web_sm
+    - python -m pytest -q
+    - python -m pip wheel . --no-deps -w dist
+
+ruff:
+  extends: .python
+  stage: test
+  # Existing findings are being cleaned up; do not block merges on them yet.
+  allow_failure: true
+  script:
+    - python -m pip install ruff
+    - ruff check . --statistics || true
+    - ruff check .
+
+go-tests:
+  image: golang:1.26
+  stage: test
+  cache:
+    key:
+      files: [collector/processor/taintpolicy/go.sum]
+      prefix: go
+    paths: [.cache/go, .cache/go-build]
+  script:
+    - cd collector/processor/taintpolicy
+    - go vet ./...
+    - go test ./...
