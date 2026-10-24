@@ -144,6 +144,10 @@ def _classify(entity_type: str) -> Sensitivity:
 # rendered.
 _ZERO_WIDTH_CHARS = "\u200b\u200c\u200d\u2060\ufeff"
 
+# Characters that are never part of a sensitive value but can end up on the
+# edge of a detected span.
+_SPAN_EDGE_TRIM = "'\"` \t\r\n"
+
 
 def _normalize_for_detection(text: str) -> tuple[str, list[int]]:
     """NFKC-fold the text (fullwidth Unicode digits, etc. collapse to plain
@@ -201,6 +205,15 @@ def detect_text(text: str, *, threshold: float = 0.5) -> list[Detection]:
             end = position_map[r.end - 1] + 1
         else:
             end = start
+        # spaCy NER can pull a neighbouring quote or space into the span
+        # ("Alice Lee'" inside a repr), and masking it would eat the quote
+        # and break the surrounding JSON. Trim those from both edges.
+        while start < end and text[start] in _SPAN_EDGE_TRIM:
+            start += 1
+        while end > start and text[end - 1] in _SPAN_EDGE_TRIM:
+            end -= 1
+        if start == end:
+            continue
         out.append(Detection(
             entity_type=r.entity_type,
             start=start,

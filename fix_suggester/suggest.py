@@ -174,7 +174,7 @@ def main() -> int:
             print()
     if not any_finding:
         print("no unguarded egress sinks found")
-    return 0 if not any_finding else 0
+    return 1 if any_finding else 0
 
 
 if __name__ == "__main__":

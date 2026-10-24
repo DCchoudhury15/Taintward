@@ -49,6 +49,9 @@ services:
     image: agentward-demo:local
     environment:
       COLLECTOR_ENDPOINT: http://agentward-collector:4319/v1/traces
+      # Demo only: a fixed public key so tokens are stable between runs. Set
+      # AGENTWARD_FPE_KEY to your own key for anything real.
+      AGENTWARD_ALLOW_DEMO_KEY: "1"
     depends_on:
       - agentward-collector
     restart: "no"

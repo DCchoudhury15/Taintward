@@ -13,7 +13,7 @@ Examples:
     # verify a previously-printed proof against the current root
     python3 evidence/log.py verify '{"leaf_index":0,"leaf_hash":"...","siblings":[...]}'
 
-The log file defaults to evidence/violations.logl (one JSON record per line,
+The log file defaults to ./violations.logl (or $AGENTWARD_EVIDENCE_LOG) (one JSON record per line,
 append-only).
 """
 
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -29,7 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evidence.merkle import InclusionProof, MerkleLog, verify_inclusion
 from evidence.recorder import record_violations
 
-DEFAULT_LOG = Path(__file__).resolve().parent / "violations.logl"
+# Current directory by default, never inside the installed package.
+DEFAULT_LOG = Path(os.environ.get("AGENTWARD_EVIDENCE_LOG", "violations.logl"))
 
 
 def _open(path: Path) -> MerkleLog:
