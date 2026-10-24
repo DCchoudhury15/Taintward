@@ -135,6 +135,43 @@ class TestMerkleLog(unittest.TestCase):
         self.assertEqual(restored.siblings, proof.siblings)
         self.assertTrue(verify_inclusion(restored.leaf_hash, restored, log.root()))
 
+    def test_prefix_root_and_prefix_proof(self):
+        log = MerkleLog()
+        old = MerkleLog()
+        for i in range(7):
+            log.append(_viol(f"t{i}"))
+            if i < 5:
+                old.append(_viol(f"t{i}"))
+        self.assertEqual(log.prefix_root(5), old.root())
+        self.assertEqual(log.prefix_root(7), log.root())
+        for i in range(5):
+            proof = log.inclusion_proof(i, size=5)
+            self.assertTrue(verify_inclusion(proof.leaf_hash, proof, old.root()))
+        with self.assertRaises(IndexError):
+            log.inclusion_proof(5, size=5)
+
+    def test_cli_prove_output_verifies(self):
+        # `prove` prints directions, so its output can be fed to `verify`
+        import contextlib
+        import io
+        import json
+        import os
+
+        from evidence.log import main
+
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "v.logl")
+            log = MerkleLog(path)
+            for t in ["a", "b", "c"]:
+                log.append(_viol(t))
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(main(["--log-file", path, "prove", "2"]), 0)
+            printed = buf.getvalue()
+            self.assertIn("directions", json.loads(printed))
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["--log-file", path, "verify", printed]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
