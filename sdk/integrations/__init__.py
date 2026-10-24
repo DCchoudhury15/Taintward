@@ -22,6 +22,13 @@ explicit, reviewable decision to trust it with reversible tokens. A tool that
 was wrongly left external only loses some usefulness (it sees ``[PII]``); a
 tool wrongly treated as internal would receive data it should not.
 
+Placeholders (on by default): the LLM does not get ``[PII]`` masks, it gets
+stable typed placeholders such as ``<PERSON_1>`` and ``<SSN_1>``, so it can
+still do the task. The model's answer and tool calls are restored to the real
+values before they reach your code, and each tool then gets what its
+destination allows (see ``sdk.placeholders`` and docs/integrations.md). Turn
+it off with ``init(..., placeholders=False)`` to go back to masks.
+
 All redaction and detection is done by the existing SDK (``sdk.detect``,
 ``sdk.redact.redact_payload``, ``sdk.instrumentation.GuardedCall``). The
 adapters only translate each framework's call shape into that one gate.
@@ -36,6 +43,7 @@ from typing import Any, Iterator, Mapping
 from opentelemetry import trace
 
 from sdk import instrumentation as instr
+from sdk import placeholders as ph
 from sdk.destinations import (
     DEST_EXTERNAL,
     DEST_INTERNAL,
@@ -99,6 +107,9 @@ class Ward:
         default_jurisdiction: str = "",
         llm_jurisdiction: str = "",
         tracer: trace.Tracer | None = None,
+        placeholders: bool = True,
+        placeholder_vault: Any = None,
+        placeholder_ttl: float | None = None,
     ) -> None:
         self.default = ToolPolicy(default_destination, default_jurisdiction)
         self.policies: dict[str, ToolPolicy] = {
@@ -106,6 +117,9 @@ class Ward:
         }
         self.llm_jurisdiction = llm_jurisdiction
         self.tracer = tracer
+        self.placeholders = placeholders
+        self.placeholder_vault = placeholder_vault
+        self.placeholder_ttl = placeholder_ttl
 
     def policy_for(self, tool_name: str) -> ToolPolicy:
         return self.policies.get(tool_name, self.default)
@@ -119,19 +133,59 @@ class Ward:
             return self
         w = Ward(default_destination=self.default.destination,
                  default_jurisdiction=self.default.jurisdiction,
-                 llm_jurisdiction=self.llm_jurisdiction, tracer=self.tracer)
+                 llm_jurisdiction=self.llm_jurisdiction, tracer=self.tracer,
+                 placeholders=self.placeholders,
+                 placeholder_vault=self.placeholder_vault,
+                 placeholder_ttl=self.placeholder_ttl)
         w.policies = {**self.policies, **{k: _to_policy(v) for k, v in mapping.items()}}
         return w
 
     @contextlib.contextmanager
-    def run(self, name: str = "agent.run") -> Iterator[object]:
-        """One agent run: one trace, a clean taint slate, and taint that
-        follows the run across framework threads and asyncio tasks."""
+    def run(self, name: str = "agent.run", *,
+            conversation_id: str | None = None) -> Iterator[object]:
+        """One agent run: one trace, a clean taint slate, taint that follows
+        the run across framework threads and asyncio tasks, and one
+        placeholder map shared by every LLM call and tool in the run.
+
+        ``conversation_id`` with a ``placeholder_vault`` keeps the
+        placeholders of a long-lived conversation in the vault, so later runs
+        of the same conversation reuse them. Without a vault the map lives in
+        memory and is cleared when the run ends.
+        """
         root = instr.begin_run(name, tracer=self.tracer)
+        tok = None
+        if self.placeholders:
+            if conversation_id and self.placeholder_vault is not None:
+                pmap = ph.PlaceholderMap(vault=self.placeholder_vault,
+                                         conversation_id=conversation_id,
+                                         ttl=self.placeholder_ttl)
+            else:
+                pmap = ph.PlaceholderMap()
+            tok = ph.activate(pmap)
         try:
             yield root
         finally:
+            if tok is not None:
+                ph.deactivate(tok)
             instr.end_run()
+
+    def placeholder_map(self) -> "ph.PlaceholderMap | None":
+        """The run's placeholder map for tool calls (None when placeholders
+        are off or no run is active)."""
+        return ph.current() if self.placeholders else None
+
+    def llm_placeholder_map(self) -> "ph.PlaceholderMap | None":
+        """The map for one LLM request: the run's map, or a fresh map for this
+        one call when no run is active (never shared between callers)."""
+        if not self.placeholders:
+            return None
+        pmap = ph.current()
+        return pmap if pmap is not None else ph.PlaceholderMap()
+
+    def restore(self, value: Any) -> Any:
+        """Swap placeholders back to real values with the current run's map
+        (for output the adapters do not restore, e.g. collected stream text)."""
+        return ph.restore(value) if self.placeholders else value
 
     # Adapter shortcuts (imported lazily so the frameworks stay optional).
     def wrap_langchain_tools(self, tools, mapping=None):
@@ -168,6 +222,9 @@ def init(
     llm_jurisdiction: str = "",
     console: bool = False,
     tracer: trace.Tracer | None = None,
+    placeholders: bool = True,
+    placeholder_vault: Any = None,
+    placeholder_ttl: float | None = None,
 ) -> Ward:
     """Configure AgentWard once per process and return the global ``Ward``.
 
@@ -181,6 +238,12 @@ def init(
     * ``llm_jurisdiction`` tags LLM request spans (e.g. ``"us"``).
     * ``tracer``: pass your own tracer to skip global tracing setup (tests, or
       an app that already configured OpenTelemetry).
+    * ``placeholders`` (default True): the LLM gets stable placeholders such
+      as ``<PERSON_1>`` instead of ``[PII]``, and the model's output is
+      restored. False goes back to plain masks.
+    * ``placeholder_vault`` / ``placeholder_ttl``: optional ``sdk.vault``
+      backend (and entry lifetime) for placeholders of long-lived
+      conversations, used by ``run(conversation_id=...)``.
     """
     global _GLOBAL
     if tracer is None:
@@ -193,6 +256,9 @@ def init(
         default_jurisdiction=default_jurisdiction,
         llm_jurisdiction=llm_jurisdiction,
         tracer=tracer,
+        placeholders=placeholders,
+        placeholder_vault=placeholder_vault,
+        placeholder_ttl=placeholder_ttl,
     )
     return _GLOBAL
 
@@ -209,9 +275,14 @@ def _resolve(ward: Ward | None, mapping: Mapping[str, Any] | None) -> Ward:
     return (ward or get_ward()).with_overrides(mapping)
 
 
-def run(name: str = "agent.run"):
+def run(name: str = "agent.run", *, conversation_id: str | None = None):
     """Context manager for one agent run on the global ``Ward``."""
-    return get_ward().run(name)
+    return get_ward().run(name, conversation_id=conversation_id)
+
+
+def restore(value):
+    """Restore placeholders with the current run's map (global ``Ward``)."""
+    return get_ward().restore(value)
 
 
 # Module-level shortcuts on the global Ward.
@@ -236,7 +307,7 @@ def protect_anthropic(client):
 
 
 __all__ = [
-    "DEFAULT_DESTINATION", "ToolPolicy", "Ward", "init", "get_ward", "run",
+    "DEFAULT_DESTINATION", "ToolPolicy", "Ward", "init", "get_ward", "run", "restore",
     "wrap_langchain_tools", "protect_langchain_model", "wrap_function_tools",
     "protect_openai", "protect_anthropic",
 ]
