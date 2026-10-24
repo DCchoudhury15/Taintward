@@ -31,7 +31,10 @@ dev = ["pytest>=8", "ruff>=0.5"]
 # Only needed for `--llm real` (the default demo/tests use the stub LLM).
 llm = ["openai", "anthropic"]
 # MCP gateway (gateway/).
-mcp = ["mcp>=2.3", "PyYAML>=6"]
+mcp = ["mcp>=2.3", "PyYAML>=6", "uvicorn>=0.30"]
+# Shared state for running several replicas (vault and gateway sessions).
+postgres = ["psycopg[binary]>=3.2"]
+redis = ["redis>=5"]
 # Framework adapters (sdk/integrations/).
 langchain = ["langchain-core>=1.7", "langchain>=1.4", "langgraph>=1.2"]
 openai-agents = ["openai-agents>=0.24"]
