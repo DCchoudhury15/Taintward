@@ -72,6 +72,15 @@ def _next_level(level: list[bytes]) -> list[bytes]:
     return nxt
 
 
+def _root(leaves: list[bytes]) -> bytes:
+    if not leaves:
+        return hashlib.sha256(b"").digest()
+    level = list(leaves)
+    while len(level) > 1:
+        level = _next_level(level)
+    return level[0]
+
+
 @dataclass
 class InclusionProof:
     leaf_index: int
@@ -152,20 +161,30 @@ class MerkleLog:
 
     def root(self) -> bytes:
         """Current Merkle root (empty log -> SHA256 of empty)."""
-        if not self._leaves:
-            return hashlib.sha256(b"").digest()
-        level = list(self._leaves)
-        while len(level) > 1:
-            level = _next_level(level)
-        return level[0]
+        return _root(self._leaves)
 
-    def inclusion_proof(self, leaf_index: int) -> InclusionProof:
-        if not 0 <= leaf_index < len(self._leaves):
+    def prefix_root(self, size: int) -> bytes:
+        """Root of the log as it was when it had ``size`` leaves.
+
+        Used to check a log file against a signed checkpoint taken earlier:
+        records appended after the checkpoint do not change this value.
+        """
+        if not 0 <= size <= len(self._leaves):
+            raise IndexError(size)
+        return _root(self._leaves[:size])
+
+    def inclusion_proof(self, leaf_index: int, size: int | None = None) -> InclusionProof:
+        """Audit path for ``leaf_index``. With ``size``, the path is against
+        the root of the first ``size`` leaves (see ``prefix_root``)."""
+        n_leaves = len(self._leaves) if size is None else size
+        if not 0 <= n_leaves <= len(self._leaves):
+            raise IndexError(size)
+        if not 0 <= leaf_index < n_leaves:
             raise IndexError(leaf_index)
         siblings: list[bytes] = []
         directions: list[bool] = []
         idx = leaf_index
-        level = list(self._leaves)
+        level = list(self._leaves[:n_leaves])
         while len(level) > 1:
             n = len(level)
             if idx % 2 == 0:
@@ -187,6 +206,10 @@ class MerkleLog:
 
     def record(self, leaf_index: int) -> dict:
         return self._records[leaf_index]
+
+    def records(self) -> list[dict]:
+        """A copy of all records, in append order."""
+        return list(self._records)
 
 
 def verify_inclusion(leaf_hash: bytes, proof: InclusionProof, root: bytes) -> bool:

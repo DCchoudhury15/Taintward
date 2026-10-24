@@ -65,3 +65,25 @@ root and invalidates prior proofs.
   detection, stale-proof-after-append, consistency, persistence roundtrip,
   proof JSON roundtrip).
 - Full suite: 39 Python green (14 DOE + 8 SDK + 9 redact + 8 merkle).
+
+## Update (v0.2): evidence report, shards and signed checkpoints
+
+- `evidence/report.py` (`python -m evidence.report`): a self-contained HTML
+  or JSON report for a time window, built from Jaeger, OTLP JSON files or
+  SigNoz/ClickHouse (`evidence/spans.py`). It covers calls, sensitive data by
+  class, destinations, violations and their outcome, Art. 44 transfers, the
+  Art. 30 recipients view, a raw value check on what was sent out, and the
+  evidence log state. Sample: [`sample-report.html`](sample-report.html).
+- `evidence/shards.py`: the log split per tenant and per UTC day
+  (`<dir>/<tenant>/<YYYY-MM-DD>.logl`), safe for several writers.
+- `evidence/checkpoint.py`: Ed25519 signed checkpoints (shard roots, sizes,
+  time, previous checkpoint hash). Verification catches edited, reordered,
+  truncated or deleted shards, edited or re-signed checkpoints and gaps in
+  the chain; single records can be proved offline.
+- `MerkleLog` gained `prefix_root(n)`, `inclusion_proof(i, size=n)` and
+  `records()`. The `prove` CLI output now includes `directions`, so it can be
+  passed to `verify` (before, a printed proof with siblings did not verify).
+- Tests: `tests/test_report.py`, `tests/test_checkpoints.py`, two new cases
+  in `tests/test_merkle.py`.
+
+Usage and the verification steps for a third party: [`evidence-report.md`](evidence-report.md).
