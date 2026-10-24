@@ -12,10 +12,9 @@ from __future__ import annotations
 
 import unittest
 
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider, ReadableSpan
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 try:
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
@@ -24,9 +23,9 @@ try:
 except ImportError:  # pragma: no cover
     InMemorySpanExporter = None  # type: ignore[assignment]
 
+from core.doe import Sensitivity
 from sdk import instrumentation as instr
 from sdk import taint as tnt
-from core.doe import Sensitivity
 
 
 def _build_tracer():

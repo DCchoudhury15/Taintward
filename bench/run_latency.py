@@ -189,7 +189,9 @@ def main() -> None:
 
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
 
     from sdk import detect
     from sdk import instrumentation as instr
@@ -273,7 +275,7 @@ def to_markdown(res: dict) -> str:
           "| size | payload bytes | leaf values | wrapped p50 ms | unwrapped p50 ms | overhead ms |",
           "|---|---:|---:|---:|---:|---:|"]
     for label, r in res["warm"].items():
-        L.append(f"| {label} | {r['payload_bytes']} | {r["leaf_values"]} | "
+        L.append(f"| {label} | {r['payload_bytes']} | {r['leaf_values']} | "
                  f"{r['tool_wrapped']['p50_ms']:.3f} | {r['tool_unwrapped']['p50_ms']:.4f} | "
                  f"{r['wrap_overhead_p50_ms']:.3f} |")
     return "\n".join(L) + "\n"

@@ -16,7 +16,11 @@ from typing import Any
 import yaml
 
 from sdk.destinations import (
-    DEST_EXTERNAL, DEST_INTERNAL, DEST_LLM, DEST_LOG, DEST_RAG,
+    DEST_EXTERNAL,
+    DEST_INTERNAL,
+    DEST_LLM,
+    DEST_LOG,
+    DEST_RAG,
 )
 
 VALID_DESTINATIONS = frozenset({DEST_INTERNAL, DEST_EXTERNAL, DEST_LLM, DEST_LOG, DEST_RAG})

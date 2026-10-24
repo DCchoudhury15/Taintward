@@ -32,8 +32,6 @@ python-tests:
 ruff:
   extends: .python
   stage: test
-  # Existing findings are being cleaned up; do not block merges on them yet.
-  allow_failure: true
   script:
     - python -m pip install ruff
     - ruff check . --statistics || true

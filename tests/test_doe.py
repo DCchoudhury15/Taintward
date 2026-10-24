@@ -9,7 +9,6 @@ from __future__ import annotations
 import unittest
 
 from core.doe import (
-    DOEResult,
     DOESets,
     Field,
     Sensitivity,

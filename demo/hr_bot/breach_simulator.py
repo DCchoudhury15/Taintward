@@ -21,9 +21,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from opentelemetry import trace
 
-from sdk import instrumentation as instr
 from demo.hr_bot import tools
 from demo.hr_bot.agent import run_agent
+from sdk import instrumentation as instr
 
 
 def seed_breach() -> None:

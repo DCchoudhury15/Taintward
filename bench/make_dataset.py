@@ -482,7 +482,7 @@ def multi_entity(g: Gen, n: int) -> list[tuple[str, str, str, Builder]]:
             })
             fmt = "json"
         elif i % 3 == 1:
-            b = Builder().lit(f"Subject: Payment details\n\nHi, this is ")
+            b = Builder().lit("Subject: Payment details\n\nHi, this is ")
             b.ent("PERSON", name).lit(". Please update my card to ")
             b.ent("CREDIT_CARD", g.card()).lit(" and send the receipt to ")
             b.ent("EMAIL", g.email(name)).lit(".\n\nThanks")

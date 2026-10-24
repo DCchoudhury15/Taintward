@@ -30,7 +30,11 @@ from gateway import BLOCKED_ERROR_CODE, Gateway, parse_config  # noqa: E402
 from gateway.config import ConfigError, load_config  # noqa: E402
 from gateway.examples import hr_server  # noqa: E402
 from gateway.policy import (  # noqa: E402
-    NON_ADEQUATE_JURISDICTIONS, RULE_NAMES, SENSITIVE_SINKS, PolicyInput, evaluate,
+    NON_ADEQUATE_JURISDICTIONS,
+    RULE_NAMES,
+    SENSITIVE_SINKS,
+    PolicyInput,
+    evaluate,
 )
 from sdk.instrumentation import ATTR_DEST, ATTR_JURISDICTION, ATTR_VIOLATION  # noqa: E402
 from sdk.taint import ATTR_CLASSES, ATTR_SENSITIVE  # noqa: E402

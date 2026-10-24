@@ -30,8 +30,6 @@ jobs:
 
   ruff:
     runs-on: ubuntu-latest
-    # Existing findings are being cleaned up; do not block merges on them yet.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -36,7 +36,8 @@ import logging
 import threading
 from typing import Any, Callable, Iterable, Mapping
 
-from opentelemetry import baggage, context as context_api, trace
+from opentelemetry import baggage, trace
+from opentelemetry import context as context_api
 
 from sdk import taint as tnt
 from sdk.detect import detect_mapping, mask_value, taint_for
@@ -47,9 +48,14 @@ logger = logging.getLogger("agentward.sdk")
 DEFAULT_OTLP_HTTP = "http://localhost:4318/v1/traces"
 
 # Destination classes, Phase 3's Rego policy reads these.
-from sdk.destinations import (  # noqa: E402 - leaf module to avoid circular imports
-    DEST_INTERNAL, DEST_EXTERNAL, DEST_LLM, DEST_LOG, DEST_RAG,
+from sdk.destinations import (  # noqa: E402, F401 - re-exported; leaf module to avoid circular imports
+    DEST_EXTERNAL,
+    DEST_INTERNAL,
+    DEST_LLM,
+    DEST_LOG,
+    DEST_RAG,
 )
+
 # Sinks where raw sensitive data must not land. external/llm leave the system;
 # log is routinely shipped to centralized/aggregated stores, so it is a leak
 # surface too. Phase 3's Rego is the source of truth and can refine this (e.g.
@@ -67,7 +73,8 @@ ATTR_TaintSource = "agentward.taint.source_span"  # noqa: N816 - keep readable
 # set AGENTWARD_MASK_IN_SDK=0 so the SDK sends raw tool I/O to the trusted
 # local sidecar (which redacts before SigNoz). Default "1" masks in-process
 # (the Phase 2 behavior, for when no sidecar is present).
-import os as _os
+import os as _os  # noqa: E402
+
 MASK_IN_PROCESS = _os.environ.get("AGENTWARD_MASK_IN_SDK", "1") != "0"
 # DLP simulation mode (Phase 6): log the violation but DON'T redact args, an
 # audit/dry-run for safe rollout (see what would be flagged before enforcing).

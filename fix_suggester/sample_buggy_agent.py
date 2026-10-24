@@ -6,8 +6,8 @@ internal helper, so the suggester can demonstrate finding the leaks and
 emitting the exact one-line fix while ignoring the safe call.
 """
 
-import requests  # noqa: F401  (analyzed, not run)
 import openai  # noqa: F401
+import requests  # noqa: F401  (analyzed, not run)
 
 
 def send_to_auditor(record: dict) -> None:

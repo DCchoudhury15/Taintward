@@ -61,7 +61,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from opentelemetry import trace  # noqa: E402
 
 from sdk import instrumentation as instr  # noqa: E402
-from sdk import taint as tnt  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Tools (each wrapped with taint-aware instrumentation)
@@ -87,7 +86,7 @@ def llm_rephrase(record: dict, *, mode: str = "passthrough",
     The destination is DEST_LLM (calling a third-party model is itself a sink),
     so this span is also egress-checked.
     """
-    incoming = instr.current_taint()
+    instr.current_taint()  # exercised for the spike, value unused
     ssn = record.get("ssn", "")
     if llm == "stub":
         if mode == "passthrough":

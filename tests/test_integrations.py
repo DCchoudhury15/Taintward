@@ -204,7 +204,9 @@ def _lc_tools(seen):
 
 
 def _fake_model(script, requests):
-    from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+    from langchain_core.language_models.fake_chat_models import (
+        FakeMessagesListChatModel,
+    )
     from langchain_core.messages import AIMessage
 
     class FakeToolModel(FakeMessagesListChatModel):
@@ -239,6 +241,7 @@ def _build_agent(builder, model, tools):
         agents = pytest.importorskip("langchain.agents")
         return agents.create_agent(model, tools)
     import warnings
+
     from langgraph.prebuilt import create_react_agent
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # deprecated in favor of create_agent
@@ -546,7 +549,12 @@ class TestOpenAIAgents:
     def test_agent_run_with_protected_client(self, ward, otel):
         import httpx
         import openai
-        from agents import Agent, OpenAIChatCompletionsModel, Runner, set_tracing_disabled
+        from agents import (
+            Agent,
+            OpenAIChatCompletionsModel,
+            Runner,
+            set_tracing_disabled,
+        )
         set_tracing_disabled(True)
         _, exporter = otel
         seen, bodies = {}, []

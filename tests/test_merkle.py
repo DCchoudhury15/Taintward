@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 
 from evidence.merkle import (
-    MerkleLog, verify_inclusion, verify_log_consistency, violation_record,
+    MerkleLog,
+    verify_inclusion,
+    verify_log_consistency,
+    violation_record,
 )
 
 

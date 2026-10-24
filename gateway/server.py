@@ -37,14 +37,19 @@ from opentelemetry import context as context_api
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
+from gateway.config import (
+    MODE_AUDIT,
+    MODE_BLOCK,
+    GatewayConfig,
+    ToolPolicy,
+    UpstreamConfig,
+)
+from gateway.policy import PolicyInput, evaluate
 from sdk import taint as tnt
 from sdk.destinations import DEST_LLM
 from sdk.detect import detect_mapping, detect_text, mask_value, taint_for
 from sdk.instrumentation import ATTR_DEST, ATTR_JURISDICTION, ATTR_VIOLATION
 from sdk.redact import redact_payload
-
-from gateway.config import MODE_AUDIT, MODE_BLOCK, GatewayConfig, ToolPolicy, UpstreamConfig
-from gateway.policy import PolicyInput, evaluate
 
 logger = logging.getLogger("agentward.gateway")
 

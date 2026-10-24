@@ -33,7 +33,8 @@ from opentelemetry import trace
 from sdk.destinations import DEST_LLM
 from sdk.instrumentation import GuardedCall
 from sdk.integrations import ToolPolicy, Ward, _resolve
-from sdk.integrations._payload import plain_view as _plain_view, redact_structure
+from sdk.integrations._payload import plain_view as _plain_view
+from sdk.integrations._payload import redact_structure
 from sdk.redact import redact_payload
 
 _POLICY_ATTR = "__agentward_policy__"
