@@ -1,0 +1,54 @@
+# AgentWard quickstart: `docker compose up`
+#
+#   demo (HR bot) --OTLP/HTTP--> agentward-collector (taint_policy) --OTLP/gRPC--> jaeger
+#
+# Open the Jaeger UI at http://localhost:16686 and pick service agentward-hr-bot.
+#
+# To send traces to an existing SigNoz (or any OTLP gRPC backend) instead of
+# Jaeger, set OTLP_EXPORT_ENDPOINT and start without Jaeger:
+#
+#   OTLP_EXPORT_ENDPOINT=host.docker.internal:4317 docker compose up --no-deps agentward-collector demo
+#
+# See docs/quickstart.md for details.
+#
+# Host ports: 16686 (Jaeger UI) and 14319 (collector OTLP/HTTP, for your own
+# agents). 4317, 4318 and 8080 are left free so a local SigNoz keeps working.
+
+name: agentward
+
+services:
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    ports:
+      - "16686:16686"
+    restart: unless-stopped
+
+  agentward-collector:
+    build:
+      context: .
+      dockerfile: collector/Dockerfile
+    image: agentward-collector:local
+    environment:
+      OTLP_EXPORT_ENDPOINT: ${OTLP_EXPORT_ENDPOINT:-jaeger:4317}
+    # Lets OTLP_EXPORT_ENDPOINT=host.docker.internal:4317 reach a backend on the host (Linux).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Edit collector/policy/pii_egress.rego and restart this service to change the policy.
+      - ./collector/policy:/etc/agentward/policy:ro
+    ports:
+      - "14319:4319"
+    depends_on:
+      - jaeger
+    restart: unless-stopped
+
+  demo:
+    build:
+      context: .
+      dockerfile: demo/Dockerfile
+    image: agentward-demo:local
+    environment:
+      COLLECTOR_ENDPOINT: http://agentward-collector:4319/v1/traces
+    depends_on:
+      - agentward-collector
+    restart: "no"

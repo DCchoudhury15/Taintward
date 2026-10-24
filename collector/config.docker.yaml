@@ -1,0 +1,39 @@
+# AgentWard collector config for the Docker image.
+#
+# Flow:  SDK --OTLP/HTTP :4319--> [taint_policy] --batch--> --OTLP/gRPC--> ${OTLP_EXPORT_ENDPOINT}
+#
+# OTLP_EXPORT_ENDPOINT is any OTLP gRPC backend as host:port, for example
+# jaeger:4317 (the quickstart default) or a SigNoz collector at <host>:4317.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4319
+
+processors:
+  taint_policy:
+    # Baked into the image. Mount your own file over this path and restart
+    # the container to change the policy. No rebuild needed.
+    policy_path: /etc/agentward/policy/pii_egress.rego
+  # taint_policy runs BEFORE batch (batching clears request context).
+  batch:
+    timeout: 1s
+    send_batch_size: 100
+
+exporters:
+  otlp_grpc/backend:
+    endpoint: ${env:OTLP_EXPORT_ENDPOINT}
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [taint_policy, batch]
+      exporters: [otlp_grpc/backend, debug]
