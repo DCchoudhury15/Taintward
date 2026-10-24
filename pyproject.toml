@@ -40,6 +40,7 @@ openai-agents = ["openai-agents>=0.24"]
 agentward-evidence = "evidence.log:main"
 agentward-fix = "fix_suggester.suggest:main"
 agentward-gateway = "gateway.__main__:main"
+agentward-report = "evidence.report:main"
 
 # Runtime packages only. tests/, demo/, spike/, scripts/ and the Go collector
 # are not shipped. New runtime packages (e.g. integrations, gateway) go in
