@@ -1,0 +1,2839 @@
+{
+  "n_examples": 420,
+  "n_entities": 360,
+  "seconds": 3.94,
+  "per_class": {
+    "US_SSN": {
+      "precision": 1.0,
+      "recall": 0.6511627906976745,
+      "f1": 0.7887323943661972,
+      "n_pred": 28,
+      "n_gold": 43,
+      "tp_pred": 28,
+      "tp_gold": 28,
+      "recall_any_type": 0.813953488372093
+    },
+    "EMAIL": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_pred": 47,
+      "n_gold": 47,
+      "tp_pred": 47,
+      "tp_gold": 47,
+      "recall_any_type": 1.0
+    },
+    "PHONE": {
+      "precision": 0.9666666666666667,
+      "recall": 0.8055555555555556,
+      "f1": 0.8787878787878789,
+      "n_pred": 30,
+      "n_gold": 36,
+      "tp_pred": 29,
+      "tp_gold": 29,
+      "recall_any_type": 0.8611111111111112
+    },
+    "CREDIT_CARD": {
+      "precision": 1.0,
+      "recall": 0.8095238095238095,
+      "f1": 0.8947368421052632,
+      "n_pred": 34,
+      "n_gold": 42,
+      "tp_pred": 34,
+      "tp_gold": 34,
+      "recall_any_type": 0.9047619047619048
+    },
+    "IBAN": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_pred": 20,
+      "n_gold": 20,
+      "tp_pred": 20,
+      "tp_gold": 20,
+      "recall_any_type": 1.0
+    },
+    "PERSON": {
+      "precision": 0.44155844155844154,
+      "recall": 0.9444444444444444,
+      "f1": 0.6017699115044248,
+      "n_pred": 77,
+      "n_gold": 36,
+      "tp_pred": 34,
+      "tp_gold": 34,
+      "recall_any_type": 0.9444444444444444
+    },
+    "ADDRESS": {
+      "precision": 0.8695652173913043,
+      "recall": 0.6785714285714286,
+      "f1": 0.7622868605817452,
+      "n_pred": 23,
+      "n_gold": 28,
+      "tp_pred": 20,
+      "tp_gold": 19,
+      "recall_any_type": 0.9642857142857143
+    },
+    "AWS_ACCESS_KEY": {
+      "precision": 1.0,
+      "recall": 0.8461538461538461,
+      "f1": 0.9166666666666666,
+      "n_pred": 22,
+      "n_gold": 26,
+      "tp_pred": 22,
+      "tp_gold": 22,
+      "recall_any_type": 0.8846153846153846
+    },
+    "GITHUB_TOKEN": {
+      "precision": 1.0,
+      "recall": 0.7727272727272727,
+      "f1": 0.8717948717948718,
+      "n_pred": 17,
+      "n_gold": 22,
+      "tp_pred": 17,
+      "tp_gold": 17,
+      "recall_any_type": 0.8636363636363636
+    },
+    "GENERIC_API_KEY": {
+      "precision": 0.45714285714285713,
+      "recall": 0.8,
+      "f1": 0.5818181818181818,
+      "n_pred": 35,
+      "n_gold": 20,
+      "tp_pred": 16,
+      "tp_gold": 16,
+      "recall_any_type": 0.8
+    },
+    "JWT": {
+      "precision": null,
+      "recall": 0.0,
+      "f1": 0.0,
+      "n_pred": 0,
+      "n_gold": 20,
+      "tp_pred": 0,
+      "tp_gold": 0,
+      "recall_any_type": 0.75
+    },
+    "PRIVATE_KEY": {
+      "precision": null,
+      "recall": 0.0,
+      "f1": 0.0,
+      "n_pred": 0,
+      "n_gold": 20,
+      "tp_pred": 0,
+      "tp_gold": 0,
+      "recall_any_type": 0.5
+    }
+  },
+  "other_detector_types": {
+    "OTHER:DATE_TIME": {
+      "n_pred": 190,
+      "overlapping_a_label": 75
+    },
+    "OTHER:MEDICAL_LICENSE": {
+      "n_pred": 3,
+      "overlapping_a_label": 2
+    },
+    "OTHER:ORGANIZATION": {
+      "n_pred": 77,
+      "overlapping_a_label": 32
+    },
+    "OTHER:URL": {
+      "n_pred": 80,
+      "overlapping_a_label": 68
+    }
+  },
+  "overall_strict": {
+    "precision": 0.39092240117130306,
+    "recall": 0.7388888888888889,
+    "f1": 0.5113211758184004,
+    "n_pred": 683,
+    "n_gold": 360,
+    "tp_pred": 267,
+    "tp_gold": 266
+  },
+  "overall_any_type": {
+    "precision": 0.7042459736456809,
+    "recall": 0.875,
+    "f1": 0.7803917023988876,
+    "n_pred": 683,
+    "n_gold": 360,
+    "tp_pred": 481,
+    "tp_gold": 315
+  },
+  "binary": {
+    "text": {
+      "precision": 0.844776119402985,
+      "recall": 0.907051282051282,
+      "f1": 0.874806800618238,
+      "false_alarm_rate": 0.48148148148148145,
+      "tp": 283,
+      "fp": 52,
+      "fn": 29,
+      "tn": 56
+    },
+    "payload": {
+      "precision": 0.8352941176470589,
+      "recall": 0.9102564102564102,
+      "f1": 0.8711656441717791,
+      "false_alarm_rate": 0.5185185185185185,
+      "tp": 284,
+      "fp": 56,
+      "fn": 28,
+      "tn": 52
+    },
+    "correct_span": {
+      "precision": 0.838006230529595,
+      "recall": 0.8621794871794872,
+      "f1": 0.8499210110584519,
+      "false_alarm_rate": 0.48148148148148145,
+      "tp": 269,
+      "fp": 52,
+      "fn": 43,
+      "tn": 56
+    }
+  },
+  "per_tag": {
+    "ADDRESS": {
+      "examples": 20,
+      "flagged": 19,
+      "gold": 20,
+      "gold_hit": 19
+    },
+    "AWS_ACCESS_KEY": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "CREDIT_CARD": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "EMAIL": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "GENERIC_API_KEY": {
+      "examples": 20,
+      "flagged": 19,
+      "gold": 20,
+      "gold_hit": 16
+    },
+    "GITHUB_TOKEN": {
+      "examples": 20,
+      "flagged": 18,
+      "gold": 20,
+      "gold_hit": 17
+    },
+    "IBAN": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "JWT": {
+      "examples": 20,
+      "flagged": 18,
+      "gold": 20,
+      "gold_hit": 15
+    },
+    "PERSON": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "PHONE": {
+      "examples": 20,
+      "flagged": 16,
+      "gold": 20,
+      "gold_hit": 15
+    },
+    "PRIVATE_KEY": {
+      "examples": 20,
+      "flagged": 14,
+      "gold": 20,
+      "gold_hit": 10
+    },
+    "US_SSN": {
+      "examples": 20,
+      "flagged": 18,
+      "gold": 20,
+      "gold_hit": 16
+    },
+    "evasion:fullwidth": {
+      "examples": 12,
+      "flagged": 12,
+      "gold": 12,
+      "gold_hit": 12
+    },
+    "evasion:spaced": {
+      "examples": 12,
+      "flagged": 7,
+      "gold": 12,
+      "gold_hit": 7
+    },
+    "evasion:split_json": {
+      "examples": 12,
+      "flagged": 6,
+      "gold": 12,
+      "gold_hit": 6
+    },
+    "evasion:zero_width": {
+      "examples": 12,
+      "flagged": 12,
+      "gold": 12,
+      "gold_hit": 12
+    },
+    "multi": {
+      "examples": 24,
+      "flagged": 24,
+      "gold": 72,
+      "gold_hit": 70
+    },
+    "neg:b64_blob": {
+      "examples": 12,
+      "flagged": 1,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:git_sha": {
+      "examples": 12,
+      "flagged": 6,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:hex_hash": {
+      "examples": 12,
+      "flagged": 3,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:nine_digits": {
+      "examples": 12,
+      "flagged": 7,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:order_id": {
+      "examples": 12,
+      "flagged": 8,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:timestamp": {
+      "examples": 12,
+      "flagged": 10,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:uuid": {
+      "examples": 12,
+      "flagged": 8,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:version": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:zip_code": {
+      "examples": 12,
+      "flagged": 9,
+      "gold": 0,
+      "gold_hit": 0
+    }
+  },
+  "false_negatives": [
+    {
+      "id": "ex-0201",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "json",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTEzNTE5NSIsImlhdCI6MTcwODIxNzY",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0202",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "chat",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzMjI4MjA1MyIsImlhdCI6MTcwOTI1ODM",
+      "found_as": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0203",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "log",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMDAzODc3NSIsImlhdCI6MTcwOTU5MDQ",
+      "found_as": [
+        "GENERIC_API_KEY",
+        "OTHER:URL"
+      ]
+    },
+    {
+      "id": "ex-0204",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "email",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNDY0MDIyNCIsImlhdCI6MTcwMjMwNDQ",
+      "found_as": [
+        "GENERIC_API_KEY",
+        "OTHER:URL"
+      ]
+    },
+    {
+      "id": "ex-0205",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "code",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MTg0MzM3NSIsImlhdCI6MTcwNzQzNjA",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0206",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "json",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5ODczOTc5MyIsImlhdCI6MTcwNDM0NDg",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0207",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "chat",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1OTgxMDYxMSIsImlhdCI6MTcwNTIxMTc",
+      "found_as": [
+        "GENERIC_API_KEY",
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0208",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "log",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ODY3MTgzOCIsImlhdCI6MTcwODI5OTk",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0209",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "email",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTM5MzYxOSIsImlhdCI6MTcwMjg1NjA",
+      "found_as": [
+        "OTHER:URL"
+      ]
+    },
+    {
+      "id": "ex-0210",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "code",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MjY5NDM3OSIsImlhdCI6MTcwMjkzNzI",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0211",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "json",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNjQ2MDAwOCIsImlhdCI6MTcwNTM3MDE",
+      "found_as": []
+    },
+    {
+      "id": "ex-0212",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "chat",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNjQ4NjE5NyIsImlhdCI6MTcwNzExMDQ",
+      "found_as": [
+        "GENERIC_API_KEY",
+        "OTHER:URL"
+      ]
+    },
+    {
+      "id": "ex-0213",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "log",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Mjc3MzY5MyIsImlhdCI6MTcwNzk3Njk",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0214",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "email",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MjA4MjEwMiIsImlhdCI6MTcwNzIyMTU",
+      "found_as": []
+    },
+    {
+      "id": "ex-0215",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "code",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0NjU3ODAyMyIsImlhdCI6MTcwNzIyNjY",
+      "found_as": [
+        "GENERIC_API_KEY",
+        "OTHER:URL"
+      ]
+    },
+    {
+      "id": "ex-0216",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "json",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMDk3NTYxOCIsImlhdCI6MTcwNDk1OTA",
+      "found_as": [
+        "GENERIC_API_KEY",
+        "OTHER:URL"
+      ]
+    },
+    {
+      "id": "ex-0217",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "chat",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMDU2NTc2OSIsImlhdCI6MTcwNzY2OTM",
+      "found_as": []
+    },
+    {
+      "id": "ex-0218",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "log",
+      "value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNzcwNjAwNyIsImlhdCI6MTcwODY4ODM",
+      "found_as": []
+    },
+    {
+      "id": "ex-0219",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "email",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwNjgyNTEwNiIsImlhdCI6MTcwODc3NjY",
+      "found_as": []
+    },
+    {
+      "id": "ex-0220",
+      "class": "JWT",
+      "tag": "JWT",
+      "format": "code",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0OTczMzI3MyIsImlhdCI6MTcwNjM4NDc",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0221",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "json",
+      "value": "-----BEGIN OPENSSH PRIVATE KEY-----\\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPL31",
+      "found_as": []
+    },
+    {
+      "id": "ex-0222",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "email",
+      "value": "-----BEGIN RSA PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAM22",
+      "found_as": []
+    },
+    {
+      "id": "ex-0223",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "log",
+      "value": "-----BEGIN RSA PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAM26",
+      "found_as": []
+    },
+    {
+      "id": "ex-0224",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "email",
+      "value": "-----BEGIN PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEE12",
+      "found_as": []
+    },
+    {
+      "id": "ex-0225",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "code",
+      "value": "-----BEGIN OPENSSH PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE27",
+      "found_as": [
+        "ADDRESS"
+      ]
+    },
+    {
+      "id": "ex-0226",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "json",
+      "value": "-----BEGIN PRIVATE KEY-----\\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE17",
+      "found_as": []
+    },
+    {
+      "id": "ex-0227",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "email",
+      "value": "-----BEGIN PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEE14",
+      "found_as": []
+    },
+    {
+      "id": "ex-0228",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "log",
+      "value": "-----BEGIN PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEE13",
+      "found_as": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0229",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "email",
+      "value": "-----BEGIN EC PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMP18",
+      "found_as": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0230",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "code",
+      "value": "-----BEGIN RSA PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAM23",
+      "found_as": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0231",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "json",
+      "value": "-----BEGIN PRIVATE KEY-----\\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE16",
+      "found_as": []
+    },
+    {
+      "id": "ex-0232",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "email",
+      "value": "-----BEGIN EC PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMP19",
+      "found_as": [
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0233",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "log",
+      "value": "-----BEGIN OPENSSH PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE30",
+      "found_as": []
+    },
+    {
+      "id": "ex-0234",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "email",
+      "value": "-----BEGIN RSA PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAM24",
+      "found_as": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0235",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "code",
+      "value": "-----BEGIN RSA PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAM21",
+      "found_as": [
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0236",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "json",
+      "value": "-----BEGIN EC PRIVATE KEY-----\\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAM25",
+      "found_as": [
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0237",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "email",
+      "value": "-----BEGIN OPENSSH PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE28",
+      "found_as": []
+    },
+    {
+      "id": "ex-0238",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "log",
+      "value": "-----BEGIN RSA PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAM20",
+      "found_as": [
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0239",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "email",
+      "value": "-----BEGIN PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEE15",
+      "found_as": []
+    },
+    {
+      "id": "ex-0240",
+      "class": "PRIVATE_KEY",
+      "tag": "PRIVATE_KEY",
+      "format": "code",
+      "value": "-----BEGIN OPENSSH PRIVATE KEY-----\nEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE29",
+      "found_as": [
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0001",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "json",
+      "value": "547915995",
+      "found_as": []
+    },
+    {
+      "id": "ex-0008",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "log",
+      "value": "811309005",
+      "found_as": []
+    },
+    {
+      "id": "ex-0010",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "code",
+      "value": "772845778",
+      "found_as": []
+    },
+    {
+      "id": "ex-0012",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "chat",
+      "value": "855330879",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0013",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "log",
+      "value": "736067045",
+      "found_as": []
+    },
+    {
+      "id": "ex-0014",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "email",
+      "value": "259213629",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0015",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "code",
+      "value": "428217688",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0397",
+      "class": "US_SSN",
+      "tag": "evasion:spaced",
+      "format": "chat",
+      "value": "7 2 4 - 6 8 - 6 9 6 6",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0400",
+      "class": "US_SSN",
+      "tag": "evasion:spaced",
+      "format": "chat",
+      "value": "4 3 9 - 2 8 - 5 5 8 2",
+      "found_as": []
+    },
+    {
+      "id": "ex-0403",
+      "class": "US_SSN",
+      "tag": "evasion:spaced",
+      "format": "chat",
+      "value": "5 0 1 - 6 3 - 6 5 2 9",
+      "found_as": []
+    },
+    {
+      "id": "ex-0406",
+      "class": "US_SSN",
+      "tag": "evasion:spaced",
+      "format": "chat",
+      "value": "4 8 2 - 9 6 - 2 2 6 7",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0409",
+      "class": "US_SSN",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "886\", \"ssn_group\": \"02\", \"ssn_serial\": \"6183",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0412",
+      "class": "US_SSN",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "303\", \"ssn_group\": \"94\", \"ssn_serial\": \"6524",
+      "found_as": []
+    },
+    {
+      "id": "ex-0415",
+      "class": "US_SSN",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "615\", \"ssn_group\": \"31\", \"ssn_serial\": \"4665",
+      "found_as": []
+    },
+    {
+      "id": "ex-0418",
+      "class": "US_SSN",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "750\", \"ssn_group\": \"07\", \"ssn_serial\": \"2156",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0121",
+      "class": "ADDRESS",
+      "tag": "ADDRESS",
+      "format": "json",
+      "value": "6454 Elm Lane, Fairview, TX 17107",
+      "found_as": []
+    },
+    {
+      "id": "ex-0122",
+      "class": "ADDRESS",
+      "tag": "ADDRESS",
+      "format": "chat",
+      "value": "690 Riverside Court, Madison, WI 35381",
+      "found_as": [
+        "OTHER:DATE_TIME",
+        "OTHER:ORGANIZATION",
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0127",
+      "class": "ADDRESS",
+      "tag": "ADDRESS",
+      "format": "chat",
+      "value": "1768 Maple Rd, Fairview, TX 23542",
+      "found_as": [
+        "OTHER:DATE_TIME",
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0132",
+      "class": "ADDRESS",
+      "tag": "ADDRESS",
+      "format": "chat",
+      "value": "4239 Sunset Ave, Clinton, IA 09671",
+      "found_as": [
+        "OTHER:DATE_TIME",
+        "OTHER:ORGANIZATION",
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0138",
+      "class": "ADDRESS",
+      "tag": "ADDRESS",
+      "format": "log",
+      "value": "2484 Hillcrest St, Franklin, TN 56381",
+      "found_as": [
+        "OTHER:DATE_TIME",
+        "OTHER:ORGANIZATION",
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0139",
+      "class": "ADDRESS",
+      "tag": "ADDRESS",
+      "format": "email",
+      "value": "7682 Lakeview Rd, Madison, WI 72683",
+      "found_as": [
+        "PERSON"
+      ]
+    },
+    {
+      "id": "ex-0140",
+      "class": "ADDRESS",
+      "tag": "ADDRESS",
+      "format": "code",
+      "value": "3314 Park St, Fairview, TX 41764",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0241",
+      "class": "ADDRESS",
+      "tag": "multi",
+      "format": "json",
+      "value": "4205 Hillcrest Rd, Franklin, TN 15272",
+      "found_as": [
+        "OTHER:DATE_TIME",
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0259",
+      "class": "ADDRESS",
+      "tag": "multi",
+      "format": "json",
+      "value": "742 Oak Court, Franklin, TN 17715",
+      "found_as": [
+        "OTHER:DATE_TIME",
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0161",
+      "class": "GITHUB_TOKEN",
+      "tag": "GITHUB_TOKEN",
+      "format": "json",
+      "value": "github_pat_EXAMPLEEXAMPLEEXAMPLE9_EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXA9",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0162",
+      "class": "GITHUB_TOKEN",
+      "tag": "GITHUB_TOKEN",
+      "format": "chat",
+      "value": "github_pat_EXAMPLEEXAMPLEEXAMPLE7_EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAM",
+      "found_as": []
+    },
+    {
+      "id": "ex-0165",
+      "class": "GITHUB_TOKEN",
+      "tag": "GITHUB_TOKEN",
+      "format": "code",
+      "value": "github_pat_EXAMPLEEXAMPLEEXAMPL10_EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEX10",
+      "found_as": [
+        "GENERIC_API_KEY"
+      ]
+    },
+    {
+      "id": "ex-0170",
+      "class": "GITHUB_TOKEN",
+      "tag": "GITHUB_TOKEN",
+      "format": "code",
+      "value": "github_pat_EXAMPLEEXAMPLEEXAMPL11_EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEX11",
+      "found_as": []
+    },
+    {
+      "id": "ex-0175",
+      "class": "GITHUB_TOKEN",
+      "tag": "GITHUB_TOKEN",
+      "format": "code",
+      "value": "github_pat_EXAMPLEEXAMPLEEXAMPLE8_EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXA8",
+      "found_as": []
+    },
+    {
+      "id": "ex-0184",
+      "class": "GENERIC_API_KEY",
+      "tag": "GENERIC_API_KEY",
+      "format": "email",
+      "value": "sk_live_...(32 chars)",
+      "found_as": []
+    },
+    {
+      "id": "ex-0187",
+      "class": "GENERIC_API_KEY",
+      "tag": "GENERIC_API_KEY",
+      "format": "chat",
+      "value": "cdf523d2fc7c2eb7041c77dbef46326f",
+      "found_as": []
+    },
+    {
+      "id": "ex-0189",
+      "class": "GENERIC_API_KEY",
+      "tag": "GENERIC_API_KEY",
+      "format": "email",
+      "value": "74wmuasf-psqoq93y-fl4vmunr-7h88ooxb",
+      "found_as": []
+    },
+    {
+      "id": "ex-0200",
+      "class": "GENERIC_API_KEY",
+      "tag": "GENERIC_API_KEY",
+      "format": "code",
+      "value": "sk_live_...(32 chars)",
+      "found_as": []
+    },
+    {
+      "id": "ex-0042",
+      "class": "PHONE",
+      "tag": "PHONE",
+      "format": "chat",
+      "value": "+44 20 7946 0952",
+      "found_as": []
+    },
+    {
+      "id": "ex-0044",
+      "class": "PHONE",
+      "tag": "PHONE",
+      "format": "email",
+      "value": "+91 98680 41669",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0046",
+      "class": "PHONE",
+      "tag": "PHONE",
+      "format": "json",
+      "value": "303-736-9454",
+      "found_as": []
+    },
+    {
+      "id": "ex-0047",
+      "class": "PHONE",
+      "tag": "PHONE",
+      "format": "chat",
+      "value": "(713) 865-7130",
+      "found_as": []
+    },
+    {
+      "id": "ex-0052",
+      "class": "PHONE",
+      "tag": "PHONE",
+      "format": "chat",
+      "value": "+44 20 7946 0174",
+      "found_as": []
+    },
+    {
+      "id": "ex-0055",
+      "class": "PHONE",
+      "tag": "PHONE",
+      "format": "code",
+      "value": "+91 98606 34744",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0059",
+      "class": "PHONE",
+      "tag": "PHONE",
+      "format": "email",
+      "value": "404-689-6044",
+      "found_as": []
+    },
+    {
+      "id": "ex-0398",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:spaced",
+      "format": "email",
+      "value": "5 4 2 4 5 1 7 3 2 2 7 2 5 2 1 9",
+      "found_as": []
+    },
+    {
+      "id": "ex-0401",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:spaced",
+      "format": "email",
+      "value": "5 1 4 1 0 5 1 2 6 1 1 0 3 1 1 5",
+      "found_as": []
+    },
+    {
+      "id": "ex-0404",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:spaced",
+      "format": "email",
+      "value": "5 1 4 6 7 0 0 8 1 9 3 6 7 4 0 9",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0407",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:spaced",
+      "format": "email",
+      "value": "4 1 4 6 8 6 1 9 5 2 8 5 1 5 6 8",
+      "found_as": []
+    },
+    {
+      "id": "ex-0410",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "4757\", \"3361\", \"8319\", \"5994",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0413",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "4999\", \"5857\", \"7064\", \"6003",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0416",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "4943\", \"0075\", \"3705\", \"5953",
+      "found_as": [
+        "OTHER:DATE_TIME"
+      ]
+    },
+    {
+      "id": "ex-0419",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "4357\", \"3910\", \"2051\", \"8274",
+      "found_as": []
+    },
+    {
+      "id": "ex-0411",
+      "class": "AWS_ACCESS_KEY",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "AKIAELZZRP\", \"key_suffix\": \"L27XYZQGUF",
+      "found_as": []
+    },
+    {
+      "id": "ex-0414",
+      "class": "AWS_ACCESS_KEY",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "AKIAWZTPF4\", \"key_suffix\": \"YERDGIPEUF",
+      "found_as": [
+        "OTHER:ORGANIZATION"
+      ]
+    },
+    {
+      "id": "ex-0417",
+      "class": "AWS_ACCESS_KEY",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "AKIA2U3UOP\", \"key_suffix\": \"OATA2QTHPI",
+      "found_as": []
+    },
+    {
+      "id": "ex-0420",
+      "class": "AWS_ACCESS_KEY",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "AKIA43OBIU\", \"key_suffix\": \"65GA7XS3E3",
+      "found_as": []
+    },
+    {
+      "id": "ex-0244",
+      "class": "PERSON",
+      "tag": "multi",
+      "format": "json",
+      "value": "Noah Cohen",
+      "found_as": []
+    },
+    {
+      "id": "ex-0253",
+      "class": "PERSON",
+      "tag": "multi",
+      "format": "json",
+      "value": "Kenji Rossi",
+      "found_as": []
+    }
+  ],
+  "false_positives": [
+    {
+      "id": "ex-0318",
+      "predicted": "OTHER:MEDICAL_LICENSE",
+      "score": 1.0,
+      "tag": "neg:git_sha",
+      "format": "json",
+      "matched_text": "ed7276846"
+    },
+    {
+      "id": "ex-0001",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "json",
+      "matched_text": "96930"
+    },
+    {
+      "id": "ex-0006",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "json",
+      "matched_text": "26824"
+    },
+    {
+      "id": "ex-0011",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "json",
+      "matched_text": "42424"
+    },
+    {
+      "id": "ex-0013",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "log",
+      "matched_text": "2026-02"
+    },
+    {
+      "id": "ex-0018",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "log",
+      "matched_text": "1767682992"
+    },
+    {
+      "id": "ex-0026",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "EMAIL",
+      "format": "json",
+      "matched_text": "98591"
+    },
+    {
+      "id": "ex-0028",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "EMAIL",
+      "format": "log",
+      "matched_text": "2025-08"
+    },
+    {
+      "id": "ex-0031",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "EMAIL",
+      "format": "json",
+      "matched_text": "69541"
+    },
+    {
+      "id": "ex-0036",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "EMAIL",
+      "format": "json",
+      "matched_text": "18803"
+    },
+    {
+      "id": "ex-0041",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PHONE",
+      "format": "json",
+      "matched_text": "85180"
+    },
+    {
+      "id": "ex-0043",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PHONE",
+      "format": "log",
+      "matched_text": "2023-05-11T04:16:41Z"
+    },
+    {
+      "id": "ex-0046",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PHONE",
+      "format": "json",
+      "matched_text": "94633"
+    },
+    {
+      "id": "ex-0053",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PHONE",
+      "format": "log",
+      "matched_text": "2024-06-18T17:50:17Z"
+    },
+    {
+      "id": "ex-0056",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PHONE",
+      "format": "json",
+      "matched_text": "49170"
+    },
+    {
+      "id": "ex-0068",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "CREDIT_CARD",
+      "format": "log",
+      "matched_text": "2024-05-28T04:27:16Z"
+    },
+    {
+      "id": "ex-0071",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "CREDIT_CARD",
+      "format": "json",
+      "matched_text": "8107"
+    },
+    {
+      "id": "ex-0076",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "CREDIT_CARD",
+      "format": "json",
+      "matched_text": "93577"
+    },
+    {
+      "id": "ex-0078",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "CREDIT_CARD",
+      "format": "log",
+      "matched_text": "2026-01-12T07:04:37Z"
+    },
+    {
+      "id": "ex-0081",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "json",
+      "matched_text": "42995"
+    },
+    {
+      "id": "ex-0086",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "json",
+      "matched_text": "99734"
+    },
+    {
+      "id": "ex-0093",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "log",
+      "matched_text": "2023-05-23T15:22:58Z"
+    },
+    {
+      "id": "ex-0096",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "json",
+      "matched_text": "18482"
+    },
+    {
+      "id": "ex-0106",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PERSON",
+      "format": "json",
+      "matched_text": "14678"
+    },
+    {
+      "id": "ex-0113",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PERSON",
+      "format": "log",
+      "matched_text": "1761815689"
+    },
+    {
+      "id": "ex-0116",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PERSON",
+      "format": "json",
+      "matched_text": "16076"
+    },
+    {
+      "id": "ex-0123",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "ADDRESS",
+      "format": "log",
+      "matched_text": "2023-08-14T15:32:26Z"
+    },
+    {
+      "id": "ex-0126",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "ADDRESS",
+      "format": "json",
+      "matched_text": "44014"
+    },
+    {
+      "id": "ex-0128",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "ADDRESS",
+      "format": "log",
+      "matched_text": "1781475456"
+    },
+    {
+      "id": "ex-0136",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "ADDRESS",
+      "format": "json",
+      "matched_text": "75345"
+    },
+    {
+      "id": "ex-0141",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "AWS_ACCESS_KEY",
+      "format": "json",
+      "matched_text": "33660"
+    },
+    {
+      "id": "ex-0146",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "AWS_ACCESS_KEY",
+      "format": "json",
+      "matched_text": "57662"
+    },
+    {
+      "id": "ex-0151",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "AWS_ACCESS_KEY",
+      "format": "json",
+      "matched_text": "16809"
+    },
+    {
+      "id": "ex-0153",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "AWS_ACCESS_KEY",
+      "format": "log",
+      "matched_text": "2025-09"
+    },
+    {
+      "id": "ex-0156",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "AWS_ACCESS_KEY",
+      "format": "json",
+      "matched_text": "79645"
+    },
+    {
+      "id": "ex-0161",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "json",
+      "matched_text": "48938"
+    },
+    {
+      "id": "ex-0171",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "json",
+      "matched_text": "6341"
+    },
+    {
+      "id": "ex-0173",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "log",
+      "matched_text": "2024-08-21 13:06:54.507"
+    },
+    {
+      "id": "ex-0176",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "json",
+      "matched_text": "80906"
+    },
+    {
+      "id": "ex-0178",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "log",
+      "matched_text": "2026-08-06T02:15:53Z"
+    },
+    {
+      "id": "ex-0181",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "json",
+      "matched_text": "91259"
+    },
+    {
+      "id": "ex-0183",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "log",
+      "matched_text": "2025-11-13"
+    },
+    {
+      "id": "ex-0186",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "json",
+      "matched_text": "35941"
+    },
+    {
+      "id": "ex-0188",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "log",
+      "matched_text": "2024-05-19"
+    },
+    {
+      "id": "ex-0191",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "json",
+      "matched_text": "95768"
+    },
+    {
+      "id": "ex-0196",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "json",
+      "matched_text": "44010"
+    },
+    {
+      "id": "ex-0201",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "json",
+      "matched_text": "97485"
+    },
+    {
+      "id": "ex-0206",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "json",
+      "matched_text": "6228"
+    },
+    {
+      "id": "ex-0208",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "log",
+      "matched_text": "2023-12-27T23:26:00Z"
+    },
+    {
+      "id": "ex-0211",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "json",
+      "matched_text": "2015"
+    },
+    {
+      "id": "ex-0213",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "log",
+      "matched_text": "2025-06-28T12:36:18Z"
+    },
+    {
+      "id": "ex-0216",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "json",
+      "matched_text": "77356"
+    },
+    {
+      "id": "ex-0221",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PRIVATE_KEY",
+      "format": "json",
+      "matched_text": "34134"
+    },
+    {
+      "id": "ex-0226",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PRIVATE_KEY",
+      "format": "json",
+      "matched_text": "76921"
+    },
+    {
+      "id": "ex-0231",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PRIVATE_KEY",
+      "format": "json",
+      "matched_text": "15771"
+    },
+    {
+      "id": "ex-0233",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PRIVATE_KEY",
+      "format": "log",
+      "matched_text": "2026-01-24"
+    },
+    {
+      "id": "ex-0236",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "PRIVATE_KEY",
+      "format": "json",
+      "matched_text": "82384"
+    },
+    {
+      "id": "ex-0241",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "85135"
+    },
+    {
+      "id": "ex-0241",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "1704053139"
+    },
+    {
+      "id": "ex-0244",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "2023-03-21T21:55:26Z"
+    },
+    {
+      "id": "ex-0246",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "1737882718"
+    },
+    {
+      "id": "ex-0247",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "14378"
+    },
+    {
+      "id": "ex-0247",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "2026-11-06"
+    },
+    {
+      "id": "ex-0249",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "2025-10-09"
+    },
+    {
+      "id": "ex-0250",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "1774579419"
+    },
+    {
+      "id": "ex-0252",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "1707602031"
+    },
+    {
+      "id": "ex-0253",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "98674"
+    },
+    {
+      "id": "ex-0253",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "2025-10-17T19:28:35Z"
+    },
+    {
+      "id": "ex-0255",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "2024-10-11T15:13:39Z"
+    },
+    {
+      "id": "ex-0256",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "48532"
+    },
+    {
+      "id": "ex-0256",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "2023-04-10"
+    },
+    {
+      "id": "ex-0258",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "2024-04-14"
+    },
+    {
+      "id": "ex-0259",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "78737"
+    },
+    {
+      "id": "ex-0259",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "2026-05-27T10:23:40Z"
+    },
+    {
+      "id": "ex-0261",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "2025-09-10T00:26:41Z"
+    },
+    {
+      "id": "ex-0261",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "158e954f0fb3"
+    },
+    {
+      "id": "ex-0262",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "48411"
+    },
+    {
+      "id": "ex-0262",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "2024-10-11T20:32:47Z"
+    },
+    {
+      "id": "ex-0264",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "2025-06"
+    },
+    {
+      "id": "ex-0287",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:uuid",
+      "format": "json",
+      "matched_text": "4c0766a5-ed9b-4b96-ac24-a12a665a34e0"
+    },
+    {
+      "id": "ex-0290",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "chat",
+      "matched_text": "2026-09-26 04:30:28.997"
+    },
+    {
+      "id": "ex-0292",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "email",
+      "matched_text": "2024-01-06T07:41:01Z."
+    },
+    {
+      "id": "ex-0293",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "code",
+      "matched_text": "1735920293"
+    },
+    {
+      "id": "ex-0294",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "json",
+      "matched_text": "1735790282"
+    },
+    {
+      "id": "ex-0295",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "chat",
+      "matched_text": "2024-10-16"
+    },
+    {
+      "id": "ex-0297",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "email",
+      "matched_text": "1735531142"
+    },
+    {
+      "id": "ex-0298",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "code",
+      "matched_text": "2025-12-13"
+    },
+    {
+      "id": "ex-0299",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "json",
+      "matched_text": "2026-11"
+    },
+    {
+      "id": "ex-0300",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:timestamp",
+      "format": "chat",
+      "matched_text": "2023-01-07T12:14:26Z."
+    },
+    {
+      "id": "ex-0325",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "json",
+      "matched_text": "20184"
+    },
+    {
+      "id": "ex-0326",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "chat",
+      "matched_text": "60769"
+    },
+    {
+      "id": "ex-0328",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "email",
+      "matched_text": "90156"
+    },
+    {
+      "id": "ex-0329",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "code",
+      "matched_text": "91846"
+    },
+    {
+      "id": "ex-0331",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "chat",
+      "matched_text": "96098"
+    },
+    {
+      "id": "ex-0334",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "code",
+      "matched_text": "62252"
+    },
+    {
+      "id": "ex-0335",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "json",
+      "matched_text": "03551"
+    },
+    {
+      "id": "ex-0338",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:nine_digits",
+      "format": "chat",
+      "matched_text": "940186481"
+    },
+    {
+      "id": "ex-0340",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:nine_digits",
+      "format": "email",
+      "matched_text": "704117533"
+    },
+    {
+      "id": "ex-0343",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:nine_digits",
+      "format": "chat",
+      "matched_text": "690450570"
+    },
+    {
+      "id": "ex-0345",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:nine_digits",
+      "format": "email",
+      "matched_text": "133894779"
+    },
+    {
+      "id": "ex-0346",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:nine_digits",
+      "format": "code",
+      "matched_text": "684296960"
+    },
+    {
+      "id": "ex-0348",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "neg:nine_digits",
+      "format": "chat",
+      "matched_text": "493883117"
+    },
+    {
+      "id": "ex-0374",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "evasion:fullwidth",
+      "format": "json",
+      "matched_text": "53651"
+    },
+    {
+      "id": "ex-0377",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "evasion:fullwidth",
+      "format": "json",
+      "matched_text": "41318"
+    },
+    {
+      "id": "ex-0380",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "evasion:fullwidth",
+      "format": "json",
+      "matched_text": "95469"
+    },
+    {
+      "id": "ex-0383",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "evasion:fullwidth",
+      "format": "json",
+      "matched_text": "32352"
+    },
+    {
+      "id": "ex-0386",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "evasion:zero_width",
+      "format": "json",
+      "matched_text": "8766"
+    },
+    {
+      "id": "ex-0392",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "evasion:zero_width",
+      "format": "log",
+      "matched_text": "1704137092"
+    },
+    {
+      "id": "ex-0399",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "evasion:spaced",
+      "format": "log",
+      "matched_text": "2023-09-24"
+    },
+    {
+      "id": "ex-0408",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.85,
+      "tag": "evasion:spaced",
+      "format": "log",
+      "matched_text": "2026-10-26"
+    },
+    {
+      "id": "ex-0002",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "chat",
+      "matched_text": "SSN"
+    },
+    {
+      "id": "ex-0009",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "email",
+      "matched_text": "SSN"
+    },
+    {
+      "id": "ex-0018",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "log",
+      "matched_text": "INFO"
+    },
+    {
+      "id": "ex-0070",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "CREDIT_CARD",
+      "format": "code",
+      "matched_text": "PAN"
+    },
+    {
+      "id": "ex-0084",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "email",
+      "matched_text": "IBAN"
+    },
+    {
+      "id": "ex-0085",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "code",
+      "matched_text": "IBAN"
+    },
+    {
+      "id": "ex-0094",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "email",
+      "matched_text": "IBAN"
+    },
+    {
+      "id": "ex-0097",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "chat",
+      "matched_text": "IBAN"
+    },
+    {
+      "id": "ex-0099",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "email",
+      "matched_text": "IBAN"
+    },
+    {
+      "id": "ex-0162",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "chat",
+      "matched_text": "Token"
+    },
+    {
+      "id": "ex-0164",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "email",
+      "matched_text": "GitHub"
+    },
+    {
+      "id": "ex-0167",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "chat",
+      "matched_text": "Token"
+    },
+    {
+      "id": "ex-0172",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "chat",
+      "matched_text": "Token"
+    },
+    {
+      "id": "ex-0177",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "chat",
+      "matched_text": "GitHub"
+    },
+    {
+      "id": "ex-0184",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "email",
+      "matched_text": "Bearer"
+    },
+    {
+      "id": "ex-0187",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "chat",
+      "matched_text": "API"
+    },
+    {
+      "id": "ex-0189",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "GENERIC_API_KEY",
+      "format": "email",
+      "matched_text": "Bearer"
+    },
+    {
+      "id": "ex-0203",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "log",
+      "matched_text": "id_token"
+    },
+    {
+      "id": "ex-0205",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "code",
+      "matched_text": "ID_TOKEN"
+    },
+    {
+      "id": "ex-0208",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "log",
+      "matched_text": "id_token"
+    },
+    {
+      "id": "ex-0217",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "chat",
+      "matched_text": "Bearer"
+    },
+    {
+      "id": "ex-0243",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "INFO"
+    },
+    {
+      "id": "ex-0246",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "v7.20.93"
+    },
+    {
+      "id": "ex-0267",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "log",
+      "matched_text": "PO-59941-AC"
+    },
+    {
+      "id": "ex-0269",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "code",
+      "matched_text": "ORDER_ID"
+    },
+    {
+      "id": "ex-0271",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "chat",
+      "matched_text": "PO-60759-FD"
+    },
+    {
+      "id": "ex-0274",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "code",
+      "matched_text": "ORDER_ID"
+    },
+    {
+      "id": "ex-0278",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:uuid",
+      "format": "chat",
+      "matched_text": "Trace"
+    },
+    {
+      "id": "ex-0280",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:uuid",
+      "format": "email",
+      "matched_text": "Trace"
+    },
+    {
+      "id": "ex-0281",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:uuid",
+      "format": "code",
+      "matched_text": "REQUEST_ID"
+    },
+    {
+      "id": "ex-0285",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:uuid",
+      "format": "email",
+      "matched_text": "Trace"
+    },
+    {
+      "id": "ex-0286",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:uuid",
+      "format": "code",
+      "matched_text": "REQUEST_ID"
+    },
+    {
+      "id": "ex-0288",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:uuid",
+      "format": "chat",
+      "matched_text": "Trace"
+    },
+    {
+      "id": "ex-0314",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:git_sha",
+      "format": "chat",
+      "matched_text": "Deployed"
+    },
+    {
+      "id": "ex-0316",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:git_sha",
+      "format": "email",
+      "matched_text": "Deployed"
+    },
+    {
+      "id": "ex-0319",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:git_sha",
+      "format": "chat",
+      "matched_text": "Deployed"
+    },
+    {
+      "id": "ex-0321",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:git_sha",
+      "format": "email",
+      "matched_text": "Deployed"
+    },
+    {
+      "id": "ex-0324",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:git_sha",
+      "format": "chat",
+      "matched_text": "Deployed"
+    },
+    {
+      "id": "ex-0352",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:b64_blob",
+      "format": "email",
+      "matched_text": "AVgP3SZK8T8hDMWjW0/HY8P0HYZ+1hc/X5BH1opS5S8=.\n\nBest"
+    },
+    {
+      "id": "ex-0364",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:hex_hash",
+      "format": "email",
+      "matched_text": "File"
+    },
+    {
+      "id": "ex-0369",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "neg:hex_hash",
+      "format": "email",
+      "matched_text": "File"
+    },
+    {
+      "id": "ex-0389",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "evasion:zero_width",
+      "format": "email",
+      "matched_text": "GitHub"
+    },
+    {
+      "id": "ex-0394",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "evasion:zero_width",
+      "format": "email",
+      "matched_text": "Token"
+    },
+    {
+      "id": "ex-0395",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "evasion:zero_width",
+      "format": "chat",
+      "matched_text": "SSN"
+    },
+    {
+      "id": "ex-0408",
+      "predicted": "OTHER:ORGANIZATION",
+      "score": 0.85,
+      "tag": "evasion:spaced",
+      "format": "log",
+      "matched_text": "INFO"
+    },
+    {
+      "id": "ex-0005",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0015",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "US_SSN",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0035",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "EMAIL",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0065",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "CREDIT_CARD",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0070",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "CREDIT_CARD",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0085",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "IBAN",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0120",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "PERSON",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0180",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0205",
+      "predicted": "OTHER:URL",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "code",
+      "matched_text": "requests.ge"
+    },
+    {
+      "id": "ex-0118",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "PERSON",
+      "format": "log",
+      "matched_text": "info svc"
+    },
+    {
+      "id": "ex-0148",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "AWS_ACCESS_KEY",
+      "format": "log",
+      "matched_text": "info svc"
+    },
+    {
+      "id": "ex-0169",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "email",
+      "matched_text": "Push"
+    },
+    {
+      "id": "ex-0202",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "chat",
+      "matched_text": "Cookie"
+    },
+    {
+      "id": "ex-0203",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "log",
+      "matched_text": "info svc"
+    },
+    {
+      "id": "ex-0209",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "email",
+      "matched_text": "Cookie"
+    },
+    {
+      "id": "ex-0219",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "email",
+      "matched_text": "Cookie"
+    },
+    {
+      "id": "ex-0238",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "PRIVATE_KEY",
+      "format": "log",
+      "matched_text": "info svc"
+    },
+    {
+      "id": "ex-0241",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0244",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0247",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0250",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0253",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0256",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0259",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0262",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "multi",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0265",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0267",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "log",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0268",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "email",
+      "matched_text": "INV69884480"
+    },
+    {
+      "id": "ex-0270",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0275",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:order_id",
+      "format": "json",
+      "matched_text": "order_id"
+    },
+    {
+      "id": "ex-0279",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:uuid",
+      "format": "log",
+      "matched_text": "b0ec9f84-9ad3-431c-bf8b-643036670fe8"
+    },
+    {
+      "id": "ex-0327",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "log",
+      "matched_text": "info svc"
+    },
+    {
+      "id": "ex-0327",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "log",
+      "matched_text": "zip=84922 status=200"
+    },
+    {
+      "id": "ex-0332",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:zip_code",
+      "format": "log",
+      "matched_text": "zip=91788 status=200"
+    },
+    {
+      "id": "ex-0339",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:nine_digits",
+      "format": "log",
+      "matched_text": "info svc"
+    },
+    {
+      "id": "ex-0363",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "neg:hex_hash",
+      "format": "log",
+      "matched_text": "sha256="
+    },
+    {
+      "id": "ex-0378",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "evasion:fullwidth",
+      "format": "log",
+      "matched_text": "info svc"
+    },
+    {
+      "id": "ex-0387",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "evasion:zero_width",
+      "format": "log",
+      "matched_text": "info svc"
+    },
+    {
+      "id": "ex-0013",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.8,
+      "tag": "US_SSN",
+      "format": "log",
+      "matched_text": "2026-02-07T11:42:43Z"
+    },
+    {
+      "id": "ex-0028",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.8,
+      "tag": "EMAIL",
+      "format": "log",
+      "matched_text": "2025-08-12T01:49:42Z"
+    },
+    {
+      "id": "ex-0153",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.8,
+      "tag": "AWS_ACCESS_KEY",
+      "format": "log",
+      "matched_text": "2025-09-17T17:47:15Z"
+    },
+    {
+      "id": "ex-0264",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.8,
+      "tag": "multi",
+      "format": "log",
+      "matched_text": "2025-06-27T12:23:37Z"
+    },
+    {
+      "id": "ex-0296",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.8,
+      "tag": "neg:timestamp",
+      "format": "log",
+      "matched_text": "2026-08-18T13:34:43Z"
+    },
+    {
+      "id": "ex-0299",
+      "predicted": "OTHER:DATE_TIME",
+      "score": 0.8,
+      "tag": "neg:timestamp",
+      "format": "json",
+      "matched_text": "2026-11-03T02:23:43Z"
+    },
+    {
+      "id": "ex-0066",
+      "predicted": "OTHER:URL",
+      "score": 0.5,
+      "tag": "CREDIT_CARD",
+      "format": "json",
+      "matched_text": "billing.ge"
+    },
+    {
+      "id": "ex-0126",
+      "predicted": "OTHER:URL",
+      "score": 0.5,
+      "tag": "ADDRESS",
+      "format": "json",
+      "matched_text": "billing.ge"
+    },
+    {
+      "id": "ex-0396",
+      "predicted": "OTHER:URL",
+      "score": 0.5,
+      "tag": "evasion:zero_width",
+      "format": "json",
+      "matched_text": "billing.ge"
+    }
+  ],
+  "label": "baseline"
+}

@@ -22,6 +22,7 @@ import unicodedata
 from typing import Iterable, Mapping
 
 from core.doe import Sensitivity
+from sdk.recognizers_extra import EXTRA_SECRET_TYPES, build_extra_recognizers
 from sdk.taint import TaintLabel
 
 # ---------------------------------------------------------------------------
@@ -96,7 +97,7 @@ def _get_analyzer():
     }
     engine = NlpEngineProvider(nlp_configuration=config).create_engine()
     _analyzer = AnalyzerEngine(nlp_engine=engine)
-    for rec in _build_secret_recognizers():
+    for rec in _build_secret_recognizers() + build_extra_recognizers():
         _analyzer.registry.add_recognizer(rec)
     return _analyzer
 
@@ -131,7 +132,7 @@ class Detection:
 
 def _classify(entity_type: str) -> Sensitivity:
     """Map a Presidio entity type to a Sensitivity class."""
-    if entity_type in {"AWS_ACCESS_KEY", "GITHUB_TOKEN", "GENERIC_API_KEY"}:
+    if entity_type in {"AWS_ACCESS_KEY", "GITHUB_TOKEN", "GENERIC_API_KEY"} | EXTRA_SECRET_TYPES:
         return Sensitivity.SECRET
     if entity_type in _PII_TYPES:
         return Sensitivity.PII
