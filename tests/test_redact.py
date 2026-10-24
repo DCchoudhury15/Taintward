@@ -91,7 +91,7 @@ class TestRedaction(unittest.TestCase):
 
     def test_cross_process_digit_only_token_reverses_correctly(self):
         # Two independent Redactor instances (e.g. two worker processes) with
-        # no shared vault: FF3 is deterministic, so a digit-only (radix 10)
+        # no shared vault: FF1 is deterministic, so a digit-only (radix 10)
         # token from process A can be structurally decrypted by process B's
         # _fpe_decrypt fallback with no case-loss risk (digits have no case).
         proc_a = Redactor()
@@ -101,7 +101,7 @@ class TestRedaction(unittest.TestCase):
 
     def test_cross_process_alnum_token_fails_closed_not_case_mangled(self):
         # Regression for a real gap: _fpe_encrypt lowercases the alphabet
-        # before running FF3 (radix 36), so an alnum token's original letter
+        # before running FF1 (radix 36), so an alnum token's original letter
         # case only lives in the vault, never in the token's own characters.
         # Before the fix, the vault-miss fallback (_fpe_decrypt) still tried
         # to structurally decrypt radix-36 tokens and silently returned a

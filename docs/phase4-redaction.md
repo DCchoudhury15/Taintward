@@ -7,7 +7,7 @@ going, because Phase 2/3 taint tracking followed where the data actually
 travels, not a static field-name mask. This is what actually differentiates
 the project from MemGuard-style static redaction.
 
-    internal sink        -> FF3 format-preserving REVERSIBLE token
+    internal sink        -> FF1 format-preserving REVERSIBLE token
                             (same length / alphabet / separators; decrypts back
                             to the original, so the internal store can still
                             use/correlate the value without holding raw PII)
@@ -25,7 +25,7 @@ everything the SDK doesn't cover (source-tool results, non-instrumented agents).
 ## Pieces
 
 - `sdk/redact.py`, the `Redactor`:
-  - `_fpe_encrypt` / `_fpe_decrypt` via **ff3** (FF3), per-value radix
+  - `_fpe_encrypt` / `_fpe_decrypt` via **FF1** (`sdk/ff1.py`), per-value radix
     (digits go to 10, alnum to 36), separators preserved in place, length
     preserved.
   - `redact_value(value, sensitivity, destination)`: internal sinks get a
@@ -34,8 +34,8 @@ everything the SDK doesn't cover (source-tool results, non-instrumented agents).
   - `redact_text`: per-detection, with overlap-dedup (if AWS_ACCESS_KEY and
     GENERIC_API_KEY both match the same region, keep the longest one).
   - `redact_payload(value, destination)`: recursive over dict/list/scalar.
-  - an in-process vault `token -> original` so reversal is **exact** (FPE
-    alone loses the case of letter positions that encrypt to digits).
+  - a pluggable vault `token -> original` (`sdk/vault.py`: in-memory or
+    encrypted SQLite) so reversal is **exact** (FPE alone loses letter case).
 - `sdk/destinations.py`: a leaf module holding the `DEST_*` constants, which
   breaks the `redact <-> instrumentation` circular import.
 - `demo/hr_bot/tools.py`: added `internal_store` (internal sink) so the demo
@@ -44,13 +44,14 @@ everything the SDK doesn't cover (source-tool results, non-instrumented agents).
   `gen_ai.tool.call.arguments` (the SDK already redacts args; the collector is
   the backstop for the result attr and residuals).
 
-⚠️  **Demo-grade crypto.** This uses **FF3**, and NIST SP 800-38G Rev.1 (Feb
-    2025) **withdrew FF3**. FF1 is the current NIST-approved FPE method, but
-    the `FPE` PyPI package (FF1) failed to build in this environment. The
-    vault is in-process and non-persistent. For production, use FF1 via
-    HashiCorp Vault Transform (FPE plus a managed persistent token vault) or
-    an audited FF1 library, and pull the key from a secret manager, not an
-    env var.
+**Crypto update (2026-10).** This phase first shipped with FF3 and an
+in-process vault. FF3 is withdrawn by NIST, so it now uses **FF1** (checked
+against the NIST sample vectors), a pluggable vault with an encrypted SQLite
+backend, and no silent hardcoded key. Values shorter than 6 digits or 4
+letters/digits are masked. Details, configuration and limits:
+[redaction-crypto.md](redaction-crypto.md). The token values in the SigNoz
+table below were made with FF3; FF1 tokens have the same shape but different
+digits.
 
 ## The format-preserving-token collision (a real interaction worth noting)
 
@@ -89,3 +90,6 @@ a tokenization service the collector trusts.
 - Full suite: `python -m unittest discover tests` gives **31 green** (14 DOE +
   8 SDK + 9 redact). Go: `cd collector/processor/taintpolicy && go test ./...`
   gives 3 green.
+- Added with the crypto update: `tests/test_ff1.py` (FF1 against the NIST
+  sample vectors) and `tests/test_vault.py` (vault, keys, short values). See
+  [redaction-crypto.md](redaction-crypto.md).

@@ -13,32 +13,38 @@ followed where the data actually travels (not a static field-name mask).
                             from what is stored)
     rag                  -> mask (embeddings are invertible, OWASP LLM08:2025)
 
-Implementation: FPE generates the format-preserving token (same length,
-same alphabet, separators preserved); an in-process vault maps token -> exact
-original so reversal is exact (FPE alone loses the case of letter positions
-that encrypt to digits). This is FPE plus tokenization, the pair the plan allows.
+Implementation: FF1 format-preserving encryption (NIST SP 800-38G, see
+sdk/ff1.py) makes the token (same length, digits stay digits, separators kept
+in place). A pluggable vault (sdk/vault.py) maps token -> exact original so
+reversal is exact even where FPE alone cannot be (letter case is not kept in a
+radix-36 token). Values too short for FF1's minimum domain size
+(radix**len >= 1,000,000, so fewer than 6 digits or 4 letters/digits) are
+masked instead of tokenized.
 
-⚠️  DEMO-GRADE. The FPE here is **FF3**; NIST SP 800-38G Rev.1 (Feb 2025)
-    **withdrew FF3**. FF1 is the current NIST-approved method, but the `FPE`
-    PyPI package (FF1) failed to build in this environment. The vault is
-    in-process and non-persistent. For production, use FF1 via HashiCorp
-    Vault Transform (which pairs FPE with a managed, persistent token vault)
-    or an audited FF1 lib, and pull the key from a secret manager, not an
-    env var.
-
-The key (``AGENTWARD_FPE_KEY``, 128/192/256-bit hex) must be kept secret.
+Keys (details in docs/redaction-crypto.md):
+    AGENTWARD_FPE_KEY        hex AES key (32/48/64 hex chars). Keep it secret.
+    AGENTWARD_FPE_KEY_ID     optional label stored with each token in the vault
+    AGENTWARD_ALLOW_DEMO_KEY =1 to use the built-in demo key (demos only)
+If no key is set and the demo key is not allowed, a random key is generated
+once per process and a warning is logged: tokens then differ after a restart.
 """
 
 from __future__ import annotations
 
+import hashlib
+import logging
 import os
 import re
 import string
-
-from ff3 import FF3Cipher
+import warnings
+from typing import Mapping
 
 from core.doe import Sensitivity
 from sdk.destinations import DEST_INTERNAL
+from sdk.ff1 import FF1
+from sdk.vault import MemoryVault, Vault, get_vault
+
+log = logging.getLogger("agentward.redact")
 
 # Reversible redaction is only for trusted internal sinks. Everything else
 # (external/llm/log/rag) gets a non-reversible mask.
@@ -49,88 +55,147 @@ _MASK_TOKEN = {
     Sensitivity.SECRET: "[SECRET]",
 }
 
-# Demo key, 128-bit hex. Replace before any real use. See module docstring.
-_DEFAULT_DEMO_KEY = "EF4359D8D580AA4F7F036D6F04FB771B"
-_DEFAULT_TWEAK = "AABBCCDDEEFF0011"  # hex tweak (ff3 requirement)
+# Public demo key. Only used when AGENTWARD_ALLOW_DEMO_KEY=1. Never in production.
+_DEMO_KEY = "EF4359D8D580AA4F7F036D6F04FB771B"
+_TWEAK_DOMAIN = b"agentward-ff1-v1"
 
 _ALPHA_RE = re.compile(r"[0-9A-Za-z]")
 
+_PROCESS_KEY: str | None = None  # random fallback key, generated once per process
+
+
+def _resolve_key(key_hex: str | None) -> str:
+    """Explicit key > AGENTWARD_FPE_KEY > demo key (opt-in) > random per process."""
+    global _PROCESS_KEY
+    key = key_hex or os.environ.get("AGENTWARD_FPE_KEY")
+    if key:
+        return key.strip()
+    if os.environ.get("AGENTWARD_ALLOW_DEMO_KEY") == "1":
+        log.warning("agentward: using the PUBLIC demo FPE key (AGENTWARD_ALLOW_DEMO_KEY=1). "
+                    "Do not use this outside demos.")
+        return _DEMO_KEY
+    if _PROCESS_KEY is None:
+        _PROCESS_KEY = os.urandom(32).hex()
+        msg = ("agentward: AGENTWARD_FPE_KEY is not set; generated a random per-process "
+               "FPE key. Tokens will NOT be stable across restarts or between processes. "
+               "Set AGENTWARD_FPE_KEY for real use.")
+        log.warning(msg)
+        warnings.warn(msg, RuntimeWarning, stacklevel=3)
+    return _PROCESS_KEY
+
 
 def _radix_for(s: str) -> int | None:
-    """Pick the FF3 radix for the alphabet chars in s, or None if unsupported."""
+    """Pick the FF1 radix for the alphabet chars in s, or None if there are none."""
     alpha = _ALPHA_RE.findall(s)
-    if len(alpha) < 2:
-        return None  # FF3 needs >= 2 alphabet chars
+    if not alpha:
+        return None
     if all(c in string.digits for c in alpha):
         return 10
-    if all(c in string.digits + string.ascii_letters for c in alpha):
-        return 36
-    return None
+    return 36  # _ALPHA_RE only matches 0-9A-Za-z
+
+
+def _layout(s: str) -> str:
+    """Shape of s: d=digit, a=lowercase, A=uppercase, other chars kept as is.
+
+    It goes into the FF1 tweak, so values that differ only in letter case or
+    digit/letter layout get different tokens instead of colliding (the cipher
+    sees letters lowercased). For digit-only values the layout can be rebuilt
+    from the token itself, which keeps the vault-miss fallback working.
+    """
+    out = []
+    for c in s:
+        if c in string.digits:
+            out.append("d")
+        elif "a" <= c <= "z":
+            out.append("a")
+        elif "A" <= c <= "Z":
+            out.append("A")
+        else:
+            out.append(c)
+    return "".join(out)
 
 
 class Redactor:
-    """Destination-aware redactor: reversible FPE token for internal, mask elsewhere."""
+    """Destination-aware redactor: reversible FPE token for internal, mask elsewhere.
 
-    def __init__(self, key_hex: str | None = None, tweak_hex: str = _DEFAULT_TWEAK):
-        self.key = key_hex or os.environ.get("AGENTWARD_FPE_KEY") or _DEFAULT_DEMO_KEY
-        self.tweak = tweak_hex
-        self._ciphers: dict[int, FF3Cipher] = {}
-        self._vault: dict[str, str] = {}  # token -> exact original (in-process, demo)
+    vault: where token -> original is kept. Default comes from AGENTWARD_VAULT
+        (MemoryVault when unset).
+    structural_fallback: when the vault has no entry, try to decrypt a
+        digit-only token with the key. Default: on for MemoryVault (tokens
+        from another process can still be reversed), off for persistent
+        vaults, so that deleting a vault entry (GDPR erasure) really makes the
+        token unreversible through this API.
+    ttl: optional lifetime in seconds for vault entries.
+    """
 
-    def _cipher(self, radix: int) -> FF3Cipher:
-        if radix not in self._ciphers:
-            self._ciphers[radix] = FF3Cipher(self.key, self.tweak, radix=radix)
-        return self._ciphers[radix]
+    def __init__(self, key_hex: str | None = None, tweak_hex: str | None = None, *,
+                 vault: Vault | None = None, structural_fallback: bool | None = None,
+                 ttl: float | None = None, key_id: str | None = None):
+        self.key = _resolve_key(key_hex)
+        try:
+            key = bytes.fromhex(self.key)
+        except ValueError:
+            raise ValueError("AGENTWARD_FPE_KEY must be hex") from None
+        if len(key) not in (16, 24, 32):
+            raise ValueError("AGENTWARD_FPE_KEY must be 32, 48 or 64 hex chars")
+        self.key_id = (key_id or os.environ.get("AGENTWARD_FPE_KEY_ID")
+                       or "k" + hashlib.sha256(b"agentward-key-id" + key).hexdigest()[:8])
+        self.tweak = bytes.fromhex(tweak_hex) if tweak_hex else b""
+        self._ciphers = {10: FF1(key, 10), 36: FF1(key, 36)}
+        self._vault: Vault = vault if vault is not None else get_vault()
+        if structural_fallback is None:
+            structural_fallback = isinstance(self._vault, MemoryVault)
+        self.structural_fallback = structural_fallback
+        self.ttl = ttl
+
+    @property
+    def vault(self) -> Vault:
+        return self._vault
+
+    def _tweak_for(self, radix: int, layout: str) -> bytes:
+        return b"|".join([_TWEAK_DOMAIN, self.tweak, str(radix).encode(), layout.encode()])
 
     def _fpe_encrypt(self, s: str) -> str | None:
         """Format-preserving encrypt: alphabet chars -> same-length token chars,
-        separators kept in place. Output alphabet chars are lowercase (ff3 radix
-        36 uses 0-9a-z). Returns None if s can't be FPE'd."""
+        separators kept in place. Output letters are lowercase (radix 36 uses
+        0-9a-z). Returns None if s can't be FPE'd (no alphabet chars, or fewer
+        than FF1's minimum length for the radix: 6 digits / 4 alnum)."""
         radix = _radix_for(s)
         if radix is None:
             return None
+        cipher = self._ciphers[radix]
         positions = [m.start() for m in _ALPHA_RE.finditer(s)]
+        if len(positions) < cipher.min_len:
+            return None  # below the FF1 domain-size floor: caller masks it
         alpha = "".join(s[i] for i in positions).lower()
-        try:
-            enc = self._cipher(radix).encrypt(alpha)
-        except Exception:
-            return None
+        enc = cipher.encrypt(alpha, self._tweak_for(radix, _layout(s)))
         result = list(s)
         for n, idx in enumerate(positions):
-            result[idx] = enc[n]  # lowercase alnum; separators elsewhere untouched
+            result[idx] = enc[n]
         return "".join(result)
 
     def _fpe_decrypt(self, token: str) -> str | None:
-        """Reverse _fpe_encrypt structurally. Used only as a fallback when the
-        vault misses (e.g. a token from a prior process).
+        """Reverse _fpe_encrypt structurally, without the vault.
 
-        Restricted to digit-only (radix 10) tokens. _fpe_encrypt lowercases
-        the alphabet before encrypting a radix-36 (alnum) value, so the
-        original letter case of an alnum token is *not* recoverable from the
-        ciphertext alone -- without the vault, guessing radix 36 here would
-        silently return a case-mangled value (e.g. "EMP4521XQ" -> "emp4521xq")
-        instead of the exact original, breaking the "reversal is exact"
-        guarantee without so much as an error. Digit-only tokens have no case
-        to lose, so they remain safe to decrypt structurally; anything with a
-        letter in it, we refuse rather than guess.
+        Only for digit-only (radix 10) tokens: an alnum token's original
+        letter case and digit/letter layout are in the tweak and cannot be
+        read back from the token, so we refuse rather than guess.
 
-        Note this is still not airtight: a radix-36 value can, by chance,
-        encrypt to an all-digit token indistinguishable from a genuine
-        radix-10 token, in which case this fallback decrypts it with the
-        wrong cipher and returns a confident-looking but wrong value. That
-        residual ambiguity is inherent to inferring the radix from the
-        ciphertext's own characters and cannot be closed without persisting
-        the original radix alongside the token (e.g. in the vault, or a
-        prefix on the token) -- out of scope for this fallback path.
+        Not airtight: a radix-36 value can, by chance, encrypt to an all-digit
+        token. This fallback would then decrypt it with the radix-10 cipher
+        and return a wrong value. The vault is the source of truth; this
+        path only exists for tokens from another process with a MemoryVault.
         """
-        radix = _radix_for(token)
-        if radix != 10:
+        if _radix_for(token) != 10:
             return None
         positions = [m.start() for m in _ALPHA_RE.finditer(token)]
+        cipher = self._ciphers[10]
+        if len(positions) < cipher.min_len:
+            return None
         alpha = "".join(token[i] for i in positions)
         try:
-            dec = self._cipher(radix).decrypt(alpha)
-        except Exception:
+            dec = cipher.decrypt(alpha, self._tweak_for(10, _layout(token)))
+        except ValueError:
             return None
         result = list(token)
         for n, idx in enumerate(positions):
@@ -140,23 +205,32 @@ class Redactor:
     # --- public API ---
 
     def redact_value(self, value: str, sensitivity: Sensitivity,
-                     destination: str) -> str:
+                     destination: str, *, subject: str | None = None) -> str:
         """Redact one value for a destination.
 
         internal -> reversible FPE token (vaulted for exact reversal; falls
-        back to a mask if FPE can't handle the value); any other sink ->
-        non-reversible mask.
+        back to a mask if FPE can't handle the value, e.g. too short); any
+        other sink -> non-reversible mask. ``subject`` (optional, e.g. a user
+        id) tags the vault entry so forget_subject() can erase it later.
         """
         if not sensitivity.is_sensitive or not value:
             return value
         if destination in _REVERSIBLE_SINKS:
             token = self._fpe_encrypt(value)
             if token is not None:
-                self._vault[token] = value
-                return token
+                existing = self._vault.get(token)
+                if existing is None or existing == value:
+                    self._vault.put(token, value, ttl=self.ttl, subject=subject,
+                                    key_id=self.key_id)
+                    return token
+                # Token already maps to a different original (two values with
+                # a different layout landed on the same string). Never
+                # overwrite: that would make the older token reverse wrongly.
+                log.warning("agentward: FPE token collision, masking value instead")
         return _MASK_TOKEN.get(sensitivity, "[REDACTED]")
 
-    def redact_text(self, text: str, detections, destination: str) -> str:
+    def redact_text(self, text: str, detections, destination: str, *,
+                    subject: str | None = None) -> str:
         """Apply redaction to each detected span in text (right-to-left).
 
         Overlapping detections (e.g. AWS_ACCESS_KEY and GENERIC_API_KEY on the
@@ -177,7 +251,8 @@ class Redactor:
         out = text
         for d in sorted(kept, key=lambda x: x.start, reverse=True):
             original = text[d.start:d.end]
-            redacted = self.redact_value(original, d.sensitivity, destination)
+            redacted = self.redact_value(original, d.sensitivity, destination,
+                                         subject=subject)
             out = out[:d.start] + redacted + out[d.end:]
         return out
 
@@ -189,9 +264,26 @@ class Redactor:
         """
         if token in _MASK_TOKEN.values():
             return None
-        if token in self._vault:
-            return self._vault[token]
-        return self._fpe_decrypt(token)  # fallback, restricted to digit-only tokens
+        original = self._vault.get(token)
+        if original is not None:
+            return original
+        if self.structural_fallback:
+            return self._fpe_decrypt(token)  # digit-only tokens only
+        return None
+
+    def forget(self, token: str) -> bool:
+        """Erase one token mapping from the vault."""
+        return self._vault.delete(token)
+
+    def forget_subject(self, subject: str) -> int:
+        """GDPR erasure: delete every vault mapping tagged with this subject.
+
+        With structural_fallback on (the MemoryVault default), digit-only
+        tokens can still be decrypted by anyone holding the FPE key, so
+        erasure is only complete with structural_fallback off (the default for
+        persistent vaults).
+        """
+        return self._vault.forget_subject(subject)
 
     def is_reversible(self, destination: str) -> bool:
         return destination in _REVERSIBLE_SINKS
@@ -208,31 +300,32 @@ def get_redactor() -> Redactor:
     return _DEFAULT
 
 
-def redact_value(value, sensitivity, destination) -> str:
-    return get_redactor().redact_value(value, sensitivity, destination)
+def redact_value(value, sensitivity, destination, *, subject=None) -> str:
+    return get_redactor().redact_value(value, sensitivity, destination, subject=subject)
 
 
-def redact_text(text, detections, destination) -> str:
-    return get_redactor().redact_text(text, detections, destination)
+def redact_text(text, detections, destination, *, subject=None) -> str:
+    return get_redactor().redact_text(text, detections, destination, subject=subject)
 
 
-def redact_payload(value, destination: str, redactor: "Redactor | None" = None):
+def redact_payload(value, destination: str, redactor: "Redactor | None" = None, *,
+                   subject: str | None = None):
     """Recursively redact sensitive scalar values in a structured payload
     (dict / list / scalar) for the given destination. Non-sensitive values and
     structure are preserved. Used by the SDK egress gate on tool input args.
     """
-    from typing import Mapping
     r = redactor or get_redactor()
     if isinstance(value, str):
         from sdk.detect import detect_text
         ds = detect_text(value)
         if any(d.is_sensitive for d in ds):
-            return r.redact_text(value, ds, destination)
+            return r.redact_text(value, ds, destination, subject=subject)
         return value
     if isinstance(value, Mapping):
-        return {k: redact_payload(v, destination, r) for k, v in value.items()}
+        return {k: redact_payload(v, destination, r, subject=subject)
+                for k, v in value.items()}
     if isinstance(value, list):
-        return [redact_payload(v, destination, r) for v in value]
+        return [redact_payload(v, destination, r, subject=subject) for v in value]
     if isinstance(value, tuple):
-        return tuple(redact_payload(v, destination, r) for v in value)
+        return tuple(redact_payload(v, destination, r, subject=subject) for v in value)
     return value
