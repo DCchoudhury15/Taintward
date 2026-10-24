@@ -134,6 +134,50 @@ That's the "context-aware" part: the same field gets a reversible token in
 one tool and an irreversible mask two hops later, because the system tracked
 *where the data was actually headed*, not just what field it came from.
 
+## Quickstart
+
+```bash
+docker compose up --build
+```
+
+This starts the AgentWard collector, a demo HR agent that leaks an SSN and an
+AWS key, and a Jaeger trace viewer. Open http://localhost:16686, pick the
+service `agentward-hr-bot`, and you will see `ask_llm`, `call_external_api`
+and `write_log` flagged as violations, with no raw SSN or key anywhere. Full
+walkthrough, and how to send traces to SigNoz instead: [`docs/quickstart.md`](docs/quickstart.md).
+
+## Use it in your agent
+
+```bash
+pip install "agentward[langchain]"      # or [openai-agents], [mcp], [llm]
+python -m spacy download en_core_web_sm
+```
+
+**LangChain / LangGraph / OpenAI Agents SDK.** One `init()` call, then wrap
+your tools and model (`aw.wrap_function_tools` for the OpenAI Agents SDK). Tools not in the map are treated as `external`, so a
+forgotten tool gets masked data, never raw data.
+
+```python
+from sdk import integrations as aw
+
+ward = aw.init("my-agent", destinations={
+    "search_db": "internal",
+    "send_email": ("external", "us"),
+})
+tools = aw.wrap_langchain_tools(tools)       # keeps names and schemas
+model = aw.protect_langchain_model(model)    # redacts every request to the LLM
+with ward.run():
+    agent.invoke(...)
+```
+
+Plain OpenAI and Anthropic clients: `aw.protect_openai(client)` /
+`aw.protect_anthropic(client)`. Details and limits: [`docs/integrations.md`](docs/integrations.md).
+
+**MCP gateway, no code changes.** Put `agentward-gateway --config gateway.yaml`
+in your MCP client config in place of the real server. Every tool call is
+scanned and, per tool, redacted, blocked or only recorded (audit mode).
+See [`docs/mcp-gateway.md`](docs/mcp-gateway.md).
+
 ## Status
 
 All six phases are built and verified, each landed as its own stacked PR:
@@ -143,41 +187,51 @@ All six phases are built and verified, each landed as its own stacked PR:
 | 1 | formal DOE model + local SigNoz substrate | (foundation) |
 | 2 | runtime taint on OTel (baggage + per-I/O re-detection) | AgentRaft's Φ (LLM-judged propagation) |
 | 3 | Rego policy in a sidecar collector | AgentRaft's D_nec 3-LLM committee |
-| 4 | reversible, context-aware redaction (FF3 FPE for internal, mask for egress) | static field-name masking |
+| 4 | reversible, context-aware redaction (FF1 FPE for internal, mask for egress) | static field-name masking |
 | 5 | tamper-evident Merkle log + lineage / blast-radius / SLO dashboards | metrics turned into verifiable Art. 30/15 records |
 | 6 | AST-grounded fix-suggester + DLP dry-run | (AgentRaft has no recovery step) |
 
-45 Python tests + 3 Go tests, all green. Per-phase writeups live in
-`docs/phase{3,4,5,6}-*.md` and `docs/spike-llm-hop.md`.
+On top of that, v0.2 adds what is needed to use it for real:
+
+- one-command Docker quickstart ([`docs/quickstart.md`](docs/quickstart.md))
+- framework adapters for LangChain, LangGraph, the OpenAI Agents SDK and the OpenAI / Anthropic clients ([`docs/integrations.md`](docs/integrations.md))
+- an MCP gateway with redact / block / audit modes ([`docs/mcp-gateway.md`](docs/mcp-gateway.md))
+- FF1 encryption checked against the NIST sample vectors, and a token vault (in memory, or SQLite encrypted at rest) with per-subject erasure for GDPR ([`docs/redaction-crypto.md`](docs/redaction-crypto.md))
+- CI for GitLab and GitHub
+
+Per-phase writeups live in `docs/phase{3,4,5,6}-*.md` and `docs/spike-llm-hop.md`.
 
 ## Run it yourself
 
 ```bash
 # unit tests, no SigNoz needed
-python3 -m unittest discover tests        # 45 Python tests
-cd collector/processor/taintpolicy && go test ./...   # 3 Go processor tests
+python3 -m pytest -q                                   # Python tests
+cd collector/processor/taintpolicy && go test ./...   # Go processor tests
 
-# end-to-end (needs SigNoz + the sidecar collector up)
+# end-to-end against your own SigNoz
 cd signoz && foundryctl cast -f casting.yaml                              # start SigNoz
 cd collector && ./bin/agentward-collector --config file:./config.yaml &  # sidecar, :4319
 python3 demo/hr_bot/breach_simulator.py --endpoint http://localhost:4319/v1/traces
 python3 demo/phase5_evidence_demo.py                    # Merkle inclusion + tamper check
-python3 fix_suggester/suggest.py fix_suggester/sample_buggy_agent.py
+agentward-fix fix_suggester/sample_buggy_agent.py       # exits 1 when it finds unguarded sinks
 ```
 
 Then open `http://localhost:8080`, filter on `agentward.violation=true`, and
 you'll see the flagged spans from the run above.
 
-⚠️ The Phase 4 redaction uses **FF3** (NIST withdrew it in Feb 2025; the
-`FPE` FF1 package failed to build here) plus an in-process vault, so treat
-it as demo-grade. In production, swap to FF1 via HashiCorp Vault Transform
-and a managed key.
+**Keys.** Set `AGENTWARD_FPE_KEY` (hex AES key) for stable tokens. Without it
+a random key is made per process and a warning is printed. The public demo
+key is only used when `AGENTWARD_ALLOW_DEMO_KEY=1`. The FF1 code has not had
+an outside audit yet; see [`docs/redaction-crypto.md`](docs/redaction-crypto.md)
+for the limits.
 
 ## Layout
 
 ```
 core/           formal DOE model (pure, the mathematical anchor)
-sdk/            Python: detect / taint / redact / instrumentation   (Phase 2+)
+sdk/            Python: detect / taint / redact / vault / instrumentation
+sdk/integrations/  LangChain, LangGraph, OpenAI Agents, LLM client adapters
+gateway/        MCP gateway (redact / block / audit per tool)
 collector/      Go: custom OTel processor + Rego policy             (Phase 3+)
 demo/hr_bot/    the instrumented demo bot + breach simulator
 dashboards/     SigNoz JSON: lineage / blast-radius / SLO / alerts
