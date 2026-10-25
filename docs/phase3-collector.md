@@ -48,9 +48,8 @@ SDK  --OTLP/HTTP :4319-->  agentward-collector
   - writes collector-authoritative `agentward.policy.*` attrs:
     `redacted`, `violation`, `transfer_violation`, `violations` (JSON),
     `reasons`, `decision_engine=rego`.
-  - redacts raw PII from span string attrs (SSN, AWS key, GitHub token,
-    email, phone regexes go to `[PII]` / `[SECRET]`) **only if** the policy
-    says to redact.
+  - redacts raw PII and secrets (regexes go to `[PII]` / `[SECRET]`) on
+    **every** span, whatever the policy decides. See "Hardening" below.
   - forwards to the next consumer (the `next consumer.Traces` from the factory).
   - `MutatesData=true`; runs before `batch`.
 - `collector/builder.yaml` (ocb manifest) + `collector/config.yaml` (runtime).
@@ -78,7 +77,100 @@ values anywhere** in the stored hr_bot spans.
 - `collector/processor/taintpolicy/processor_test.go`: 3 Go tests, offline
   (no SigNoz needed): egress+transfer+redact on a tainted external-us span;
   internal sink redacts but doesn't violate; clean span stays untouched.
-- Run: `cd collector/processor/taintpolicy && go test ./...`
+- `hardening_test.go`: the hardening cases below (nested values, events,
+  span name, resource attrs, fullwidth and zero-width SSNs, cards, keys,
+  Rego errors, string "true", missing `sensitive`, "US", the args marker,
+  startup checks, and a byte-for-byte check that the two rego files match).
+- `bench_test.go`: `BenchmarkProcessSpan`.
+- Run: `cd collector/processor/taintpolicy && go test ./... && go test -bench . -run x`
+
+## Hardening (2026-10)
+
+A security review found ways raw PII could still reach SigNoz. What changed:
+
+**1. Tool arguments.** The processor used to skip `gen_ai.tool.call.arguments`
+always, so the SDK's reversible tokens would not be masked again. But then raw
+arguments got through in SDK dry-run mode, for non-string arguments, and from
+any other OTel producer. Now the processor skips that attribute only when the
+span has `agentward.args_redacted = true` (a real bool). Anything else (missing,
+the string "true", false) means the arguments are scanned like every other
+value. The older `agentward.redacted` flag is not used for this: it only says
+"the gate changed what the sink got", so it is false when nothing was found and
+true even when a passthrough kwarg stayed raw.
+
+**2. Everything is scanned.** The backstop now walks:
+
+- span attributes, including values nested in maps and lists, and UTF-8 bytes
+- the span name and the status message
+- event names and event attributes (for example `exception.message`)
+- link attributes
+- resource attributes and scope attributes
+
+Values nested deeper than 32 levels are replaced with `[REDACTED]`, since they
+were not scanned.
+
+Before matching, text that is not plain ASCII is normalized: zero-width and
+other invisible format characters are removed, NFKC is applied (so fullwidth
+`２３４` becomes `234`), and Unicode dashes, spaces and digits become ASCII.
+If the normalized text has a match, the whole value is stored in its
+normalized, masked form. Mapping positions back to the original text through
+NFKC is easy to get wrong, and the only cost of storing the normalized form is
+that some harmless characters look different in a value that held PII anyway.
+
+New patterns:
+
+- SSN with spaces or dots (`234 12 1234`), not only dashes.
+- SSN as 9 bare digits, but **only next to an SSN keyword** (`ssn`, `social
+  security number`). Without a keyword, 9 digits are far more often an order
+  ID, a count, a ZIP+4 code or a timestamp part, and masking all of them would
+  make traces useless.
+- Payment cards: 13 to 19 digits with optional spaces or dashes, a known
+  issuer prefix and length (Visa, Mastercard, Amex, Discover, JCB, Diners,
+  UnionPay) and a passing Luhn check. The prefix check matters: Luhn alone
+  passes 1 in 10 random numbers, and millisecond timestamps (13 digits
+  starting with 1) would be masked.
+- API keys: OpenAI/Anthropic style `sk-...`, Stripe, Slack `xox?-`, Google
+  `AIza...`, GitHub fine-grained `github_pat_`, GitLab `glpat-`, AWS `ASIA`,
+  JWTs, PEM private keys, `Bearer <token>`, and `password=...`, `api_key: ...`,
+  `token: ...` style assignments (only the value is masked, 8+ characters).
+
+**3. Fail closed.**
+
+- The regex backstop runs on every span, whatever the policy says. The policy
+  decides violations; the backstop decides redaction.
+- If Rego evaluation fails or the decision is undefined or has the wrong
+  shape, the span is still redacted, `agentward.policy.redacted = true` and
+  `agentward.policy.error` holds the reason.
+- `agentward.sensitive` also accepts the strings "true" and "1" (any case)
+  and a non-zero int.
+- Any `agentward.policy.*` attributes the producer sent are removed first, so
+  a fake `violation = false` cannot survive.
+- The policy now has `default redact := false`. Before, `decision` was
+  undefined for every span that was not sensitive, so no transfer violation
+  was ever reported for those spans. (`violation`, `transfer_violation` and
+  `deny` are multi-value rules: they are already the empty set when nothing
+  matches, and Rego does not allow a default on them.)
+- At startup the processor checks that the policy is `package agentward`,
+  defines `decision` and `redact`, and gives a well formed decision for two
+  sample inputs. If not, the collector does not start and says why.
+
+**4. Case.** Jurisdiction, destination and taint classes are compared in lower
+case, both in the policy and in Go before evaluation, so "US" triggers the
+transfer rule. A Go test checks that `collector/policy/pii_egress.rego` and the
+embedded copy are byte-for-byte the same.
+
+**5. Speed.** Regexes are compiled once. Each string gets one cheap byte pass
+first (digit count, `@`, `:` or `=`, keyword checks), and a regex runs only if
+it could match, so a clean ASCII string costs no allocations. Policy decisions
+are cached by their input (five short strings, few distinct values). Set
+`decision_cache_size: 0` if a custom policy depends on anything other than
+its input, such as time.
+
+| BenchmarkProcessSpan | before | after |
+|---|---|---|
+| clean span | ~105 us, 390 allocs | ~4 us, 14 allocs |
+| span with SSN + email | ~100 us, 399 allocs | ~13 us, 24 allocs |
+| no cache (Rego every span) | n/a | ~92 us, 517 allocs |
 
 ## Gotchas (for future me)
 
