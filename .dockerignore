@@ -1,5 +1,6 @@
 .git
-.claude
+.*/
+!.dockerignore
 .venv
 venv
 **/__pycache__

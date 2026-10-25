@@ -29,5 +29,3 @@ signoz-data/
 # CI caches
 .cache/
 
-# Local tool state
-.claude/
