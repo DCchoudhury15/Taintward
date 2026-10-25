@@ -75,14 +75,24 @@ spec:
                   optional: true
             {{- end }}
             {{- if $g.sessionStore.redisUrlSecretKey }}
-            - name: {{ $g.sessionStore.envName }}
+            - name: AGENTWARD_SESSION_STORE
               valueFrom:
                 secretKeyRef:
                   name: {{ $secret }}
                   key: {{ $g.sessionStore.redisUrlSecretKey }}
             {{- else if $g.sessionStore.redisUrl }}
-            - name: {{ $g.sessionStore.envName }}
+            - name: AGENTWARD_SESSION_STORE
               value: {{ $g.sessionStore.redisUrl | quote }}
+            {{- end }}
+            {{- if $g.vault.urlSecretKey }}
+            - name: AGENTWARD_VAULT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: {{ $g.vault.urlSecretKey }}
+            {{- else if $g.vault.url }}
+            - name: AGENTWARD_VAULT
+              value: {{ $g.vault.url | quote }}
             {{- end }}
             # spaCy and Presidio write small caches under HOME.
             - name: HOME

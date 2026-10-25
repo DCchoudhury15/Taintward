@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "label": "current",
+    "python": "3.12.3",
+    "cpus": 12,
+    "seconds_per_point": 10.0,
+    "exporter": "in-memory (dropped)",
+    "time": "2026-10-25 13:10:26"
+  },
+  "rows": [
+    {
+      "payload": "clean",
+      "mode": "threads",
+      "workers": 1,
+      "calls_per_s": 39.5
+    },
+    {
+      "payload": "clean",
+      "mode": "threads",
+      "workers": 2,
+      "calls_per_s": 35.2
+    },
+    {
+      "payload": "clean",
+      "mode": "threads",
+      "workers": 4,
+      "calls_per_s": 23.0
+    },
+    {
+      "payload": "clean",
+      "mode": "threads",
+      "workers": 8,
+      "calls_per_s": 20.6
+    },
+    {
+      "payload": "clean",
+      "mode": "processes",
+      "workers": 2,
+      "calls_per_s": 37.8
+    },
+    {
+      "payload": "clean",
+      "mode": "processes",
+      "workers": 4,
+      "calls_per_s": 66.2
+    },
+    {
+      "payload": "leak",
+      "mode": "threads",
+      "workers": 1,
+      "calls_per_s": 20.3
+    },
+    {
+      "payload": "leak",
+      "mode": "threads",
+      "workers": 2,
+      "calls_per_s": 17.8
+    },
+    {
+      "payload": "leak",
+      "mode": "threads",
+      "workers": 4,
+      "calls_per_s": 12.8
+    },
+    {
+      "payload": "leak",
+      "mode": "threads",
+      "workers": 8,
+      "calls_per_s": 10.7
+    },
+    {
+      "payload": "leak",
+      "mode": "processes",
+      "workers": 2,
+      "calls_per_s": 25.4
+    },
+    {
+      "payload": "leak",
+      "mode": "processes",
+      "workers": 4,
+      "calls_per_s": 36.5
+    }
+  ]
+}

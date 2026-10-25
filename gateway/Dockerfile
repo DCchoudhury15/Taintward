@@ -22,14 +22,24 @@ RUN python -c "import tomllib; print('\n'.join(tomllib.load(open('pyproject.toml
  && python -m spacy download en_core_web_sm \
  && rm -rf /root/.cache /tmp/req.txt
 
-# The mcp extra (mcp, PyYAML).
-RUN python -c "import tomllib; print('\n'.join(tomllib.load(open('pyproject.toml','rb'))['project']['optional-dependencies']['mcp']))" > /tmp/req.txt \
+# The mcp extra (mcp, PyYAML, uvicorn) and the redis and postgres extras, so
+# several replicas can share sessions (AGENTWARD_SESSION_STORE) and the
+# token vault (AGENTWARD_VAULT).
+RUN python -c "import tomllib; x=tomllib.load(open('pyproject.toml','rb'))['project']['optional-dependencies']; print('\n'.join(x['mcp'] + x['redis'] + x['postgres']))" > /tmp/req.txt \
  && pip install --retries 10 --timeout 60 -r /tmp/req.txt \
  && rm -rf /root/.cache /tmp/req.txt
+
+# preshed 3.0.14 breaks loading the spaCy 3.8.16 model ("Python int too large
+# to convert to C ssize_t"), and sdk/detect.py then finds nothing. Pin it.
+RUN pip install --retries 10 --timeout 60 "preshed<3.0.14" && rm -rf /root/.cache
 
 COPY core ./core
 COPY sdk ./sdk
 COPY gateway ./gateway
+# Fail the build if detection is broken. sdk/detect.py returns no findings
+# (instead of an error) when Presidio or spaCy cannot load, which would let
+# raw data through.
+RUN AGENTWARD_ALLOW_DEMO_KEY=1 python -c "from sdk import detect; found = {d.entity_type for d in detect.detect_text('ssn 234-12-1234 key AKIAIOSFODNN7EXAMPLE')}; assert {'US_SSN', 'AWS_ACCESS_KEY'} <= found, found; print('detection ok', sorted(found))"
 # Example config so the image starts on its own. The example upstream uses
 # cwd "..", which from /etc/agentward is not /app, so point it at /app.
 RUN mkdir -p /etc/agentward \

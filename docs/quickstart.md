@@ -114,6 +114,27 @@ For a remote SigNoz, use its address, for example
 `OTLP_EXPORT_ENDPOINT=signoz.example.com:4317`. The exporter uses plain gRPC
 without TLS. If your backend needs TLS, edit `collector/config.docker.yaml`.
 
+## Also write spans to a file
+
+The collector can also write every checked span as OTLP JSON, one object
+per line:
+
+```bash
+AGENTWARD_TRACE_EXPORTERS='[otlp_grpc/backend, file]' docker compose up
+```
+
+The file is `/var/lib/agentward/spans.jsonl` in the `agentward-spans`
+volume. To copy it out:
+
+```bash
+docker compose cp agentward-collector:/var/lib/agentward/spans.jsonl .
+```
+
+## Run it on Kubernetes
+
+See [deploy-kubernetes.md](deploy-kubernetes.md) for the Helm chart, and
+[scaling.md](scaling.md) for how many pods you need.
+
 ## Stop
 
 ```bash

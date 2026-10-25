@@ -40,8 +40,9 @@ collector:
     # Scale out when average CPU use goes over this percent of the CPU request.
     targetCPUUtilizationPercentage: 70
 
-  # Measured: one core checks about 25k spans/s with the Rego policy
-  # (docs/scaling.md). Requests are what the HPA percent is measured against.
+  # Measured (docs/scaling.md): one core checks about 4k spans/s when every
+  # span is a violation that needs redaction, about 17k spans/s for clean
+  # spans. Requests are what the HPA percent is measured against.
   resources:
     requests:
       cpu: 500m
@@ -169,14 +170,23 @@ gateway:
     AGENTWARD_VAULT_KEY: AGENTWARD_VAULT_KEY
     AGENTWARD_GATEWAY_TOKEN: AGENTWARD_GATEWAY_TOKEN
 
-  # Shared session store, so any replica can serve any MCP session. Without
-  # it each replica keeps its own sessions and you need sticky sessions.
+  # Shared session store, so any replica can serve any MCP session (the
+  # session taint lives there). Without it each replica keeps its own
+  # sessions in memory, so run one replica or turn on sessionAffinity.
+  # Set as AGENTWARD_SESSION_STORE.
   sessionStore:
-    envName: AGENTWARD_REDIS_URL
-    # Plain URL (no password), or leave empty and use the Secret key below.
+    # Plain URL without a password, for example redis://redis:6379/0.
     redisUrl: ""
-    # Key in existingSecret that holds the Redis URL (for URLs with a password).
+    # Or: key in existingSecret that holds the URL (for URLs with a password).
     redisUrlSecretKey: ""
+
+  # Token vault for reversible tokens (AGENTWARD_VAULT). Empty means memory,
+  # which is per pod. Use redis://... or postgresql://... with several
+  # replicas, and put AGENTWARD_VAULT_KEY in the Secret.
+  vault:
+    url: ""
+    # Or: key in existingSecret that holds the URL.
+    urlSecretKey: ""
 
   # Where the gateway sends its spans (OTLP/HTTP). Empty means the policy
   # collector Service of this release.
@@ -190,6 +200,8 @@ gateway:
         command: python
         args: ["-m", "gateway.examples.hr_server"]
         cwd: /app
+        env:
+          AGENTWARD_HR_OUTBOX: /tmp/agentward-hr-outbox.jsonl
     defaults:
       destination: external
       jurisdiction: ""

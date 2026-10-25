@@ -1,0 +1,165 @@
+{
+  "meta": {
+    "label": "current",
+    "python": "3.12.3",
+    "cpus": 12,
+    "seconds_per_point": 10.0,
+    "time": "2026-10-25 13:16:23"
+  },
+  "rows": [
+    {
+      "mode": "stdio",
+      "tool": "clean",
+      "replicas": 1,
+      "concurrency": 1,
+      "calls_per_s": 21.5
+    },
+    {
+      "mode": "stdio",
+      "tool": "clean",
+      "replicas": 1,
+      "concurrency": 4,
+      "calls_per_s": 20.7
+    },
+    {
+      "mode": "stdio",
+      "tool": "sensitive",
+      "replicas": 1,
+      "concurrency": 1,
+      "calls_per_s": 27.8
+    },
+    {
+      "mode": "stdio",
+      "tool": "sensitive",
+      "replicas": 1,
+      "concurrency": 4,
+      "calls_per_s": 26.4
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 1,
+      "concurrency": 1,
+      "calls_per_s": 24.7
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 1,
+      "concurrency": 4,
+      "calls_per_s": 19.9
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 1,
+      "concurrency": 8,
+      "calls_per_s": 17.4
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 1,
+      "concurrency": 1,
+      "calls_per_s": 26.0
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 1,
+      "concurrency": 4,
+      "calls_per_s": 24.6
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 1,
+      "concurrency": 8,
+      "calls_per_s": 21.3
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 2,
+      "concurrency": 1,
+      "calls_per_s": 24.7
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 2,
+      "concurrency": 4,
+      "calls_per_s": 34.3
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 2,
+      "concurrency": 8,
+      "calls_per_s": 28.3
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 2,
+      "concurrency": 1,
+      "calls_per_s": 26.7
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 2,
+      "concurrency": 4,
+      "calls_per_s": 38.9
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 2,
+      "concurrency": 8,
+      "calls_per_s": 33.5
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 4,
+      "concurrency": 1,
+      "calls_per_s": 24.5
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 4,
+      "concurrency": 4,
+      "calls_per_s": 43.7
+    },
+    {
+      "mode": "http",
+      "tool": "clean",
+      "replicas": 4,
+      "concurrency": 8,
+      "calls_per_s": 40.2
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 4,
+      "concurrency": 1,
+      "calls_per_s": 20.2
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 4,
+      "concurrency": 4,
+      "calls_per_s": 43.9
+    },
+    {
+      "mode": "http",
+      "tool": "sensitive",
+      "replicas": 4,
+      "concurrency": 8,
+      "calls_per_s": 39.5
+    }
+  ]
+}
