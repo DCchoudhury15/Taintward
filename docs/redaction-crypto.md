@@ -9,8 +9,8 @@ old FF3 setup that Phase 4 first shipped with (see
 
 | before | now | why |
 |---|---|---|
-| FF3 via the `ff3` package | FF1 in `sdk/ff1.py` (AES from `cryptography`) | NIST withdrew FF3 and FF3-1 (SP 800-38G Rev.1 draft, Feb 2025). FF1 is the FPE mode that is still approved. The `FPE` PyPI package did not build, so FF1 is implemented here (about 150 lines) and checked against all 9 official NIST FF1 sample vectors. |
-| in-process dict vault | pluggable vault (`sdk/vault.py`): `MemoryVault`, `SQLiteVault`, `PostgresVault` or `RedisVault` | the dict was lost on restart and not shared between processes or hosts |
+| FF3 via the `ff3` package | FF1 in `taintward/sdk/ff1.py` (AES from `cryptography`) | NIST withdrew FF3 and FF3-1 (SP 800-38G Rev.1 draft, Feb 2025). FF1 is the FPE mode that is still approved. The `FPE` PyPI package did not build, so FF1 is implemented here (about 150 lines) and checked against all 9 official NIST FF1 sample vectors. |
+| in-process dict vault | pluggable vault (`taintward/sdk/vault.py`): `MemoryVault`, `SQLiteVault`, `PostgresVault` or `RedisVault` | the dict was lost on restart and not shared between processes or hosts |
 | hardcoded demo key used silently | no built-in key unless you opt in | a public key in the code makes every token reversible by anyone |
 
 Token format is unchanged: same length, separators in the same place, digits
@@ -44,12 +44,12 @@ and random tokens over a tiny domain collide often. Masking is the safe choice.
 
 ## The vault
 
-Configure with `AGENTWARD_VAULT`:
+Configure with `TAINTWARD_VAULT`:
 
 | value | backend | notes |
 |---|---|---|
 | unset or `memory` | `MemoryVault` | default; lost on restart; one per process |
-| `sqlite:///var/lib/agentward/vault.db` | `SQLiteVault` | persistent; one host; `sqlite://` + path, so three slashes means an absolute path |
+| `sqlite:///var/lib/taintward/vault.db` | `SQLiteVault` | persistent; one host; `sqlite://` + path, so three slashes means an absolute path |
 | `postgresql://user:pass@host:5432/db` | `PostgresVault` | persistent; shared by many replicas on many hosts; needs `pip install "psycopg[binary]"` |
 | `redis://host:6379/0` (`rediss://` for TLS) | `RedisVault` | shared by many replicas; native TTL; needs `pip install redis` |
 
@@ -74,8 +74,8 @@ Configure with `AGENTWARD_VAULT`:
   entry, token used as associated data so a ciphertext cannot be copied to
   another token). The plaintext never leaves the process: the database or
   Redis only ever sees ciphertext.
-- They need `AGENTWARD_VAULT_KEY` (hex, 32/48/64 chars). They refuse to
-  start without one, and refuse a key equal to `AGENTWARD_FPE_KEY`. Keep
+- They need `TAINTWARD_VAULT_KEY` (hex, 32/48/64 chars). They refuse to
+  start without one, and refuse a key equal to `TAINTWARD_FPE_KEY`. Keep
   the two keys separate so losing one does not expose everything. Every
   replica must use the same vault key.
 - The subject is stored only as an HMAC-SHA256 blind index (see erasure
@@ -90,7 +90,7 @@ Backend details:
 - `SQLiteVault`: safe for several processes on one host (WAL mode, busy
   timeout, short transactions). Do not put the file on NFS or other
   network storage.
-- `PostgresVault`: one table (default `agentward_vault_tokens`, created on
+- `PostgresVault`: one table (default `taintward_vault_tokens`, created on
   first start) with the token as primary key, the nonce, the ciphertext,
   the key id, the subject index and the expiry. There is an index on the
   subject index (for erasure) and a partial index on the expiry (for
@@ -100,9 +100,9 @@ Backend details:
   (`pool_size=5`), with a 5 second connect timeout and a 5 second
   statement timeout; a dropped connection is replaced and the call is
   retried once.
-- `RedisVault`: one hash per token (`agentward:vault:t:<token>`) holding
+- `RedisVault`: one hash per token (`taintward:vault:t:<token>`) holding
   the sealed value, the key id and the subject index, plus one set per
-  subject index (`agentward:vault:s:<index>`) listing its tokens. Writes
+  subject index (`taintward:vault:s:<index>`) listing its tokens. Writes
   and erasure are Lua scripts, so each one is atomic. Connections come from
   redis-py's pool with a 5 second socket timeout.
 
@@ -125,7 +125,7 @@ One catch: digit-only FF1 tokens can also be decrypted with just the FPE key,
 without the vault. The Redactor does that as a fallback (`structural_fallback`)
 only with `MemoryVault`, so tokens from another process can still be reversed.
 With a persistent vault the fallback is off by default, so after
-`forget_subject` the token can no longer be reversed through AgentWard. Anyone
+`forget_subject` the token can no longer be reversed through Taintward. Anyone
 who holds the FPE key can still decrypt digit-only tokens by hand. If you need
 erasure to be cryptographically final, keep the FPE key in a place only the
 redactor can use, or rotate it.
@@ -134,12 +134,12 @@ redactor can use, or rotate it.
 
 | env | meaning |
 |---|---|
-| `AGENTWARD_FPE_KEY` | hex AES key for FF1, 32/48/64 hex chars (AES-128/192/256). Recommended: 64. |
-| `AGENTWARD_FPE_KEY_ID` | optional label (e.g. `2026-10`) stored next to each token in the vault. Default: a short hash of the key. |
-| `AGENTWARD_ALLOW_DEMO_KEY=1` | use the public demo key from the code. Demos only. |
-| `AGENTWARD_VAULT_KEY` | hex AES-GCM key for the SQLite, Postgres and Redis vaults. Must differ from the FPE key. |
+| `TAINTWARD_FPE_KEY` | hex AES key for FF1, 32/48/64 hex chars (AES-128/192/256). Recommended: 64. |
+| `TAINTWARD_FPE_KEY_ID` | optional label (e.g. `2026-10`) stored next to each token in the vault. Default: a short hash of the key. |
+| `TAINTWARD_ALLOW_DEMO_KEY=1` | use the public demo key from the code. Demos only. |
+| `TAINTWARD_VAULT_KEY` | hex AES-GCM key for the SQLite, Postgres and Redis vaults. Must differ from the FPE key. |
 
-If `AGENTWARD_FPE_KEY` is unset and the demo key is not allowed, the Redactor
+If `TAINTWARD_FPE_KEY` is unset and the demo key is not allowed, the Redactor
 generates a **random key once per process** and logs a loud warning. Things
 still work, but tokens change after a restart and differ between processes.
 This is on purpose: nothing ever silently falls back to a known key.
@@ -150,12 +150,12 @@ Generate keys with:
 python -c "import os; print(os.urandom(32).hex())"
 ```
 
-**Rotation.** Set a new `AGENTWARD_FPE_KEY` (and a new `AGENTWARD_FPE_KEY_ID`).
+**Rotation.** Set a new `TAINTWARD_FPE_KEY` (and a new `TAINTWARD_FPE_KEY_ID`).
 New values get tokens under the new key. Old tokens still reverse through the
 vault, because the vault stores the original, not something derived from the
 key; the key id on each row tells you which key made it. The same value will
 get a different token after rotation, so correlation across the rotation
-point is lost. Rotating `AGENTWARD_VAULT_KEY` needs a re-encrypt of the file
+point is lost. Rotating `TAINTWARD_VAULT_KEY` needs a re-encrypt of the file
 and is not automated.
 
 ## Limits (be honest about these)
@@ -169,7 +169,7 @@ and is not automated.
   equal tokens reveal equal values.
 - Values with few possible values (short ids, small numbers) are guessable
   even above the 6 digit floor if the attacker can run the redactor.
-- `sdk/ff1.py` matches the NIST vectors but has not had an external audit,
+- `taintward/sdk/ff1.py` matches the NIST vectors but has not had an external audit,
   and it is not constant time. Fine for this project; a regulated deployment
   should use a validated module (for example HashiCorp Vault Transform).
 - `SQLiteVault` is single host. For several hosts use `PostgresVault` or
@@ -181,10 +181,10 @@ and is not automated.
 
 ## Code
 
-- `sdk/ff1.py`: FF1 (any radix 2..65536, AES-128/192/256, any tweak).
-- `sdk/vault.py`: `Vault` protocol, `MemoryVault`, `SQLiteVault`,
+- `taintward/sdk/ff1.py`: FF1 (any radix 2..65536, AES-128/192/256, any tweak).
+- `taintward/sdk/vault.py`: `Vault` protocol, `MemoryVault`, `SQLiteVault`,
   `PostgresVault`, `RedisVault`, `get_vault()`.
-- `sdk/redact.py`: `Redactor` (uses both), `redact_value` / `redact_text` /
+- `taintward/sdk/redact.py`: `Redactor` (uses both), `redact_value` / `redact_text` /
   `redact_payload` / `get_redactor` (same signatures as before, plus an
   optional `subject=` keyword).
 - Tests: `tests/test_ff1.py` (NIST Samples 1 to 9, round trips, domain floor),

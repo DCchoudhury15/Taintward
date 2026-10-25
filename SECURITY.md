@@ -6,7 +6,7 @@ to protect. Please report them privately.
 ## How to report
 
 Open a **confidential issue** on GitLab:
-https://gitlab.com/divyanshuchoudhury51/agentward/-/issues/new
+https://gitlab.com/divyanshuchoudhury51/taintward/-/issues/new
 (tick "This issue is confidential").
 
 Please include:
@@ -38,5 +38,5 @@ These are documented and are not vulnerabilities on their own:
 
 - detection is pattern and model based, so it can miss data
   (see `docs/benchmark.md` for measured accuracy)
-- the FF1 code in `sdk/ff1.py` has not had an outside audit yet
+- the FF1 code in `taintward/sdk/ff1.py` has not had an outside audit yet
 - anyone holding the FPE key can reverse internal tokens

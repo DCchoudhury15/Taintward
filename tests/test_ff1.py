@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 import unittest
 
-from sdk.ff1 import FF1, min_len
+from taintward.sdk.ff1 import FF1, min_len
 
 K128 = "2B7E151628AED2A6ABF7158809CF4F3C"
 K192 = K128 + "EF4359D8D580AA4F"

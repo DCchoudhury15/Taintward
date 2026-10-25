@@ -8,7 +8,7 @@ Packages: presidio-analyzer 2.2.364, spacy 3.8.16, en-core-web-sm 3.8.0, opentel
 
 | step | seconds |
 |---|---:|
-| import sdk.detect | 0.96 |
+| import taintward.sdk.detect | 0.96 |
 | build Presidio analyzer (loads spaCy model) | 0.32 |
 | first detect_text call | 0.14 |
 | **total** | **1.43** |

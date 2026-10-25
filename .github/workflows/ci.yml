@@ -61,10 +61,10 @@ jobs:
       - uses: azure/setup-helm@v4
         with:
           version: v3.16.2
-      - run: diff collector/policy/pii_egress.rego deploy/helm/agentward/files/pii_egress.rego
-      - run: helm lint deploy/helm/agentward
-      - run: helm template t deploy/helm/agentward > /dev/null
+      - run: diff collector/policy/pii_egress.rego deploy/helm/taintward/files/pii_egress.rego
+      - run: helm lint deploy/helm/taintward
+      - run: helm template t deploy/helm/taintward > /dev/null
       - run: >-
-          helm template t deploy/helm/agentward
+          helm template t deploy/helm/taintward
           --set gateway.enabled=true --set gateway.existingSecret=keys
           --set routingTier.enabled=true --set collector.fileExport.enabled=true > /dev/null

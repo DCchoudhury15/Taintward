@@ -28,7 +28,7 @@ import time
 import urllib.request
 
 OTLP_HTTP = "http://localhost:4318/v1/traces"
-SERVICE_NAME = "agentward-verify"
+SERVICE_NAME = "taintward-verify"
 CLICKHOUSE_CONTAINER = "signoz-telemetrystore-clickhouse-0-0"
 CLICKHOUSE_POLL_TIMEOUT_S = 20
 CLICKHOUSE_POLL_INTERVAL_S = 1
@@ -63,19 +63,19 @@ def emit() -> dict:
                 "resource": {
                     "attributes": [
                         {"key": "service.name", "value": {"stringValue": SERVICE_NAME}},
-                        {"key": "agentward.phase", "value": {"stringValue": "phase1"}},
+                        {"key": "taintward.phase", "value": {"stringValue": "phase1"}},
                     ]
                 },
                 "scopeSpans": [
                     {
-                        "scope": {"name": "agentward.verify"},
+                        "scope": {"name": "taintward.verify"},
                         "spans": [
                             _span(now, trace_id, None, root_id,
                                   "phase1.handcrafted.root",
-                                  {"agentward.note": "substrate-verify"}),
+                                  {"taintward.note": "substrate-verify"}),
                             _span(now + 100_000, trace_id, root_id, child_id,
                                   "phase1.handcrafted.child",
-                                  {"agentward.tag": "taint.pii=true"}),
+                                  {"taintward.tag": "taint.pii=true"}),
                         ],
                     }
                 ],

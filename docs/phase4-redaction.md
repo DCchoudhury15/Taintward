@@ -24,8 +24,8 @@ everything the SDK doesn't cover (source-tool results, non-instrumented agents).
 
 ## Pieces
 
-- `sdk/redact.py`, the `Redactor`:
-  - `_fpe_encrypt` / `_fpe_decrypt` via **FF1** (`sdk/ff1.py`), per-value radix
+- `taintward/sdk/redact.py`, the `Redactor`:
+  - `_fpe_encrypt` / `_fpe_decrypt` via **FF1** (`taintward/sdk/ff1.py`), per-value radix
     (digits go to 10, alnum to 36), separators preserved in place, length
     preserved.
   - `redact_value(value, sensitivity, destination)`: internal sinks get a
@@ -34,9 +34,9 @@ everything the SDK doesn't cover (source-tool results, non-instrumented agents).
   - `redact_text`: per-detection, with overlap-dedup (if AWS_ACCESS_KEY and
     GENERIC_API_KEY both match the same region, keep the longest one).
   - `redact_payload(value, destination)`: recursive over dict/list/scalar.
-  - a pluggable vault `token -> original` (`sdk/vault.py`: in-memory or
+  - a pluggable vault `token -> original` (`taintward/sdk/vault.py`: in-memory or
     encrypted SQLite) so reversal is **exact** (FPE alone loses letter case).
-- `sdk/destinations.py`: a leaf module holding the `DEST_*` constants, which
+- `taintward/sdk/destinations.py`: a leaf module holding the `DEST_*` constants, which
   breaks the `redact <-> instrumentation` circular import.
 - `demo/hr_bot/tools.py`: added `internal_store` (internal sink) so the demo
   shows a reversible token alongside the masks.

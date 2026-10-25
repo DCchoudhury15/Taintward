@@ -19,10 +19,10 @@ var embeddedPolicy string
 
 // Attributes read off each span to feed the Rego policy.
 const (
-	attSensitive    = "agentward.sensitive"
-	attClasses      = "agentward.taint.classes"
-	attDestination  = "agentward.destination"
-	attJurisdiction = "agentward.jurisdiction"
+	attSensitive    = "taintward.sensitive"
+	attClasses      = "taintward.taint.classes"
+	attDestination  = "taintward.destination"
+	attJurisdiction = "taintward.jurisdiction"
 	attTool         = "gen_ai.tool.name"
 
 	// attArgs holds the tool call arguments. The SDK may store them as
@@ -30,20 +30,20 @@ const (
 	// regexes; the backstop leaves this one attribute alone ONLY when the
 	// span carries attArgsRedacted=true (bool).
 	attArgs         = "gen_ai.tool.call.arguments"
-	attArgsRedacted = "agentward.args_redacted"
+	attArgsRedacted = "taintward.args_redacted"
 )
 
 // Attributes written by the collector (authoritative: Rego is the source of truth).
 const (
-	attPolicyPrefix     = "agentward.policy."
-	attPolicyRedact     = "agentward.policy.redacted"
-	attPolicyViolation  = "agentward.policy.violation"
-	attPolicyTransfer   = "agentward.policy.transfer_violation"
-	attPolicyViolations = "agentward.policy.violations"
-	attPolicyReasons    = "agentward.policy.reasons"
-	attPolicyDecision   = "agentward.policy.decision_engine"
-	attPolicyError      = "agentward.policy.error"
-	attPolicyMasked     = "agentward.policy.masked_values"
+	attPolicyPrefix     = "taintward.policy."
+	attPolicyRedact     = "taintward.policy.redacted"
+	attPolicyViolation  = "taintward.policy.violation"
+	attPolicyTransfer   = "taintward.policy.transfer_violation"
+	attPolicyViolations = "taintward.policy.violations"
+	attPolicyReasons    = "taintward.policy.reasons"
+	attPolicyDecision   = "taintward.policy.decision_engine"
+	attPolicyError      = "taintward.policy.error"
+	attPolicyMasked     = "taintward.policy.masked_values"
 	decisionEngine      = "rego"
 )
 
@@ -55,15 +55,15 @@ var ownedAttrs = map[string]struct{}{
 }
 
 // taintPolicyProcessor is a traces processor that:
-//  1. reads agentward.* attrs off each span,
+//  1. reads taintward.* attrs off each span,
 //  2. evaluates the Rego policy (compile once, eval many, cached),
-//  3. writes collector-authoritative agentward.policy.* attrs, and
+//  3. writes collector-authoritative taintward.policy.* attrs, and
 //  4. runs the regex backstop over every string the span carries (attrs,
 //     nested values, name, status, events, links, resource and scope attrs)
 //     so the backend never stores a raw secret or PII pattern.
 //
 // It fails closed: a policy error or undefined decision still redacts and
-// records agentward.policy.error.
+// records taintward.policy.error.
 type taintPolicyProcessor struct {
 	cfg    *Config
 	next   consumer.Traces
@@ -133,7 +133,7 @@ func (p *taintPolicyProcessor) processSpan(ctx context.Context, span ptrace.Span
 
 	// Drop the attributes this processor owns if the producer already sent
 	// them: a fake "violation=false" must not survive a policy error. Other
-	// agentward.policy.* keys (the gateway writes agentward.policy.rules)
+	// taintward.policy.* keys (the gateway writes taintward.policy.rules)
 	// are left alone.
 	if hasPrefixKey(attrs, attPolicyPrefix) {
 		attrs.RemoveIf(func(k string, _ pcommon.Value) bool {

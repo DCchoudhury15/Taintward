@@ -1,0 +1,112 @@
+{{- if .Values.routingTier.enabled }}
+{{- $r := .Values.routingTier -}}
+{{- $c := .Values.collector -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "taintward.routing.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: routing
+data:
+  config.yaml: |
+    {{- include "taintward.routing.config" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: {{ $r.kind }}
+metadata:
+  name: {{ include "taintward.routing.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: routing
+spec:
+  {{- if eq $r.kind "Deployment" }}
+  replicas: {{ $r.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "taintward.selectorLabels" (dict "ctx" . "component" "routing") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taintward.selectorLabels" (dict "ctx" . "component" "routing") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include "taintward.routing.config" . | sha256sum }}
+    spec:
+      {{- with $c.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: collector
+          image: "{{ $c.image.repository }}:{{ $c.image.tag }}"
+          imagePullPolicy: {{ $c.image.pullPolicy }}
+          args: ["--config=/etc/taintward/config/config.yaml"]
+          ports:
+            - name: otlp-http
+              containerPort: 4319
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: health
+              containerPort: 13133
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            periodSeconds: 5
+          resources:
+            {{- toYaml $r.resources | nindent 12 }}
+          securityContext:
+            {{- include "taintward.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/taintward/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "taintward.routing.fullname" . }}
+      {{- with $r.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $r.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "taintward.routing.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: routing
+spec:
+  selector:
+    {{- include "taintward.selectorLabels" (dict "ctx" . "component" "routing") | nindent 4 }}
+  {{- if eq $r.kind "DaemonSet" }}
+  # Send to the routing pod on the same node when there is one.
+  internalTrafficPolicy: Local
+  {{- end }}
+  ports:
+    - name: otlp-http
+      port: 4319
+      targetPort: otlp-http
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+{{- end }}

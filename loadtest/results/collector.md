@@ -1,6 +1,6 @@
 # Collector throughput
 
-Run: `IMAGE=agentward-collector:scale CPUS="1 2 4" DURATION=30 loadtest/collector/run.sh`
+Run: `IMAGE=taintward-collector:scale CPUS="1 2 4" DURATION=30 loadtest/collector/run.sh`
 (4 telemetrygen v0.159.0 senders, 4 workers each, no rate limit). Raw rows:
 [`collector-raw.tsv`](collector-raw.tsv).
 
@@ -27,7 +27,7 @@ backend is not what is measured).
 
 What the scenarios are:
 
-* **policy-violation**: every span is `agentward.sensitive=true`, destination
+* **policy-violation**: every span is `taintward.sensitive=true`, destination
   `external`, jurisdiction `us`, and its result holds an SSN, an AWS key and
   an email. Rego fires both rules and the processor runs its redaction
   regexes over every string attribute. This is the worst case.

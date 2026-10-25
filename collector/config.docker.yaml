@@ -1,4 +1,4 @@
-# AgentWard collector config for the Docker image.
+# Taintward collector config for the Docker image.
 #
 # Flow:  SDK --OTLP/HTTP :4319 or OTLP/gRPC :4317--> [memory_limiter] -> [taint_policy] -> [batch]
 #        --OTLP/gRPC--> ${OTLP_EXPORT_ENDPOINT}
@@ -7,13 +7,13 @@
 #   OTLP_EXPORT_ENDPOINT        any OTLP gRPC backend as host:port, for example
 #                               jaeger:4317 (the quickstart default) or a SigNoz
 #                               collector at <host>:4317.
-#   AGENTWARD_TRACE_EXPORTERS   exporters used by the traces pipeline, as a YAML
+#   TAINTWARD_TRACE_EXPORTERS   exporters used by the traces pipeline, as a YAML
 #                               list. Default: [otlp_grpc/backend, debug].
 #                               Add file to also write OTLP JSON lines:
 #                               [otlp_grpc/backend, file]
-#   AGENTWARD_FILE_EXPORT_PATH  where the file exporter writes. Default:
-#                               /var/lib/agentward/spans.jsonl (mount a volume there).
-#   AGENTWARD_MEMORY_LIMIT_MIB  memory_limiter hard limit. Default 400.
+#   TAINTWARD_FILE_EXPORT_PATH  where the file exporter writes. Default:
+#                               /var/lib/taintward/spans.jsonl (mount a volume there).
+#   TAINTWARD_MEMORY_LIMIT_MIB  memory_limiter hard limit. Default 400.
 #                               Keep it about 80% of the container memory limit.
 receivers:
   otlp:
@@ -32,12 +32,12 @@ processors:
   # First in the pipeline: refuses data (the SDK retries) instead of being OOM killed.
   memory_limiter:
     check_interval: 1s
-    limit_mib: ${env:AGENTWARD_MEMORY_LIMIT_MIB:-400}
+    limit_mib: ${env:TAINTWARD_MEMORY_LIMIT_MIB:-400}
     spike_limit_mib: 80
   taint_policy:
     # Baked into the image. Mount your own file over this path and restart
     # the container to change the policy. No rebuild needed.
-    policy_path: /etc/agentward/policy/pii_egress.rego
+    policy_path: /etc/taintward/policy/pii_egress.rego
   # taint_policy runs BEFORE batch (batching clears request context).
   batch:
     timeout: 1s
@@ -48,9 +48,9 @@ exporters:
     endpoint: ${env:OTLP_EXPORT_ENDPOINT}
     tls:
       insecure: true
-  # Only used when listed in AGENTWARD_TRACE_EXPORTERS. One OTLP JSON object per line.
+  # Only used when listed in TAINTWARD_TRACE_EXPORTERS. One OTLP JSON object per line.
   file:
-    path: ${env:AGENTWARD_FILE_EXPORT_PATH:-/var/lib/agentward/spans.jsonl}
+    path: ${env:TAINTWARD_FILE_EXPORT_PATH:-/var/lib/taintward/spans.jsonl}
     format: json
     create_directory: true
     rotation:
@@ -68,4 +68,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, taint_policy, batch]
-      exporters: ${env:AGENTWARD_TRACE_EXPORTERS:-[otlp_grpc/backend, debug]}
+      exporters: ${env:TAINTWARD_TRACE_EXPORTERS:-[otlp_grpc/backend, debug]}

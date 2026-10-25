@@ -7,10 +7,10 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from fix_suggester.suggest import analyze_file, analyze_tree, narrate
-from sdk.destinations import DEST_EXTERNAL, DEST_LLM
+from taintward.fix_suggester.suggest import analyze_file, analyze_tree, narrate
+from taintward.sdk.destinations import DEST_EXTERNAL, DEST_LLM
 
-SAMPLE = Path(__file__).resolve().parents[1] / "fix_suggester" / "sample_buggy_agent.py"
+SAMPLE = Path(__file__).resolve().parents[1] / "taintward" / "fix_suggester" / "sample_buggy_agent.py"
 
 
 class TestFixSuggester(unittest.TestCase):
@@ -62,13 +62,13 @@ class TestGuardDecoratorAliasing(unittest.TestCase):
     unrelated decorator whose name merely ends with "instrument_tool"."""
 
     def test_aliased_instrument_tool_is_recognized_as_guarded(self):
-        # `from sdk.instrumentation import instrument_tool as it` -- the real
+        # `from taintward.sdk.instrumentation import instrument_tool as it` -- the real
         # guard, just imported under a different local name. Must NOT be
         # flagged: aliasing doesn't change what the decorator does at runtime.
         findings = _findings_for(
             """
             import requests
-            from sdk.instrumentation import instrument_tool as it
+            from taintward.sdk.instrumentation import instrument_tool as it
 
             @it(destination="external")
             def do_thing():
@@ -78,11 +78,11 @@ class TestGuardDecoratorAliasing(unittest.TestCase):
         self.assertEqual(findings, [], "aliased @instrument_tool import wrongly flagged as unguarded")
 
     def test_aliased_module_import_is_recognized_as_guarded(self):
-        # `import sdk.instrumentation as instr` then `@instr.instrument_tool`.
+        # `import taintward.sdk.instrumentation as instr` then `@instr.instrument_tool`.
         findings = _findings_for(
             """
             import requests
-            import sdk.instrumentation as instr
+            import taintward.sdk.instrumentation as instr
 
             @instr.instrument_tool(destination="external")
             def do_thing():

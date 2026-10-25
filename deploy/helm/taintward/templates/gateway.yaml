@@ -1,0 +1,212 @@
+{{- if .Values.gateway.enabled }}
+{{- $g := .Values.gateway -}}
+{{- $secret := required "gateway.existingSecret is required when gateway.enabled is true (a Secret with TAINTWARD_FPE_KEY, TAINTWARD_VAULT_KEY, TAINTWARD_GATEWAY_TOKEN)" $g.existingSecret -}}
+{{- $otlp := $g.otlpEndpoint | default (printf "http://%s:4319/v1/traces" (include "taintward.collector.fullname" .)) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "taintward.gateway.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+data:
+  gateway.yaml: |
+    {{- toYaml $g.config | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "taintward.gateway.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  {{- if not $g.autoscaling.enabled }}
+  replicas: {{ $g.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "taintward.selectorLabels" (dict "ctx" . "component" "gateway") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taintward.selectorLabels" (dict "ctx" . "component" "gateway") | nindent 8 }}
+      annotations:
+        checksum/config: {{ toYaml $g.config | sha256sum }}
+        {{- with $g.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with $g.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: "{{ $g.image.repository }}:{{ $g.image.tag }}"
+          imagePullPolicy: {{ $g.image.pullPolicy }}
+          command: ["python", "-m", "taintward.gateway"]
+          args:
+            - --config
+            - /etc/taintward/gateway.yaml
+            - --listen
+            - "0.0.0.0:{{ $g.port }}"
+            - --log-level
+            - {{ $g.logLevel | quote }}
+          ports:
+            - name: http
+              containerPort: {{ $g.port }}
+          env:
+            - name: TAINTWARD_OTLP_ENDPOINT
+              value: {{ $otlp | quote }}
+            {{- range $envName, $key := $g.secretKeys }}
+            - name: {{ $envName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: {{ $key }}
+                  optional: true
+            {{- end }}
+            {{- if $g.sessionStore.redisUrlSecretKey }}
+            - name: TAINTWARD_SESSION_STORE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: {{ $g.sessionStore.redisUrlSecretKey }}
+            {{- else if $g.sessionStore.redisUrl }}
+            - name: TAINTWARD_SESSION_STORE
+              value: {{ $g.sessionStore.redisUrl | quote }}
+            {{- end }}
+            {{- if $g.vault.urlSecretKey }}
+            - name: TAINTWARD_VAULT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: {{ $g.vault.urlSecretKey }}
+            {{- else if $g.vault.url }}
+            - name: TAINTWARD_VAULT
+              value: {{ $g.vault.url | quote }}
+            {{- end }}
+            # spaCy and Presidio write small caches under HOME.
+            - name: HOME
+              value: /tmp
+            {{- with $g.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # Loading Presidio and spaCy takes 10 to 20 seconds.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 3
+            failureThreshold: 40
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          resources:
+            {{- toYaml $g.resources | nindent 12 }}
+          securityContext:
+            {{- include "taintward.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/taintward
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "taintward.gateway.fullname" . }}
+        - name: tmp
+          emptyDir: {}
+      {{- with $g.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $g.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $g.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "taintward.gateway.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+  {{- with $g.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $g.service.type }}
+  sessionAffinity: {{ $g.service.sessionAffinity }}
+  selector:
+    {{- include "taintward.selectorLabels" (dict "ctx" . "component" "gateway") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $g.port }}
+      targetPort: http
+{{- if $g.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "taintward.gateway.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "taintward.gateway.fullname" . }}
+  minReplicas: {{ $g.autoscaling.minReplicas }}
+  maxReplicas: {{ $g.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $g.autoscaling.targetCPUUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+{{- end }}
+{{- if $g.pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "taintward.gateway.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  minAvailable: {{ $g.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "taintward.selectorLabels" (dict "ctx" . "component" "gateway") | nindent 6 }}
+{{- end }}
+{{- end }}

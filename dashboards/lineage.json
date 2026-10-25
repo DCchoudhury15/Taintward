@@ -1,15 +1,15 @@
 {
-  "name": "AgentWard: Lineage (where the data went)",
+  "name": "Taintward: Lineage (where the data went)",
   "description": "GDPR Art. 30 record built from runtime data flow: for each tainted span, the tool it reached, the destination class, the taint classes, and the jurisdiction. Ordered by trace so each run reads as a path. This is the 'lineage map' that replaces a stale RoPA spreadsheet with live, runtime-derived evidence.",
   "datasource": "signoz_traces.distributed_signoz_index_v3",
   "queries": [
     {
       "title": "Tainted span path per run",
-      "sql": "SELECT trace_id, name AS tool, attributes_string['agentward.destination'] AS destination, attributes_string['agentward.jurisdiction'] AS jurisdiction, attributes_string['agentward.taint.classes'] AS taint_classes, attributes_string['agentward.policy.reasons'] AS policy_reasons, attributes_bool['agentward.policy.violation'] AS violation, attributes_bool['agentward.policy.transfer_violation'] AS transfer, timestamp FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'agentward-hr-bot' AND attributes_bool['agentward.sensitive'] = 1 ORDER BY trace_id, timestamp"
+      "sql": "SELECT trace_id, name AS tool, attributes_string['taintward.destination'] AS destination, attributes_string['taintward.jurisdiction'] AS jurisdiction, attributes_string['taintward.taint.classes'] AS taint_classes, attributes_string['taintward.policy.reasons'] AS policy_reasons, attributes_bool['taintward.policy.violation'] AS violation, attributes_bool['taintward.policy.transfer_violation'] AS transfer, timestamp FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'taintward-hr-bot' AND attributes_bool['taintward.sensitive'] = 1 ORDER BY trace_id, timestamp"
     },
     {
       "title": "Distinct destinations touched per trace (the path shape)",
-      "sql": "SELECT trace_id, groupArrayDistinct(attributes_string['agentward.destination']) AS destinations, count() AS tainted_spans FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'agentward-hr-bot' AND attributes_bool['agentward.sensitive'] = 1 GROUP BY trace_id ORDER BY trace_id"
+      "sql": "SELECT trace_id, groupArrayDistinct(attributes_string['taintward.destination']) AS destinations, count() AS tainted_spans FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'taintward-hr-bot' AND attributes_bool['taintward.sensitive'] = 1 GROUP BY trace_id ORDER BY trace_id"
     }
   ],
   "notes": "Import: create these as SigNoz dashboard panels (UI or signoz_create_dashboard MCP) pointed at the signoz_traces datasource. The first panel IS an Article 30 recipients/transfer record, from runtime data flow not a stale spreadsheet."

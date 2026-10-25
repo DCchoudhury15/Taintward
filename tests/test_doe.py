@@ -1,4 +1,4 @@
-"""Tests for core/doe.py against AgentRaft's worked examples and edge cases.
+"""Tests for taintward/core/doe.py against AgentRaft's worked examples and edge cases.
 
 Runnable with stdlib alone: ``python3 -m unittest discover tests``
 or ``python3 -m pytest tests`` (if pytest is installed).
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from core.doe import (
+from taintward.core.doe import (
     DOESets,
     Field,
     Sensitivity,

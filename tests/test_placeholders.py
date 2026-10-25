@@ -27,13 +27,13 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from core.doe import Sensitivity
-from sdk import placeholders as ph
-from sdk.destinations import DEST_EXTERNAL, DEST_INTERNAL, DEST_LLM, DEST_LOG
-from sdk.integrations import Ward
-from sdk.placeholders import PlaceholderMap
-from sdk.redact import get_redactor, redact_payload
-from sdk.vault import MemoryVault
+from taintward.core.doe import Sensitivity
+from taintward.sdk import placeholders as ph
+from taintward.sdk.destinations import DEST_EXTERNAL, DEST_INTERNAL, DEST_LLM, DEST_LOG
+from taintward.sdk.integrations import Ward
+from taintward.sdk.placeholders import PlaceholderMap
+from taintward.sdk.redact import get_redactor, redact_payload
+from taintward.sdk.vault import MemoryVault
 
 SSN = "234-12-1234"
 AWS = "AKIAIOSFODNN7EXAMPLE"
@@ -61,7 +61,7 @@ def otel():
     provider = TracerProvider(resource=Resource.create({"service.name": "test"}))
     exporter = InMemorySpanExporter()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    yield provider.get_tracer("agentward"), exporter
+    yield provider.get_tracer("taintward"), exporter
     provider.shutdown()
 
 
@@ -573,7 +573,7 @@ class TestLangChainPlaceholders:
     def test_redact_and_restore_message_roundtrip(self):
         from langchain_core.messages import AIMessage
 
-        from sdk.integrations.langchain import redact_message, restore_message
+        from taintward.sdk.integrations.langchain import redact_message, restore_message
         m = PlaceholderMap()
         msg = AIMessage(f"to {NAME}", tool_calls=[
             {"name": "t", "args": {"ssn": SSN}, "id": "1"}])

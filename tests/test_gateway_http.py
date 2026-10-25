@@ -1,7 +1,7 @@
-"""Tests for the gateway over streamable HTTP (gateway/http.py) and the
-session taint stores (gateway/session_store.py).
+"""Tests for the gateway over streamable HTTP (taintward/gateway/http.py) and the
+session taint stores (taintward/gateway/session_store.py).
 
-The HTTP tests start the real CLI, ``python -m gateway --listen``, as a
+The HTTP tests start the real CLI, ``python -m taintward.gateway --listen``, as a
 subprocess with the example HR server as a stdio upstream, and talk to it
 over the network with the mcp client or raw HTTP. The Redis tests use the
 throwaway redis-server from tests/test_vault_backends.py and are skipped
@@ -28,18 +28,18 @@ httpx = pytest.importorskip("httpx")
 from mcp import Client  # noqa: E402
 from mcp.shared.exceptions import MCPError  # noqa: E402
 
-from core.doe import Sensitivity  # noqa: E402
-from gateway import BLOCKED_ERROR_CODE, parse_config  # noqa: E402
-from gateway.config import ConfigError  # noqa: E402
-from gateway.examples import hr_server  # noqa: E402
-from gateway.http import parse_listen  # noqa: E402
-from gateway.session_store import (  # noqa: E402
+from taintward.core.doe import Sensitivity  # noqa: E402
+from taintward.gateway import BLOCKED_ERROR_CODE, parse_config  # noqa: E402
+from taintward.gateway.config import ConfigError  # noqa: E402
+from taintward.gateway.examples import hr_server  # noqa: E402
+from taintward.gateway.http import parse_listen  # noqa: E402
+from taintward.gateway.session_store import (  # noqa: E402
     MemorySessionStore,
     RedisSessionStore,
     make_session_store,
     valid_session_id,
 )
-from sdk.taint import TaintLabel  # noqa: E402
+from taintward.sdk.taint import TaintLabel  # noqa: E402
 from tests import test_vault_backends as services  # noqa: E402
 
 free_port = services.free_port
@@ -104,10 +104,10 @@ def start_gateway(tmp_path):
             "upstreams:\n"
             "  - name: hr\n"
             "    command: python\n"
-            "    args: [\"-m\", \"gateway.examples.hr_server\"]\n"
+            "    args: [\"-m\", \"taintward.gateway.examples.hr_server\"]\n"
             f"    cwd: {REPO}\n"
             "    env:\n"
-            f"      AGENTWARD_HR_OUTBOX: {outbox}\n"
+            f"      TAINTWARD_HR_OUTBOX: {outbox}\n"
             + (f"session_store: {session_store}\n" if session_store else "")
             + "tools:\n"
             "  - match: \"get_*\"\n"
@@ -118,11 +118,11 @@ def start_gateway(tmp_path):
         )
         port = free_port()
         env = {k: v for k, v in os.environ.items()
-               if k not in ("AGENTWARD_GATEWAY_TOKEN", "AGENTWARD_SESSION_STORE")}
+               if k not in ("TAINTWARD_GATEWAY_TOKEN", "TAINTWARD_SESSION_STORE")}
         if token:
-            env["AGENTWARD_GATEWAY_TOKEN"] = token
+            env["TAINTWARD_GATEWAY_TOKEN"] = token
         proc = subprocess.Popen(
-            [sys.executable, "-m", "gateway", "--config", str(cfg),
+            [sys.executable, "-m", "taintward.gateway", "--config", str(cfg),
              "--listen", f"127.0.0.1:{port}"],
             cwd=str(REPO), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
         )
@@ -447,8 +447,8 @@ def test_two_replicas_share_taint_through_redis(start_gateway, redis_db):
 
 def test_session_store_down_fails_closed():
     """If the store cannot be read, tool calls are refused, not run untainted."""
-    from gateway import Gateway
-    from gateway.session_store import SessionStoreError
+    from taintward.gateway import Gateway
+    from taintward.gateway.session_store import SessionStoreError
 
     class DownStore(MemorySessionStore):
         async def merge(self, sid, label):

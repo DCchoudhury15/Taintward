@@ -56,10 +56,10 @@ func TestProcessor_EgressAndTransferAndRedact(t *testing.T) {
 	td := ptrace.NewTraces()
 	// A tainted span reaching an external US sink: should violate + transfer + redact.
 	span := newSpan(td, "call_external_api")
-	span.Attributes().PutBool("agentward.sensitive", true)
-	span.Attributes().PutStr("agentward.taint.classes", "pii,secret")
-	span.Attributes().PutStr("agentward.destination", "external")
-	span.Attributes().PutStr("agentward.jurisdiction", "us")
+	span.Attributes().PutBool("taintward.sensitive", true)
+	span.Attributes().PutStr("taintward.taint.classes", "pii,secret")
+	span.Attributes().PutStr("taintward.destination", "external")
+	span.Attributes().PutStr("taintward.jurisdiction", "us")
 	// Raw PII the SDK left in a string attr (mask-in-SDK off): collector must redact.
 	span.Attributes().PutStr("gen_ai.tool.call.result", `{"ssn":"234-12-1234","key":"AKIAIOSFODNN7EXAMPLE"}`)
 
@@ -71,19 +71,19 @@ func TestProcessor_EgressAndTransferAndRedact(t *testing.T) {
 	}
 	attrs := s.got.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0).Attributes()
 
-	if got := strAttr(attrs, "agentward.policy.decision_engine"); got != "rego" {
+	if got := strAttr(attrs, "taintward.policy.decision_engine"); got != "rego" {
 		t.Errorf("decision_engine = %q, want rego", got)
 	}
-	if !boolAttr(attrs, "agentward.policy.violation") {
+	if !boolAttr(attrs, "taintward.policy.violation") {
 		t.Error("policy.violation = false, want true (egress)")
 	}
-	if !boolAttr(attrs, "agentward.policy.transfer_violation") {
+	if !boolAttr(attrs, "taintward.policy.transfer_violation") {
 		t.Error("policy.transfer_violation = false, want true (PII -> us)")
 	}
-	if !boolAttr(attrs, "agentward.policy.redacted") {
+	if !boolAttr(attrs, "taintward.policy.redacted") {
 		t.Error("policy.redacted = false, want true")
 	}
-	if r := strAttr(attrs, "agentward.policy.reasons"); r != "transfer,pii_egress" && r != "pii_egress,transfer" {
+	if r := strAttr(attrs, "taintward.policy.reasons"); r != "transfer,pii_egress" && r != "pii_egress,transfer" {
 		t.Errorf("policy.reasons = %q, want transfer+pii_egress", r)
 	}
 	// Redaction: raw PII must be gone, masked tokens present.
@@ -104,16 +104,16 @@ func TestProcessor_InternalSinkNoViolation(t *testing.T) {
 	p, _ := newProcessor(&Config{}, s)
 	td := ptrace.NewTraces()
 	span := newSpan(td, "query_db")
-	span.Attributes().PutBool("agentward.sensitive", true)
-	span.Attributes().PutStr("agentward.taint.classes", "pii")
-	span.Attributes().PutStr("agentward.destination", "internal")
+	span.Attributes().PutBool("taintward.sensitive", true)
+	span.Attributes().PutStr("taintward.taint.classes", "pii")
+	span.Attributes().PutStr("taintward.destination", "internal")
 
 	_ = p.ConsumeTraces(context.Background(), td)
 	attrs := s.got.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0).Attributes()
-	if boolAttr(attrs, "agentward.policy.violation") {
+	if boolAttr(attrs, "taintward.policy.violation") {
 		t.Error("internal sink should not be a violation")
 	}
-	if !boolAttr(attrs, "agentward.policy.redacted") {
+	if !boolAttr(attrs, "taintward.policy.redacted") {
 		t.Error("internal sensitive span should still be redacted for storage")
 	}
 }
@@ -122,12 +122,12 @@ func TestProcessor_CleanSpanUntouched(t *testing.T) {
 	s := &sink{}
 	p, _ := newProcessor(&Config{}, s)
 	td := ptrace.NewTraces()
-	span := newSpan(td, "agent.decide") // no agentward.* attrs -> not sensitive
+	span := newSpan(td, "agent.decide") // no taintward.* attrs -> not sensitive
 	span.Attributes().PutStr("gen_ai.tool.call.result", "nothing sensitive here")
 
 	_ = p.ConsumeTraces(context.Background(), td)
 	attrs := s.got.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0).Attributes()
-	if boolAttr(attrs, "agentward.policy.violation") || boolAttr(attrs, "agentward.policy.redacted") {
+	if boolAttr(attrs, "taintward.policy.violation") || boolAttr(attrs, "taintward.policy.redacted") {
 		t.Error("clean span should have no policy decision")
 	}
 	if strAttr(attrs, "gen_ai.tool.call.result") != "nothing sensitive here" {

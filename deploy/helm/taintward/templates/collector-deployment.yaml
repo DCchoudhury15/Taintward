@@ -1,0 +1,129 @@
+{{- $c := .Values.collector -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "taintward.collector.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  {{- if not $c.autoscaling.enabled }}
+  replicas: {{ $c.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "taintward.selectorLabels" (dict "ctx" . "component" "collector") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taintward.selectorLabels" (dict "ctx" . "component" "collector") | nindent 8 }}
+        {{- with $c.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # A config or policy change gives a new checksum, which rolls the pods.
+        checksum/config: {{ include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum }}
+        {{- with $c.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with $c.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: collector
+          image: "{{ $c.image.repository }}:{{ $c.image.tag }}"
+          imagePullPolicy: {{ $c.image.pullPolicy }}
+          args: ["--config=/etc/taintward/config/config.yaml"]
+          ports:
+            - name: otlp-http
+              containerPort: 4319
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: health
+              containerPort: 13133
+          {{- with $c.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            {{- toYaml $c.resources | nindent 12 }}
+          securityContext:
+            {{- include "taintward.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/taintward/config
+              readOnly: true
+            - name: policy
+              mountPath: /etc/taintward/policy
+              readOnly: true
+            {{- if $c.fileExport.enabled }}
+            - name: file-export
+              mountPath: {{ dir $c.fileExport.path }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "taintward.collector.fullname" . }}
+            items:
+              - key: config.yaml
+                path: config.yaml
+        - name: policy
+          configMap:
+            name: {{ include "taintward.collector.fullname" . }}
+            items:
+              - key: pii_egress.rego
+                path: pii_egress.rego
+        {{- if $c.fileExport.enabled }}
+        - name: file-export
+          {{- if $c.fileExport.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $c.fileExport.existingClaim }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
+      {{- if $c.topologySpread }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "taintward.selectorLabels" (dict "ctx" . "component" "collector") | nindent 14 }}
+      {{- end }}
+      {{- with $c.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $c.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $c.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

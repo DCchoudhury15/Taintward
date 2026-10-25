@@ -1,4 +1,4 @@
-"""Offline tests for sdk.integrations (no API keys, no network).
+"""Offline tests for taintward.sdk.integrations (no API keys, no network).
 
 Framework tests use fake models / mocked HTTP transports and are skipped when
 the framework is not installed. They check that:
@@ -25,9 +25,9 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from sdk import instrumentation as instr
-from sdk import integrations as aw
-from sdk.integrations import ToolPolicy, Ward
+from taintward.sdk import instrumentation as instr
+from taintward.sdk import integrations as aw
+from taintward.sdk.integrations import ToolPolicy, Ward
 
 SSN = "234-12-1234"
 AWS = "AKIAIOSFODNN7EXAMPLE"
@@ -53,7 +53,7 @@ def otel():
     provider = TracerProvider(resource=Resource.create({"service.name": "test"}))
     exporter = InMemorySpanExporter()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    yield provider.get_tracer("agentward"), exporter
+    yield provider.get_tracer("taintward"), exporter
     provider.shutdown()
 
 
@@ -86,7 +86,7 @@ def _assert_internal_token(value: str):
     token = value.split("ssn ", 1)[1].split()[0]
     assert len(token) == len(SSN) and token[3] == "-" and token[6] == "-"
     try:  # exact reversal, when the redactor exposes it
-        from sdk.redact import get_redactor
+        from taintward.sdk.redact import get_redactor
         rev = get_redactor().reverse(token)
     except Exception:
         rev = None
@@ -148,8 +148,8 @@ class TestAsyncDecorator:
         assert asyncio.run(ext(RECORD)) == "ok"
         assert SSN not in seen["payload"] and AWS not in seen["payload"]
         span = _spans(exporter, "ext")[0]
-        assert span.attributes["agentward.violation"] is True
-        assert span.attributes["agentward.redacted"] is True
+        assert span.attributes["taintward.violation"] is True
+        assert span.attributes["taintward.redacted"] is True
         _assert_no_raw_in_spans(exporter)
 
     def test_run_box_carries_taint_across_copied_contexts(self, otel):
@@ -173,8 +173,8 @@ class TestAsyncDecorator:
         finally:
             instr.end_run()
         span = _spans(exporter, "sink")[0]
-        assert span.attributes["agentward.violation"] is True
-        assert "pii" in span.attributes["agentward.taint.classes"]
+        assert span.attributes["taintward.violation"] is True
+        assert "pii" in span.attributes["taintward.taint.classes"]
         assert instr.current_taint() is None  # clean slate after the run
 
 
@@ -283,10 +283,10 @@ class TestLangChain:
         assert "[PII]" in seen["send_email"]["body"] and "[SECRET]" in seen["send_email"]["body"]
         _assert_internal_token(seen["store"])
         span = _spans(exporter, "send_email")[0]
-        assert span.attributes["agentward.destination"] == "external"
-        assert span.attributes["agentward.jurisdiction"] == "us"
+        assert span.attributes["taintward.destination"] == "external"
+        assert span.attributes["taintward.jurisdiction"] == "us"
         assert span.attributes["gen_ai.tool.name"] == "send_email"
-        assert span.attributes["agentward.violation"] is True
+        assert span.attributes["taintward.violation"] is True
         _assert_no_raw_in_spans(exporter)
 
     def test_allow_list_passes_named_arg_unredacted(self, otel):
@@ -324,13 +324,13 @@ class TestLangChain:
         chat_spans = [s for s in _spans(exporter) if s.name.startswith("chat ")]
         assert len(chat_spans) == 4
         for s in chat_spans:
-            assert s.attributes["agentward.destination"] == "llm"
+            assert s.attributes["taintward.destination"] == "llm"
             assert s.attributes["gen_ai.operation.name"] == "chat"
-            assert s.attributes["agentward.jurisdiction"] == "us"
+            assert s.attributes["taintward.jurisdiction"] == "us"
         email = _spans(exporter, "send_email")[0]
-        assert email.attributes["agentward.violation"] is True
-        assert set(email.attributes["agentward.taint.classes"].split(",")) == {"pii", "secret"}
-        assert "agentward.violation" not in _spans(exporter, "store")[0].attributes
+        assert email.attributes["taintward.violation"] is True
+        assert set(email.attributes["taintward.taint.classes"].split(",")) == {"pii", "secret"}
+        assert "taintward.violation" not in _spans(exporter, "store")[0].attributes
         # one trace for the whole run
         assert len({s.context.trace_id for s in _spans(exporter)}) == 1
         _assert_no_raw_in_spans(exporter)
@@ -385,7 +385,7 @@ class TestLangChain:
         model = ward.protect_langchain_model(Rec(messages=iter([AIMessage("ok")])))
         "".join(c.content for c in model.stream(f"key {AWS}"))
         assert AWS not in str(captured)
-        assert any(s.attributes.get("agentward.destination") == "llm" for s in _spans(exporter))
+        assert any(s.attributes.get("taintward.destination") == "llm" for s in _spans(exporter))
         _assert_no_raw_in_spans(exporter)
 
 
@@ -458,11 +458,11 @@ class TestOpenAIClient:
         assert bodies[0]["messages"][2]["tool_calls"][0]["function"]["name"] == "lookup"
         span = _spans(exporter, "chat gpt-test")[0]
         a = span.attributes
-        assert a["agentward.destination"] == "llm"
+        assert a["taintward.destination"] == "llm"
         assert a["gen_ai.provider.name"] == "openai"
         assert a["gen_ai.request.model"] == "gpt-test"
         assert a["gen_ai.usage.input_tokens"] == 11
-        assert a["agentward.violation"] is True and a["agentward.redacted"] is True
+        assert a["taintward.violation"] is True and a["taintward.redacted"] is True
         _assert_no_raw_in_spans(exporter)
 
     def test_responses_api_request_is_redacted(self, ward, otel):
@@ -474,7 +474,7 @@ class TestOpenAIClient:
         sent = json.dumps(bodies[0])
         for raw in RAW:
             assert raw not in sent
-        assert _spans(exporter, "chat gpt-test")[0].attributes["agentward.destination"] == "llm"
+        assert _spans(exporter, "chat gpt-test")[0].attributes["taintward.destination"] == "llm"
 
     def test_clean_request_is_not_flagged(self, ward, otel):
         _, exporter = otel
@@ -485,8 +485,8 @@ class TestOpenAIClient:
                 model="gpt-test", messages=[{"role": "user", "content": "hello there"}])
         assert bodies[0]["messages"][0]["content"] == "hello there"
         a = _spans(exporter, "chat gpt-test")[0].attributes
-        assert "agentward.violation" not in a
-        assert a["agentward.redacted"] is False
+        assert "taintward.violation" not in a
+        assert a["taintward.redacted"] is False
 
 
 @needs_anthropic
@@ -523,7 +523,7 @@ class TestAnthropicClient:
         assert bodies[0]["messages"][2]["content"][0]["tool_use_id"] == "tu_1"
         a = _spans(exporter, "chat claude-test")[0].attributes
         assert a["gen_ai.provider.name"] == "anthropic"
-        assert a["agentward.destination"] == "llm"
+        assert a["taintward.destination"] == "llm"
         assert a["gen_ai.usage.output_tokens"] == 2
         _assert_no_raw_in_spans(exporter)
 
@@ -611,10 +611,10 @@ class TestOpenAIAgents:
         _assert_internal_token(seen["store"])
 
         email = _spans(exporter, "send_email")[0].attributes
-        assert email["agentward.destination"] == "external"
+        assert email["taintward.destination"] == "external"
         assert email["gen_ai.tool.name"] == "send_email"
-        assert email["agentward.framework"] == "openai-agents"
-        assert email["agentward.violation"] is True
+        assert email["taintward.framework"] == "openai-agents"
+        assert email["taintward.violation"] is True
         chat = _spans(exporter, "chat gpt-test")
-        assert len(chat) == 3 and all(s.attributes["agentward.destination"] == "llm" for s in chat)
+        assert len(chat) == 3 and all(s.attributes["taintward.destination"] == "llm" for s in chat)
         _assert_no_raw_in_spans(exporter)

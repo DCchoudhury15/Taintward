@@ -1,0 +1,13 @@
+apiVersion: v2
+name: taintward
+description: Taintward policy collector (OTLP + taint_policy Rego processor) and optional MCP gateway for Kubernetes.
+type: application
+version: 0.2.0
+appVersion: "0.2.0"
+home: https://gitlab.com/divyanshuchoudhury51/taintward
+keywords:
+  - opentelemetry
+  - collector
+  - pii
+  - ai-agents
+  - mcp

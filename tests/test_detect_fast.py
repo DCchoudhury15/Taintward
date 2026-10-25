@@ -1,4 +1,4 @@
-"""Tests for the fast detection path in sdk.detect.
+"""Tests for the fast detection path in taintward.sdk.detect.
 
 Covers the new recognizers (plain SSN by key, fine-grained GitHub tokens,
 temporary AWS keys, spaced-out digits, street addresses), the noisy types
@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from sdk import detect
+from taintward.sdk import detect
 
 
 def _analyzer_available() -> bool:

@@ -2,7 +2,7 @@
 
 A customer asks: "Do you send our customers' personal data to LLM providers?
 Prove it." The evidence report is the document you attach. It is one HTML
-file built from the spans AgentWard records, for a time window you choose.
+file built from the spans Taintward records, for a time window you choose.
 It prints to PDF from any browser.
 
 A sample, made from the quickstart demo (three runs of the HR bot), is in
@@ -13,7 +13,7 @@ A sample, made from the quickstart demo (three runs of the HR bot), is in
 From Jaeger (the quickstart stack):
 
 ```bash
-python -m evidence.report --source jaeger --service agentward-hr-bot \
+python -m taintward.evidence.report --source jaeger --service taintward-hr-bot \
   --since 24h --org "Example Co." --out report.html
 ```
 
@@ -22,7 +22,7 @@ object per line; a directory reads every `*.json`, `*.jsonl` and `*.json.gz`
 file in it):
 
 ```bash
-python -m evidence.report --source otlp-file --otlp-file /var/lib/agentward/traces \
+python -m taintward.evidence.report --source otlp-file --otlp-file /var/lib/taintward/traces \
   --start 2026-10-01T00:00:00Z --end 2026-11-01T00:00:00Z --out october.html
 ```
 
@@ -31,7 +31,7 @@ SigNoz ClickHouse container; `--clickhouse-url http://host:8123` uses the HTTP
 interface instead:
 
 ```bash
-python -m evidence.report --source clickhouse --service my-agent --since 30d \
+python -m taintward.evidence.report --source clickhouse --service my-agent --since 30d \
   --evidence-dir evidence-log --public-key evidence.pub --out report.html
 ```
 
@@ -47,7 +47,7 @@ Useful options:
 | `--deep-scan` | also run the Presidio detectors in the raw value check |
 | `--org`, `--system`, `--title` | names in the header |
 
-Once the package is installed the same command is `agentward-report`.
+Once the package is installed the same command is `taintward-report`.
 
 **PDF:** open the HTML file in a browser, choose Print, then "Save as PDF".
 The page is laid out for A4 and table headers repeat on each page.
@@ -66,7 +66,7 @@ The page is laid out for A4 and table headers repeat on each page.
    - `It could not be confirmed ...`: something was not measurable. The
      reasons are listed under the statement.
    - `No calls to external or LLM destinations were recorded`.
-2. **Calls that touched sensitive data.** Calls marked `agentward.sensitive`,
+2. **Calls that touched sensitive data.** Calls marked `taintward.sensitive`,
    counted per class (`pii`, `secret`, ...). A call counts when sensitive
    data was found in its input or output, or when it ran later in a run that
    had already touched sensitive data.
@@ -101,7 +101,7 @@ The page is laid out for A4 and table headers repeat on each page.
     one can be looked up in Jaeger or SigNoz.
 
 The footer has a SHA-256 digest of the report data. The data itself is
-embedded in the file as JSON (element `agentward-report-data`), so a script
+embedded in the file as JSON (element `taintward-report-data`), so a script
 can read the numbers and check the digest: it is the SHA-256 of the canonical
 JSON (sorted keys, no spaces) of that object without its `digest` field.
 
@@ -111,7 +111,7 @@ For every call to an `llm`, `external`, `log` or `rag` destination, the
 report reads the input recorded on the span (`gen_ai.tool.call.arguments`,
 or `gen_ai.input.messages` for model calls). For SDK calls this is the input
 after the redaction gate, so it is what the destination received. The
-AgentWard collector does not rewrite this attribute, so it is stored as sent.
+Taintward collector does not rewrite this attribute, so it is stored as sent.
 
 The input is scanned for: US SSN, AWS access key, GitHub token, email
 address, phone number, card number (Luhn checked) and private key blocks.
@@ -121,7 +121,7 @@ never the value.
 
 Limits you should state to a customer:
 
-- Only calls made through AgentWard are counted. A call that bypasses the
+- Only calls made through Taintward are counted. A call that bypasses the
   SDK, adapters or gateway is not recorded.
 - The fixed patterns do not match names, addresses or other free text
   personal data. `--deep-scan` adds the Presidio detectors (names,
@@ -149,14 +149,14 @@ evidence-log/
 ```
 
 Each shard is a normal Merkle log file (the same format as before), so
-`agentward-evidence --log-file evidence-log/acme/2026-10-24.logl root` still
+`taintward-evidence --log-file evidence-log/acme/2026-10-24.logl root` still
 works on it. Several processes can append at once: each append locks the
 shard file, writes one full line and fsyncs it. Recording the same window
 twice does not add duplicates (records are matched by trace id and span id).
 This is true for the single-file log too.
 
 ```bash
-agentward-evidence record --source jaeger --service agentward-hr-bot \
+taintward-evidence record --source jaeger --service taintward-hr-bot \
   --since-mins 60 --evidence-dir evidence-log --tenant acme
 ```
 
@@ -173,20 +173,20 @@ the old tree, unchanged. The tool refuses to write a checkpoint if a shard
 no longer matches the previous one. Make a key pair once:
 
 ```bash
-agentward-evidence keygen --private-key evidence.key --public-key evidence.pub
+taintward-evidence keygen --private-key evidence.key --public-key evidence.pub
 ```
 
 The private key file is created with mode 0600 and is never overwritten.
 Keep it out of the repo. The tools read it from `--private-key`, or from
-`AGENTWARD_EVIDENCE_KEY_FILE` (a path), or `AGENTWARD_EVIDENCE_KEY` (PEM text
+`TAINTWARD_EVIDENCE_KEY_FILE` (a path), or `TAINTWARD_EVIDENCE_KEY` (PEM text
 or a 64 hex character seed). The public key comes from `--public-key`,
-`AGENTWARD_EVIDENCE_PUBLIC_KEY_FILE` or `AGENTWARD_EVIDENCE_PUBLIC_KEY`.
+`TAINTWARD_EVIDENCE_PUBLIC_KEY_FILE` or `TAINTWARD_EVIDENCE_PUBLIC_KEY`.
 
 Write a checkpoint on demand, after recording, or every N records:
 
 ```bash
-agentward-evidence checkpoint --evidence-dir evidence-log --private-key evidence.key
-agentward-evidence record ... --evidence-dir evidence-log --checkpoint --private-key evidence.key
+taintward-evidence checkpoint --evidence-dir evidence-log --private-key evidence.key
+taintward-evidence record ... --evidence-dir evidence-log --checkpoint --private-key evidence.key
 ```
 
 In code: `ShardedLog(dir, signing_key=key, checkpoint_every=1000)`.
@@ -197,7 +197,7 @@ one at the end of each UTC day.
 ### What verification catches
 
 ```bash
-agentward-evidence verify-checkpoints --evidence-dir evidence-log \
+taintward-evidence verify-checkpoints --evidence-dir evidence-log \
   --public-key evidence.pub [--deep] [--expect-head <hash>]
 ```
 
@@ -220,9 +220,9 @@ every checkpoint, not only the newest one.
 A third party can check one record without the rest of the log:
 
 ```bash
-agentward-evidence prove-shard --evidence-dir evidence-log --tenant acme \
+taintward-evidence prove-shard --evidence-dir evidence-log --tenant acme \
   --day 2026-10-24 --index 4 > proof.json
-agentward-evidence verify-proof proof.json --public-key evidence.pub
+taintward-evidence verify-proof proof.json --public-key evidence.pub
 ```
 
 `proof.json` holds the record, its index, the tree size, its Merkle audit
@@ -239,11 +239,11 @@ For the single-file log, give the tree size with the root, because a root
 belongs to one size:
 
 ```bash
-agentward-evidence --log-file violations.logl root --size 120
-agentward-evidence --log-file violations.logl prove 7 --size 120 > proof.json
-agentward-evidence --log-file violations.logl verify "$(cat proof.json)" --root <root>
+taintward-evidence --log-file violations.logl root --size 120
+taintward-evidence --log-file violations.logl prove 7 --size 120 > proof.json
+taintward-evidence --log-file violations.logl verify "$(cat proof.json)" --root <root>
 # later, when the log has grown: does it still start with those 120 records?
-agentward-evidence --log-file violations.logl consistency --old-size 120 --old-root <root>
+taintward-evidence --log-file violations.logl consistency --old-size 120 --old-root <root>
 ```
 
 ### After a crash
@@ -253,8 +253,8 @@ be incomplete. The tools do not skip it silently: reading the file stops
 with an error that names the line. Run:
 
 ```bash
-agentward-evidence --log-file violations.logl repair
-agentward-evidence repair --evidence-dir evidence-log      # every shard
+taintward-evidence --log-file violations.logl repair
+taintward-evidence repair --evidence-dir evidence-log      # every shard
 ```
 
 This moves the broken last line to `<file>.corrupt`, keeps every complete
@@ -267,12 +267,12 @@ never repaired: a crash cannot cause it, so it means the file was changed.
    example their security page or a signed email), not with the report.
 2. Get a copy of the evidence log (or, for spot checks, `proof.json` files
    for chosen violations from section 10).
-3. Run `agentward-evidence verify-checkpoints --evidence-dir <dir>
+3. Run `taintward-evidence verify-checkpoints --evidence-dir <dir>
    --public-key evidence.pub --expect-head <checkpoint hash from section 8>`.
    It must print `"ok": true`. This also checks that every checkpoint
    extends the one before it.
 4. Check that the shard roots and counts in section 8 match
-   `agentward-evidence shards --evidence-dir <dir>`.
+   `taintward-evidence shards --evidence-dir <dir>`.
 5. For any violation, ask for a proof and run `verify-proof`.
 6. Optionally recompute the numbers: run the report with `--format json`
    over the same window and source and compare, or read the JSON embedded in
@@ -283,7 +283,7 @@ never repaired: a crash cannot cause it, so it means the file was changed.
 The checkpoint chain is only as strong as the place the newest checkpoint is
 kept. Copy shards and checkpoints to object storage that the writing service
 cannot delete from, for example an S3 bucket with Object Lock in compliance
-mode, or a GCS bucket with a retention policy. AgentWard makes no cloud
+mode, or a GCS bucket with a retention policy. Taintward makes no cloud
 calls itself; use your normal tools from a scheduled job:
 
 ```bash

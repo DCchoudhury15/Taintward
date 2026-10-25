@@ -1,6 +1,6 @@
 """Entry point for the demo container.
 
-Waits until the AgentWard collector accepts connections, then runs the
+Waits until the Taintward collector accepts connections, then runs the
 breach simulator against it. The collector image is distroless (no shell,
 no curl), so the wait lives here instead of in a compose healthcheck.
 """
@@ -13,7 +13,7 @@ import sys
 import time
 from urllib.parse import urlparse
 
-ENDPOINT = os.environ.get("COLLECTOR_ENDPOINT", "http://agentward-collector:4319/v1/traces")
+ENDPOINT = os.environ.get("COLLECTOR_ENDPOINT", "http://taintward-collector:4319/v1/traces")
 TIMEOUT_S = float(os.environ.get("COLLECTOR_WAIT_SECONDS", "60"))
 
 

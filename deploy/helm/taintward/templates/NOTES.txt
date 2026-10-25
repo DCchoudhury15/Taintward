@@ -1,0 +1,20 @@
+Taintward is installed.
+
+Policy collector (send your agents' spans here):
+  OTLP/HTTP  http://{{ include "taintward.collector.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:4319/v1/traces
+  OTLP/gRPC  {{ include "taintward.collector.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:4317
+{{- if .Values.routingTier.enabled }}
+
+Routing tier is on. Point agents at this instead, it routes by traceID:
+  OTLP/HTTP  http://{{ include "taintward.routing.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:4319/v1/traces
+{{- end }}
+
+Checked spans go to: {{ .Values.exporter.endpoint }} ({{ .Values.exporter.protocol }})
+{{- if .Values.gateway.enabled }}
+
+MCP gateway:
+  http://{{ include "taintward.gateway.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.gateway.port }}
+{{- end }}
+
+Check it:
+  kubectl -n {{ .Release.Namespace }} get pods,svc,hpa,pdb -l app.kubernetes.io/instance={{ .Release.Name }}

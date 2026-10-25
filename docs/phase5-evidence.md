@@ -11,7 +11,7 @@ record.
 
 ## Pieces
 
-- `evidence/merkle.py`: an append-only Merkle (SHA-256) log over violation
+- `taintward/evidence/merkle.py`: an append-only Merkle (SHA-256) log over violation
   records.
   - `leaf_hash = SHA256(0x00 || canonical_json(record))`
   - `parent_hash = SHA256(0x01 || left || right)`, **ordered** (not sorted) so
@@ -24,10 +24,10 @@ record.
     new log's first `len(old)` leaves' root.
   - `violation_record(...)`: a non-sensitive leaf shape (ids, taint classes,
     policy reasons, never raw values).
-- `evidence/recorder.py`: `record_violations(log, service, since_minutes)`
-  queries SigNoz/ClickHouse for spans with `agentward.policy.violation=1`
+- `taintward/evidence/recorder.py`: `record_violations(log, service, since_minutes)`
+  queries SigNoz/ClickHouse for spans with `taintward.policy.violation=1`
   (JSONEachRow via `docker exec clickhouse-client`) and appends each as a leaf.
-- `evidence/log.py`: a CLI with `record` / `root` / `prove <i>` / `verify
+- `taintward/evidence/log.py`: a CLI with `record` / `root` / `prove <i>` / `verify
   <json>` / `count`.
 - `dashboards/lineage.json`, `blast_radius.json`, `slo.json`: ClickHouse SQL
   artifacts covering the lineage path per run (Art. 30 recipients/transfers),
@@ -68,15 +68,15 @@ root and invalidates prior proofs.
 
 ## Update (v0.2): evidence report, shards and signed checkpoints
 
-- `evidence/report.py` (`python -m evidence.report`): a self-contained HTML
+- `taintward/evidence/report.py` (`python -m taintward.evidence.report`): a self-contained HTML
   or JSON report for a time window, built from Jaeger, OTLP JSON files or
-  SigNoz/ClickHouse (`evidence/spans.py`). It covers calls, sensitive data by
+  SigNoz/ClickHouse (`taintward/evidence/spans.py`). It covers calls, sensitive data by
   class, destinations, violations and their outcome, Art. 44 transfers, the
   Art. 30 recipients view, a raw value check on what was sent out, and the
   evidence log state. Sample: [`sample-report.html`](sample-report.html).
-- `evidence/shards.py`: the log split per tenant and per UTC day
+- `taintward/evidence/shards.py`: the log split per tenant and per UTC day
   (`<dir>/<tenant>/<YYYY-MM-DD>.logl`), safe for several writers.
-- `evidence/checkpoint.py`: Ed25519 signed checkpoints (shard roots, sizes,
+- `taintward/evidence/checkpoint.py`: Ed25519 signed checkpoints (shard roots, sizes,
   time, previous checkpoint hash). Verification catches edited, reordered,
   truncated or deleted shards, edited or re-signed checkpoints and gaps in
   the chain; single records can be proved offline.
@@ -115,7 +115,7 @@ in `tests/test_merkle.py` and `tests/test_checkpoints.py`.
 - **Crash safety.** Writers take an exclusive file lock, reload the file if
   another process added to it, write one line and fsync it. Readers take a
   shared lock. A broken last line (a crash during a write) is not dropped
-  quietly: loading stops with a clear error, and `agentward-evidence repair`
+  quietly: loading stops with a clear error, and `taintward-evidence repair`
   moves that line to `<file>.corrupt` and says what it moved. A broken line
   anywhere else is always a hard failure, because only a change to the file
   can cause it. Lines must be in canonical JSON form, so the bytes on disk

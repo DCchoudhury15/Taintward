@@ -1,4 +1,4 @@
-"""Generate the AgentWard detection benchmark dataset.
+"""Generate the Taintward detection benchmark dataset.
 
 Everything here is synthetic and seeded, so running this script again gives a
 byte-identical file. No real person's data is used: names are random pairs

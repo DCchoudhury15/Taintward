@@ -1,4 +1,4 @@
-# AgentWard two tier layout, agent side (first tier).
+# Taintward two tier layout, agent side (first tier).
 #
 #   agents --OTLP--> [this config, one per node or per agent pod]
 #          --load_balancing by traceID, OTLP/gRPC--> policy tier (config.docker.yaml)
@@ -13,11 +13,11 @@
 # already redacts before export; the policy tier is the authoritative gate.
 #
 # Environment variables:
-#   AGENTWARD_POLICY_TIER_HOST   DNS name that resolves to every policy tier
+#   TAINTWARD_POLICY_TIER_HOST   DNS name that resolves to every policy tier
 #                                pod. In Kubernetes use a headless Service,
-#                                for example agentward-collector-headless.agentward.svc.cluster.local
-#   AGENTWARD_POLICY_TIER_PORT   OTLP/gRPC port of the policy tier. Default 4317.
-#   AGENTWARD_MEMORY_LIMIT_MIB   memory_limiter hard limit. Default 400.
+#                                for example taintward-collector-headless.taintward.svc.cluster.local
+#   TAINTWARD_POLICY_TIER_PORT   OTLP/gRPC port of the policy tier. Default 4317.
+#   TAINTWARD_MEMORY_LIMIT_MIB   memory_limiter hard limit. Default 400.
 receivers:
   otlp:
     protocols:
@@ -33,7 +33,7 @@ extensions:
 processors:
   memory_limiter:
     check_interval: 1s
-    limit_mib: ${env:AGENTWARD_MEMORY_LIMIT_MIB:-400}
+    limit_mib: ${env:TAINTWARD_MEMORY_LIMIT_MIB:-400}
     spike_limit_mib: 80
   # No batch processor here: load_balancing splits batches by traceID anyway,
   # and the policy tier batches before the backend.
@@ -67,8 +67,8 @@ exporters:
       # The DNS resolver needs no Kubernetes RBAC. It re-resolves every 5s,
       # so new policy pods (HPA scale out) get traffic within seconds.
       dns:
-        hostname: ${env:AGENTWARD_POLICY_TIER_HOST}
-        port: ${env:AGENTWARD_POLICY_TIER_PORT:-4317}
+        hostname: ${env:TAINTWARD_POLICY_TIER_HOST}
+        port: ${env:TAINTWARD_POLICY_TIER_PORT:-4317}
         interval: 5s
 
 service:

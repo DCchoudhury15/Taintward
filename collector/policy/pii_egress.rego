@@ -1,19 +1,19 @@
-package agentward
+package taintward
 
 import rego.v1
 
-# AgentWard egress policy, the deterministic replacement for AgentRaft's
+# Taintward egress policy, the deterministic replacement for AgentRaft's
 # D_nec multi-LLM voting committee. This file is the SOURCE OF TRUTH: admins
 # edit rules here without rebuilding the SDK, and the collector processor
 # evaluates it per span (compile-once / eval-many).
 #
 # Input shape (one object per span, built by the collector processor from the
-# span's `agentward.*` attributes):
+# span's `taintward.*` attributes):
 #   {
-#     "sensitive":    bool,   # agentward.sensitive
-#     "classes":      string, # agentward.taint.classes  e.g. "pii,secret"
-#     "destination":  string, # agentward.destination    internal|external|llm|log|rag
-#     "jurisdiction": string, # agentward.jurisdiction   e.g. "us" | "eu" | "" (Art. 44)
+#     "sensitive":    bool,   # taintward.sensitive
+#     "classes":      string, # taintward.taint.classes  e.g. "pii,secret"
+#     "destination":  string, # taintward.destination    internal|external|llm|log|rag
+#     "jurisdiction": string, # taintward.jurisdiction   e.g. "us" | "eu" | "" (Art. 44)
 #     "tool":         string, # gen_ai.tool.name
 #   }
 #
@@ -21,9 +21,9 @@ import rego.v1
 # the policy lower-cases them itself, and the processor also sends them
 # lower-cased.
 #
-# Output: data.agentward.decision = { "redact": bool, "violations": [...] }
+# Output: data.taintward.decision = { "redact": bool, "violations": [...] }
 #
-# The processor checks at startup that this file is `package agentward` and
+# The processor checks at startup that this file is `package taintward` and
 # defines `decision` and `redact`, then probes it with two sample inputs. Keep
 # `default redact := false`: without it `decision` is undefined for spans
 # that are not sensitive, and no violation would be reported for them.

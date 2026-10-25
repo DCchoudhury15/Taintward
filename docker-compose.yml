@@ -1,13 +1,13 @@
-# AgentWard quickstart: `docker compose up`
+# Taintward quickstart: `docker compose up`
 #
-#   demo (HR bot) --OTLP/HTTP--> agentward-collector (taint_policy) --OTLP/gRPC--> jaeger
+#   demo (HR bot) --OTLP/HTTP--> taintward-collector (taint_policy) --OTLP/gRPC--> jaeger
 #
-# Open the Jaeger UI at http://localhost:16686 and pick service agentward-hr-bot.
+# Open the Jaeger UI at http://localhost:16686 and pick service taintward-hr-bot.
 #
 # To send traces to an existing SigNoz (or any OTLP gRPC backend) instead of
 # Jaeger, set OTLP_EXPORT_ENDPOINT and start without Jaeger:
 #
-#   OTLP_EXPORT_ENDPOINT=host.docker.internal:4317 docker compose up --no-deps agentward-collector demo
+#   OTLP_EXPORT_ENDPOINT=host.docker.internal:4317 docker compose up --no-deps taintward-collector demo
 #
 # See docs/quickstart.md for details.
 #
@@ -15,11 +15,11 @@
 # agents). 4317, 4318 and 8080 are left free so a local SigNoz keeps working.
 #
 # To also write every checked span as OTLP JSON lines into the
-# agentward-spans volume (file /var/lib/agentward/spans.jsonl):
+# taintward-spans volume (file /var/lib/taintward/spans.jsonl):
 #
-#   AGENTWARD_TRACE_EXPORTERS='[otlp_grpc/backend, file]' docker compose up
+#   TAINTWARD_TRACE_EXPORTERS='[otlp_grpc/backend, file]' docker compose up
 
-name: agentward
+name: taintward
 
 services:
   jaeger:
@@ -28,22 +28,22 @@ services:
       - "16686:16686"
     restart: unless-stopped
 
-  agentward-collector:
+  taintward-collector:
     build:
       context: .
       dockerfile: collector/Dockerfile
-    image: agentward-collector:local
+    image: taintward-collector:local
     environment:
       OTLP_EXPORT_ENDPOINT: ${OTLP_EXPORT_ENDPOINT:-jaeger:4317}
-      AGENTWARD_TRACE_EXPORTERS: ${AGENTWARD_TRACE_EXPORTERS:-[otlp_grpc/backend, debug]}
+      TAINTWARD_TRACE_EXPORTERS: ${TAINTWARD_TRACE_EXPORTERS:-[otlp_grpc/backend, debug]}
     # Lets OTLP_EXPORT_ENDPOINT=host.docker.internal:4317 reach a backend on the host (Linux).
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       # Edit collector/policy/pii_egress.rego and restart this service to change the policy.
-      - ./collector/policy:/etc/agentward/policy:ro
-      # Used only when AGENTWARD_TRACE_EXPORTERS lists file.
-      - agentward-spans:/var/lib/agentward
+      - ./collector/policy:/etc/taintward/policy:ro
+      # Used only when TAINTWARD_TRACE_EXPORTERS lists file.
+      - taintward-spans:/var/lib/taintward
     ports:
       - "14319:4319"
     depends_on:
@@ -54,15 +54,15 @@ services:
     build:
       context: .
       dockerfile: demo/Dockerfile
-    image: agentward-demo:local
+    image: taintward-demo:local
     environment:
-      COLLECTOR_ENDPOINT: http://agentward-collector:4319/v1/traces
+      COLLECTOR_ENDPOINT: http://taintward-collector:4319/v1/traces
       # Demo only: a fixed public key so tokens are stable between runs. Set
-      # AGENTWARD_FPE_KEY to your own key for anything real.
-      AGENTWARD_ALLOW_DEMO_KEY: "1"
+      # TAINTWARD_FPE_KEY to your own key for anything real.
+      TAINTWARD_ALLOW_DEMO_KEY: "1"
     depends_on:
-      - agentward-collector
+      - taintward-collector
     restart: "no"
 
 volumes:
-  agentward-spans:
+  taintward-spans:

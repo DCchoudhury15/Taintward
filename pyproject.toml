@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentward"
+name = "taintward"
 version = "0.2.0"
 description = "Runtime enforcement of the AgentRaft Data Over-Exposure model on OpenTelemetry + SigNoz"
 readme = "README.md"
@@ -11,8 +11,8 @@ requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Divyanshu Choudhury" }]
 
-# core/doe.py is pure stdlib; everything below is what sdk/, evidence/, and
-# fix_suggester/ actually import at runtime (Phase 2+). Presidio also needs
+# taintward/core/doe.py is pure stdlib; everything below is what taintward/sdk/, taintward/evidence/, and
+# taintward/fix_suggester/ actually import at runtime (Phase 2+). Presidio also needs
 # the spaCy model, which isn't a normal PyPI dependency: run
 # `python3 -m spacy download en_core_web_sm` once after installing.
 dependencies = [
@@ -39,26 +39,26 @@ dependencies = [
 dev = ["pytest>=8", "ruff>=0.5"]
 # Only needed for `--llm real` (the default demo/tests use the stub LLM).
 llm = ["openai", "anthropic"]
-# MCP gateway (gateway/).
+# MCP gateway (taintward/gateway/).
 mcp = ["mcp>=2.3", "PyYAML>=6", "uvicorn>=0.30"]
 # Shared state for running several replicas (vault and gateway sessions).
 postgres = ["psycopg[binary]>=3.2"]
 redis = ["redis>=5"]
-# Framework adapters (sdk/integrations/).
+# Framework adapters (taintward/sdk/integrations/).
 langchain = ["langchain-core>=1.7", "langchain>=1.4", "langgraph>=1.2"]
 openai-agents = ["openai-agents>=0.24"]
 
 [project.scripts]
-agentward-evidence = "evidence.log:main"
-agentward-fix = "fix_suggester.suggest:main"
-agentward-gateway = "gateway.__main__:main"
-agentward-report = "evidence.report:main"
+taintward-evidence = "taintward.evidence.log:main"
+taintward-fix = "taintward.fix_suggester.suggest:main"
+taintward-gateway = "taintward.gateway.__main__:main"
+taintward-report = "taintward.evidence.report:main"
 
 # Runtime packages only. tests/, demo/, spike/, scripts/ and the Go collector
-# are not shipped. New runtime packages (e.g. integrations, gateway) go in
-# the include list below; their extra deps go in [project.optional-dependencies].
+# are not shipped. New runtime code goes in a subpackage of taintward/;
+# its extra deps go in [project.optional-dependencies].
 [tool.setuptools.packages.find]
-include = ["sdk", "sdk.*", "core", "core.*", "evidence", "evidence.*", "fix_suggester", "fix_suggester.*", "gateway", "gateway.*"]
+include = ["taintward", "taintward.*"]
 namespaces = false
 
 [tool.pytest.ini_options]

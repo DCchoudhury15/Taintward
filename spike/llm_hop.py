@@ -20,7 +20,7 @@ The LLM backend is **pluggable**:
 Expected result (the thesis): the **call-chain taint (baggage)** survives every
 mode by construction, it's value-independent, so the ``external_api`` sink is
 flagged as a violation in all three. Verified empirically for all three stub
-modes: ``agentward.violation=true`` fires on both ``llm_rephrase`` and
+modes: ``taintward.violation=true`` fires on both ``llm_rephrase`` and
 ``external_api`` every time (see ``--console`` output).
 
 NOTE on the field-level claim above (Phase 2 vs. present code): since Phase 4
@@ -28,8 +28,8 @@ added the egress redaction gate, ``llm_rephrase``'s ``record`` argument is
 ALREADY masked to literal ``"[PII]"``/``"[SECRET]"`` tokens by
 ``instrument_tool`` *before* this function body ever runs (any DEST_LLM /
 DEST_EXTERNAL / DEST_LOG tool call is redacted on input, unconditionally,
-regardless of ``AGENTWARD_MASK_IN_SDK`` -- verified: even with
-``AGENTWARD_MASK_IN_SDK=0`` the ``reformat`` stub's ``ssn.replace('-', '')``
+regardless of ``TAINTWARD_MASK_IN_SDK`` -- verified: even with
+``TAINTWARD_MASK_IN_SDK=0`` the ``reformat`` stub's ``ssn.replace('-', '')``
 runs on the string ``"[PII]"``, not on a raw SSN). So none of the three stub
 modes ever actually sees or re-emits a raw, differently-reformatted SSN
 anymore, and the original "field-level re-detection catches passthrough and
@@ -60,7 +60,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from opentelemetry import trace  # noqa: E402
 
-from sdk import instrumentation as instr  # noqa: E402
+from taintward.sdk import instrumentation as instr  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Tools (each wrapped with taint-aware instrumentation)
@@ -169,7 +169,7 @@ def main() -> int:
     ap.add_argument("--llm", choices=["stub", "real"], default="stub")
     ap.add_argument("--provider", choices=["openai", "anthropic"],
                     default="openai")
-    ap.add_argument("--service", default="agentward-spike")
+    ap.add_argument("--service", default="taintward-spike")
     args = ap.parse_args()
 
     instr.configure_tracing(args.service, console=args.console)
@@ -193,8 +193,8 @@ def main() -> int:
               f"{r['chain_taint_at_sink']}")
     print("\nThesis check: external sink flagged as VIOLATION in every mode "
           "because chain-level taint (baggage) is value-independent.")
-    print("Inspect in SigNoz: service=agentward-spike, filter "
-          "agentward.violation=true")
+    print("Inspect in SigNoz: service=taintward-spike, filter "
+          "taintward.violation=true")
     return 0
 
 

@@ -8,4 +8,4 @@ patch the environment themselves.
 
 import os
 
-os.environ.setdefault("AGENTWARD_FPE_KEY", "EF4359D8D580AA4F7F036D6F04FB771B")
+os.environ.setdefault("TAINTWARD_FPE_KEY", "EF4359D8D580AA4F7F036D6F04FB771B")

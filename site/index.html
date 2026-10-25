@@ -237,7 +237,7 @@
       <a href="#install">Install</a>
       <a href="#proof">Proof</a>
       <a href="#policy">Policy</a>
-      <a class="gh" href="https://gitlab.com/divyanshuchoudhury51/agentward">GitLab</a>
+      <a class="gh" href="https://gitlab.com/divyanshuchoudhury51/taintward">GitLab</a>
     </div>
   </div>
 </nav>
@@ -329,7 +329,7 @@ ward = tw.init("support-bot", destinations={
 })
 tools = tw.wrap_langchain_tools(tools)
 model = tw.protect_langchain_model(model)</pre>
-        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/agentward/-/blob/main/docs/integrations.md">Integration guide</a>
+        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/taintward/-/blob/main/docs/integrations.md">Integration guide</a>
       </div>
       <div class="path">
         <div class="who">you use MCP tools</div>
@@ -344,7 +344,7 @@ tools:
   - match: "*.send_*"
     destination: external
     mode: block</pre>
-        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/agentward/-/blob/main/docs/mcp-gateway.md">Gateway guide</a>
+        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/taintward/-/blob/main/docs/mcp-gateway.md">Gateway guide</a>
       </div>
       <div class="path">
         <div class="who">you run the platform</div>
@@ -356,7 +356,7 @@ tools:
 
 <span class="c"># the policy is a plain .rego file</span>
 <span class="c"># your security team can read</span></pre>
-        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/agentward/-/blob/main/docs/deploy-kubernetes.md">Deploy guide</a>
+        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/taintward/-/blob/main/docs/deploy-kubernetes.md">Deploy guide</a>
       </div>
     </div>
   </div>
@@ -395,7 +395,7 @@ tools:
     <div class="policy">
       <div class="code">
         <div class="code-head"><span>collector/policy/pii_egress.rego</span><span>excerpt</span></div>
-<pre><span class="ln"><span class="kw">package</span> agentward</span><span class="ln"> </span><span class="ln"><span class="cm"># Sinks where raw sensitive data must not land.</span></span><span class="ln">sensitive_sinks := {<span class="st">"external"</span>, <span class="st">"llm"</span>, <span class="st">"log"</span>}</span><span class="ln">non_adequate_jurisdictions := {<span class="st">"us"</span>}</span><span class="ln"> </span><span class="ln rule" data-rule="egress"><span class="cm"># Rule 1: sensitive data reaching an external / llm / log sink.</span></span><span class="ln rule" data-rule="egress"><span class="kw">violation contains</span> {<span class="st">"rule"</span>: <span class="st">"pii_egress"</span>, ...} <span class="kw">if</span> {</span><span class="ln rule" data-rule="egress">    input.sensitive == true</span><span class="ln rule" data-rule="egress">    input.destination <span class="kw">in</span> sensitive_sinks</span><span class="ln rule" data-rule="egress">}</span><span class="ln"> </span><span class="ln rule" data-rule="transfer"><span class="cm"># Rule 2: PII to a non-adequate jurisdiction (GDPR Art. 44).</span></span><span class="ln rule" data-rule="transfer"><span class="kw">transfer_violation contains</span> {<span class="st">"rule"</span>: <span class="st">"transfer"</span>, ...} <span class="kw">if</span> {</span><span class="ln rule" data-rule="transfer">    has_class(input.classes, <span class="st">"pii"</span>)</span><span class="ln rule" data-rule="transfer">    input.jurisdiction <span class="kw">in</span> non_adequate_jurisdictions</span><span class="ln rule" data-rule="transfer">}</span><span class="ln"> </span><span class="ln rule" data-rule="redact"><span class="cm"># Always redact raw sensitive values from stored spans.</span></span><span class="ln rule" data-rule="redact"><span class="kw">redact if</span> {</span><span class="ln rule" data-rule="redact">    input.sensitive == true</span><span class="ln rule" data-rule="redact">}</span></pre>
+<pre><span class="ln"><span class="kw">package</span> taintward</span><span class="ln"> </span><span class="ln"><span class="cm"># Sinks where raw sensitive data must not land.</span></span><span class="ln">sensitive_sinks := {<span class="st">"external"</span>, <span class="st">"llm"</span>, <span class="st">"log"</span>}</span><span class="ln">non_adequate_jurisdictions := {<span class="st">"us"</span>}</span><span class="ln"> </span><span class="ln rule" data-rule="egress"><span class="cm"># Rule 1: sensitive data reaching an external / llm / log sink.</span></span><span class="ln rule" data-rule="egress"><span class="kw">violation contains</span> {<span class="st">"rule"</span>: <span class="st">"pii_egress"</span>, ...} <span class="kw">if</span> {</span><span class="ln rule" data-rule="egress">    input.sensitive == true</span><span class="ln rule" data-rule="egress">    input.destination <span class="kw">in</span> sensitive_sinks</span><span class="ln rule" data-rule="egress">}</span><span class="ln"> </span><span class="ln rule" data-rule="transfer"><span class="cm"># Rule 2: PII to a non-adequate jurisdiction (GDPR Art. 44).</span></span><span class="ln rule" data-rule="transfer"><span class="kw">transfer_violation contains</span> {<span class="st">"rule"</span>: <span class="st">"transfer"</span>, ...} <span class="kw">if</span> {</span><span class="ln rule" data-rule="transfer">    has_class(input.classes, <span class="st">"pii"</span>)</span><span class="ln rule" data-rule="transfer">    input.jurisdiction <span class="kw">in</span> non_adequate_jurisdictions</span><span class="ln rule" data-rule="transfer">}</span><span class="ln"> </span><span class="ln rule" data-rule="redact"><span class="cm"># Always redact raw sensitive values from stored spans.</span></span><span class="ln rule" data-rule="redact"><span class="kw">redact if</span> {</span><span class="ln rule" data-rule="redact">    input.sensitive == true</span><span class="ln rule" data-rule="redact">}</span></pre>
       </div>
       <div class="rule-cards">
         <div class="rc" data-rule="egress"><h3><i>rule 1</i> Egress</h3><p>Sensitive data headed to an LLM, an external API or a log is a violation.</p><div class="hits"><span>ask_llm</span><span>call_external_api</span><span>write_log</span></div></div>
@@ -441,9 +441,9 @@ tools:
     <p class="intro">Starts the collector, a demo agent that leaks an SSN and an AWS key, and a trace viewer. Open <code>localhost:16686</code> and look for the raw values. You will not find them.</p>
     <div class="term">
       <div class="term-head"><span>bash</span><button class="copy" id="copy" type="button">copy</button></div>
-<pre id="cmds"><span class="p">$ </span>git clone https://gitlab.com/divyanshuchoudhury51/agentward &amp;&amp; cd agentward
+<pre id="cmds"><span class="p">$ </span>git clone https://gitlab.com/divyanshuchoudhury51/taintward &amp;&amp; cd taintward
 <span class="p">$ </span>docker compose up --build
-<span class="c"># open http://localhost:16686, service agentward-hr-bot</span></pre>
+<span class="c"># open http://localhost:16686, service taintward-hr-bot</span></pre>
     </div>
   </div>
 </section>
@@ -451,7 +451,7 @@ tools:
 <footer>
   <div class="wrap">
     <span>Taintward &middot; open source, Apache-2.0 &middot; Divyanshu Choudhury</span>
-    <span><a href="https://gitlab.com/divyanshuchoudhury51/agentward">gitlab</a></span>
+    <span><a href="https://gitlab.com/divyanshuchoudhury51/taintward">gitlab</a></span>
   </div>
 </footer>
 

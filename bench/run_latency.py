@@ -1,4 +1,4 @@
-"""Runtime-overhead benchmark for the AgentWard SDK.
+"""Runtime-overhead benchmark for the Taintward SDK.
 
 Measures, at payload sizes of about 100 B, 1 KB, 10 KB and 100 KB:
 
@@ -131,7 +131,7 @@ COLD_SNIPPET = r"""
 import json, sys, time
 t0 = time.perf_counter()
 sys.path.insert(0, sys.argv[1])
-import sdk.detect as d
+import taintward.sdk.detect as d
 t1 = time.perf_counter()
 d._get_analyzer()
 t2 = time.perf_counter()
@@ -181,7 +181,7 @@ def machine_info() -> dict:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Runtime-overhead benchmark for the AgentWard SDK")
+    ap = argparse.ArgumentParser(description="Runtime-overhead benchmark for the Taintward SDK")
     ap.add_argument("--budget", type=float, default=8.0, help="seconds per (operation, size)")
     ap.add_argument("--cold-runs", type=int, default=3)
     ap.add_argument("--quick", action="store_true", help="small budget for a smoke run")
@@ -199,14 +199,14 @@ def main() -> None:
         InMemorySpanExporter,
     )
 
-    from sdk import detect
-    from sdk import instrumentation as instr
-    from sdk.redact import redact_payload
+    from taintward.sdk import detect
+    from taintward.sdk import instrumentation as instr
+    from taintward.sdk.redact import redact_payload
 
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider.get_tracer("agentward-bench")
+    tracer = provider.get_tracer("taintward-bench")
 
     def echo(payload):
         return payload
@@ -277,7 +277,7 @@ def to_markdown(res: dict) -> str:
          "Packages: " + ", ".join(f"{k} {v}" for k, v in m["packages"].items()), "",
          f"## Cold init (median of {res['cold_init']['runs']} fresh processes)", "",
          "| step | seconds |", "|---|---:|",
-         f"| import sdk.detect | {c['import_s']:.2f} |",
+         f"| import taintward.sdk.detect | {c['import_s']:.2f} |",
          f"| build Presidio analyzer (loads spaCy model) | {c['analyzer_build_s']:.2f} |",
          f"| first detect_text call | {c['first_call_s']:.2f} |",
          f"| **total** | **{c['total_s']:.2f}** |", "",

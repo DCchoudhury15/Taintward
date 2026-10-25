@@ -22,7 +22,7 @@ write_log            dest=log       violation=True  reasons=pii_egress
 
 * Policy change with `--set-file collector.policy.rego=...`: the
   `checksum/config` annotation changed and the pods rolled.
-* Routing tier on: the demo sent to `agentward-routing` gave the same table.
+* Routing tier on: the demo sent to `taintward-routing` gave the same table.
   It was run again while the policy pods were rolling: same table, and no
   "Dropping data" in the routing pods' logs.
 * HPA: telemetrygen in the cluster (4 workers at 1000 spans/s each) pushed
@@ -49,15 +49,15 @@ unknown session on B: 404
 ```
 
 * Gateway spans in Jaeger: `send_email` has
-  `agentward.policy.violation=true` (`transfer,pii_egress`), no raw SSN or key.
+  `taintward.policy.violation=true` (`transfer,pii_egress`), no raw SSN or key.
 * HPA and PDB exist for the gateway (2 to 3 pods).
 
-## Problem found and fixed in gateway/Dockerfile
+## Problem found and fixed in deploy/gateway.Dockerfile
 
 The first gateway image let the raw SSN and key through. A fresh
 `pip install` picks preshed 3.0.14, with which spaCy 3.8.16 fails to load its
 model (`OverflowError: Python int too large to convert to C ssize_t`).
-`sdk/detect.py` catches that error and returns no findings, so nothing was
+`taintward/sdk/detect.py` catches that error and returns no findings, so nothing was
 masked, and because the spans were not marked sensitive the collector did
 not redact them either. The gateway image now pins `preshed<3.0.14` and the
 build fails if detection does not find an SSN and an AWS key. Any other

@@ -1,10 +1,10 @@
-"""Unit tests for the AgentWard SDK propagation, no SigNoz required.
+"""Unit tests for the Taintward SDK propagation, no SigNoz required.
 
 Builds a TracerProvider with an in-memory exporter and drives a two-tool flow
 to assert, offline, that:
   * the chain-level taint (baggage) propagates from a tool whose output carries
     PII to the next sibling tool;
-  * a tainted chain reaching an external/llm/log sink sets agentward.violation;
+  * a tainted chain reaching an external/llm/log sink sets taintward.violation;
   * raw PII is masked in the stored span attributes (never reaches storage).
 """
 
@@ -23,16 +23,16 @@ try:
 except ImportError:  # pragma: no cover
     InMemorySpanExporter = None  # type: ignore[assignment]
 
-from core.doe import Sensitivity
-from sdk import instrumentation as instr
-from sdk import taint as tnt
+from taintward.core.doe import Sensitivity
+from taintward.sdk import instrumentation as instr
+from taintward.sdk import taint as tnt
 
 
 def _build_tracer():
     provider = TracerProvider(resource=Resource.create({"service.name": "test"}))
     exporter = InMemorySpanExporter()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider.get_tracer("agentward")
+    tracer = provider.get_tracer("taintward")
     return provider, exporter, tracer
 
 
@@ -91,8 +91,8 @@ class TestPropagation(unittest.TestCase):
 
         spans = self.exporter.get_finished_spans()
         sink_span = next(s for s in spans if s.name == "sink")
-        self.assertTrue(_attrs(sink_span, "agentward.violation"))
-        classes = _attrs(sink_span, "agentward.taint.classes")
+        self.assertTrue(_attrs(sink_span, "taintward.violation"))
+        classes = _attrs(sink_span, "taintward.taint.classes")
         self.assertIn("pii", classes)
 
     def test_internal_sink_not_flagged_as_violation(self):
@@ -109,9 +109,9 @@ class TestPropagation(unittest.TestCase):
 
         spans = self.exporter.get_finished_spans()
         tool_span = next(s for s in spans if s.name == "internal_tool")
-        self.assertIsNone(_attrs(tool_span, "agentward.violation"))
+        self.assertIsNone(_attrs(tool_span, "taintward.violation"))
         # but the taint is still recorded (it touched PII)
-        self.assertIn("pii", _attrs(tool_span, "agentward.taint.classes"))
+        self.assertIn("pii", _attrs(tool_span, "taintward.taint.classes"))
 
     def test_raw_pii_is_masked_in_stored_result(self):
         @instr.instrument_tool("leak", destination=instr.DEST_EXTERNAL,
@@ -146,7 +146,7 @@ class TestPropagation(unittest.TestCase):
 
         spans = self.exporter.get_finished_spans()
         span = next(s for s in spans if s.name == "clean")
-        self.assertFalse(_attrs(span, "agentward.sensitive"))
+        self.assertFalse(_attrs(span, "taintward.sensitive"))
 
 
 class TestTaintLabel(unittest.TestCase):

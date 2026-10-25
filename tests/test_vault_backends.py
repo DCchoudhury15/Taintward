@@ -22,10 +22,10 @@ from unittest import mock
 
 import pytest
 
-from core.doe import Sensitivity
-from sdk.destinations import DEST_INTERNAL
-from sdk.redact import Redactor
-from sdk.vault import PostgresVault, RedisVault, Vault, VaultError, get_vault
+from taintward.core.doe import Sensitivity
+from taintward.sdk.destinations import DEST_INTERNAL
+from taintward.sdk.redact import Redactor
+from taintward.sdk.vault import PostgresVault, RedisVault, Vault, VaultError, get_vault
 
 SSN = "234-12-1234"
 SUBJECT = "alice@example.com"
@@ -109,16 +109,16 @@ def pg_dsn():
     if not _docker_ok():
         pytest.skip(f"docker or the {PG_IMAGE} image is not available")
     port = free_port()
-    name = f"agentward-test-pg-{uuid.uuid4().hex[:10]}"
+    name = f"taintward-test-pg-{uuid.uuid4().hex[:10]}"
     run = subprocess.run(
         ["docker", "run", "-d", "--rm", "--name", name,
-         "-e", "POSTGRES_PASSWORD=awtest", "-e", "POSTGRES_DB=agentward",
+         "-e", "POSTGRES_PASSWORD=awtest", "-e", "POSTGRES_DB=taintward",
          "-p", f"127.0.0.1:{port}:5432", PG_IMAGE],
         capture_output=True, text=True, timeout=120,
     )
     if run.returncode != 0:
         pytest.skip(f"cannot start {PG_IMAGE}: {run.stderr.strip()[:200]}")
-    dsn = f"postgresql://postgres:awtest@127.0.0.1:{port}/agentward"
+    dsn = f"postgresql://postgres:awtest@127.0.0.1:{port}/taintward"
     try:
         deadline = time.time() + 90
         while True:
@@ -137,7 +137,7 @@ def pg_dsn():
 
 @pytest.fixture(autouse=True)
 def _vault_key_env():
-    with mock.patch.dict(os.environ, {"AGENTWARD_VAULT_KEY": VAULT_KEY}):
+    with mock.patch.dict(os.environ, {"TAINTWARD_VAULT_KEY": VAULT_KEY}):
         yield
 
 
@@ -305,7 +305,7 @@ def test_requires_key_and_separate_from_fpe_key(backend):
     with mock.patch.dict(os.environ, {}, clear=True):
         with pytest.raises(ValueError):
             backend.make()
-    with mock.patch.dict(os.environ, {"AGENTWARD_FPE_KEY": VAULT_KEY}):
+    with mock.patch.dict(os.environ, {"TAINTWARD_FPE_KEY": VAULT_KEY}):
         with pytest.raises(ValueError):
             backend.make()
 
@@ -346,7 +346,7 @@ def test_redactor_gdpr_erasure_is_final(backend):
 
 
 def _writer(kind: str, where: str, scope: str, prefix: str, n: int) -> None:
-    os.environ["AGENTWARD_VAULT_KEY"] = VAULT_KEY
+    os.environ["TAINTWARD_VAULT_KEY"] = VAULT_KEY
     if kind == "postgres":
         v = PostgresVault(where, table=scope)
     else:
@@ -422,7 +422,7 @@ def test_postgres_pool_reconnects_after_server_side_kill(pg_dsn):
     v.put("t", "v")
     with psycopg.connect(pg_dsn, autocommit=True) as c:
         c.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-                  "WHERE datname = 'agentward' AND pid <> pg_backend_pid()")
+                  "WHERE datname = 'taintward' AND pid <> pg_backend_pid()")
     assert v.get("t") == "v"  # dead pooled connection replaced transparently
 
 
@@ -442,7 +442,7 @@ def test_redis_native_ttl_and_subject_set(redis_clean):
 
 
 def test_get_vault_specs(pg_dsn, redis_clean):
-    with mock.patch.dict(os.environ, {"AGENTWARD_VAULT": pg_dsn}):
+    with mock.patch.dict(os.environ, {"TAINTWARD_VAULT": pg_dsn}):
         assert isinstance(get_vault(), PostgresVault)
     assert isinstance(get_vault(redis_clean), RedisVault)
 

@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from evidence.merkle import (
+from taintward.evidence.merkle import (
     InclusionProof,
     LogCorruptError,
     MerkleLog,
@@ -142,7 +142,7 @@ class TestMerkleLog(unittest.TestCase):
         log = MerkleLog()
         log.append(_viol("call_external_api"))
         proof = log.inclusion_proof(0)
-        from evidence.merkle import InclusionProof
+        from taintward.evidence.merkle import InclusionProof
         restored = InclusionProof.from_json(proof.to_json())
         self.assertEqual(restored.leaf_hash, proof.leaf_hash)
         self.assertEqual(restored.siblings, proof.siblings)
@@ -170,7 +170,7 @@ class TestMerkleLog(unittest.TestCase):
         import json
         import os
 
-        from evidence.log import main
+        from taintward.evidence.log import main
 
         with tempfile.TemporaryDirectory() as td:
             path = os.path.join(td, "v.logl")
@@ -203,7 +203,7 @@ RFC_ROOTS = [
 
 
 def _raw_leaves(n):
-    from evidence.merkle import _leaf
+    from taintward.evidence.merkle import _leaf
     return [_leaf(bytes.fromhex(d)) for d in RFC_LEAVES[:n]]
 
 
@@ -218,7 +218,7 @@ class TestRfc9162(unittest.TestCase):
     """The tree shape and proofs follow RFC 6962 / RFC 9162."""
 
     def test_roots_match_rfc_test_vectors(self):
-        from evidence.merkle import _root
+        from taintward.evidence.merkle import _root
         leaves = _raw_leaves(8)
         for n in range(1, 9):
             self.assertEqual(_root(leaves[:n]).hex(), RFC_ROOTS[n - 1], n)
@@ -307,7 +307,7 @@ class TestRfc9162(unittest.TestCase):
                     self.assertFalse(verify_audit_path(other, i, size, path, root))
 
     def test_property_consistency(self):
-        from evidence.merkle import _root
+        from taintward.evidence.merkle import _root
 
         rng = random.Random(6962)
         for n in list(range(1, 30)) + [rng.randint(30, 200) for _ in range(4)]:
@@ -384,7 +384,7 @@ class TestAppendSafety(unittest.TestCase):
         self.assertEqual(MerkleLog(self.path).root(), log.root())
 
     def test_failed_write_is_rolled_back(self):
-        from evidence import merkle
+        from taintward.evidence import merkle
 
         log = MerkleLog(self.path)
         log.append(_viol("a"))
@@ -403,7 +403,7 @@ class TestAppendSafety(unittest.TestCase):
         self.assertEqual(len(MerkleLog(self.path)), 2)
 
     def test_append_fsyncs(self):
-        from evidence import merkle
+        from taintward.evidence import merkle
 
         log = MerkleLog(self.path)
         with mock.patch.object(merkle.os, "fsync", wraps=os.fsync) as fs:
@@ -537,7 +537,7 @@ class TestBrokenFile(unittest.TestCase):
         import contextlib
         import io
 
-        from evidence.log import main
+        from taintward.evidence.log import main
 
         self.path.write_bytes(self.good + b'{"tr')
         err = io.StringIO()
@@ -559,7 +559,7 @@ class TestCliProofs(unittest.TestCase):
         import contextlib
         import io
 
-        from evidence.log import main
+        from taintward.evidence.log import main
 
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(io.StringIO()):
@@ -607,14 +607,14 @@ class TestCliProofs(unittest.TestCase):
             self.assertEqual(rc, 2)
 
     def test_record_single_file_dedups(self):
-        from evidence.recorder import record_violations
+        from taintward.evidence.recorder import record_violations
 
         rows = [{"trace_id": "t1", "span_id": "s1", "tool": "x", "destination": "llm",
                  "jurisdiction": "us", "classes": "pii", "reasons": "r",
                  "timestamp_ns": 1}]
         with tempfile.TemporaryDirectory() as td:
             log = MerkleLog(os.path.join(td, "v.logl"))
-            with mock.patch("evidence.recorder._query_clickhouse", return_value=rows):
+            with mock.patch("taintward.evidence.recorder._query_clickhouse", return_value=rows):
                 self.assertEqual(record_violations(log), 1)
                 self.assertEqual(record_violations(log), 0)  # overlapping window
                 rows.append(dict(rows[0], span_id="s2"))

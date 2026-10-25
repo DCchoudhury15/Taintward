@@ -36,7 +36,7 @@ func TestConfig_NonexistentPolicyPathFailsAtConstruction(t *testing.T) {
 func TestConfig_MalformedRegoFailsAtConstruction(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.rego")
-	if err := os.WriteFile(path, []byte("package agentward\n\ndecision := {\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("package taintward\n\ndecision := {\n"), 0o644); err != nil {
 		t.Fatalf("writing temp rego file: %v", err)
 	}
 	_, err := newProcessor(&Config{PolicyPath: path}, &sink{})

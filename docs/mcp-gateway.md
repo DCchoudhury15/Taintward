@@ -1,12 +1,12 @@
 # MCP gateway
 
-The AgentWard MCP gateway sits between an MCP client (the agent) and one or
+The Taintward MCP gateway sits between an MCP client (the agent) and one or
 more MCP servers. The agent talks to the gateway as if it were the real
-server. The gateway checks every tool call against the AgentWard policy and
+server. The gateway checks every tool call against the Taintward policy and
 then forwards it. The agent code does not change.
 
 ```
-agent (MCP client)  --stdio or HTTP-->  python -m gateway  --stdio or HTTP-->  upstream MCP server(s)
+agent (MCP client)  --stdio or HTTP-->  python -m taintward.gateway  --stdio or HTTP-->  upstream MCP server(s)
 ```
 
 The gateway can serve its clients in two ways:
@@ -21,7 +21,7 @@ The gateway can serve its clients in two ways:
 
 1. Looks up the tool in the config to get its destination (`internal`,
    `external`, `llm`, `log`, `rag`), jurisdiction and mode.
-2. Scans the arguments for PII and secrets (`sdk/detect.py`: Presidio plus
+2. Scans the arguments for PII and secrets (`taintward/sdk/detect.py`: Presidio plus
    the secret regexes).
 3. Updates the session taint. Once any argument or result in this session
    was sensitive, every later call in the session counts as tainted. This
@@ -36,22 +36,22 @@ The gateway can serve its clients in two ways:
    - `redact`: sensitive argument values are replaced before the call is
      forwarded. `internal` tools get a reversible format preserving token;
      every other destination gets a `[PII]` / `[SECRET]` mask
-     (`sdk/redact.py`, the same as the SDK).
+     (`taintward/sdk/redact.py`, the same as the SDK).
    - `block`: like `redact`, but if the policy finds a violation the call
      is not forwarded and the agent gets an MCP error (JSON-RPC code
      `-32001`, the violations are in the error `data`).
    - `audit`: raw arguments are forwarded unchanged and the violation is
-     only recorded (same idea as `AGENTWARD_DRY_RUN`). Use it to see what
+     only recorded (same idea as `TAINTWARD_DRY_RUN`). Use it to see what
      would be flagged before you turn enforcement on.
 6. Scans the result. Sensitive results taint the session. With
    `redact_results: true` (the default) sensitive values in the result are
    masked before the agent sees them, because the result goes into the
    model context.
-7. Emits one OpenTelemetry span per call, named `agentward.gateway <tool>`.
+7. Emits one OpenTelemetry span per call, named `taintward.gateway <tool>`.
 
 ## Quick start
 
-Install the extra packages into the AgentWard virtualenv:
+Install the extra packages into the Taintward virtualenv:
 
 ```bash
 pip install mcp
@@ -60,7 +60,7 @@ pip install mcp
 Try the example (an HR server with `get_employee` and `send_email`):
 
 ```bash
-python -m gateway --config gateway/example-config.yaml
+python -m taintward.gateway --config taintward/gateway/example-config.yaml
 ```
 
 It waits for an MCP client on stdin/stdout. Logs go to stderr.
@@ -98,9 +98,9 @@ Then point the client at the gateway instead:
 {
   "mcpServers": {
     "hr": {
-      "command": "/path/to/agentward/.venv/bin/python",
-      "args": ["-m", "gateway", "--config", "/path/to/hr-gateway.yaml"],
-      "cwd": "/path/to/agentward"
+      "command": "/path/to/taintward/.venv/bin/python",
+      "args": ["-m", "taintward.gateway", "--config", "/path/to/hr-gateway.yaml"],
+      "cwd": "/path/to/taintward"
     }
   }
 }
@@ -112,12 +112,12 @@ input schemas, so the agent and its prompts do not need any change.
 
 To send spans to SigNoz (or any OTLP/HTTP collector), add
 `--otlp-endpoint http://localhost:4318/v1/traces` or set
-`AGENTWARD_OTLP_ENDPOINT`. Without it no spans are exported.
+`TAINTWARD_OTLP_ENDPOINT`. Without it no spans are exported.
 
 ## Serving over HTTP
 
 ```bash
-python -m gateway --config gateway.yaml --listen 0.0.0.0:8811
+python -m taintward.gateway --config gateway.yaml --listen 0.0.0.0:8811
 ```
 
 | path | what |
@@ -156,11 +156,11 @@ store, and exits with code 0. Keep the Kubernetes
 
 ### Auth
 
-Set `AGENTWARD_GATEWAY_TOKEN` to require a bearer token:
+Set `TAINTWARD_GATEWAY_TOKEN` to require a bearer token:
 
 ```bash
-export AGENTWARD_GATEWAY_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-python -m gateway --config gateway.yaml --listen 0.0.0.0:8811
+export TAINTWARD_GATEWAY_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+python -m taintward.gateway --config gateway.yaml --listen 0.0.0.0:8811
 ```
 
 Every request except `/healthz` must then send
@@ -180,12 +180,12 @@ can send the requests of one session to different replicas, so they must
 share the taint. Use Redis:
 
 ```yaml
-session_store: redis://redis.agentward.svc:6379/0   # or rediss:// for TLS
+session_store: redis://redis.taintward.svc:6379/0   # or rediss:// for TLS
 session_ttl: 86400                                  # seconds, default 1 day
 ```
 
 This needs the `redis` Python package (`pip install redis`).
-`AGENTWARD_SESSION_STORE` overrides `session_store` from the config, which
+`TAINTWARD_SESSION_STORE` overrides `session_store` from the config, which
 is handy in a container.
 
 What is stored per session: a set of taint class names (`pii`, `secret`)
@@ -199,9 +199,9 @@ To run several replicas:
 1. Run one Redis (with persistence on if taint must survive a Redis
    restart).
 2. Give every replica the same config with `session_store: redis://...`,
-   the same `AGENTWARD_GATEWAY_TOKEN` and the same `AGENTWARD_FPE_KEY`, so a
+   the same `TAINTWARD_GATEWAY_TOKEN` and the same `TAINTWARD_FPE_KEY`, so a
    token made by one replica reverses on another. For reversible tokens
-   that must survive restarts, also set a shared vault (`AGENTWARD_VAULT`,
+   that must survive restarts, also set a shared vault (`TAINTWARD_VAULT`,
    Postgres or Redis, see [redaction-crypto.md](redaction-crypto.md)).
 3. Put them behind any HTTP load balancer. No sticky sessions are needed:
    the MCP layer runs in stateless mode and any replica can serve any
@@ -215,14 +215,14 @@ never runs a call with unknown taint.
 ## Config reference
 
 ```yaml
-service_name: agentward-mcp-gateway   # OTel service.name
+service_name: taintward-mcp-gateway   # OTel service.name
 session_store: memory      # memory | redis://host:6379/0 (shared by replicas)
 session_ttl: 86400         # seconds a session's taint is kept after last use
 
 upstreams:                 # one or more, tools from all of them are exposed
   - name: hr               # unique name, used in rules and spans
     command: python        # stdio upstream: the command to run
-    args: ["-m", "gateway.examples.hr_server"]
+    args: ["-m", "taintward.gateway.examples.hr_server"]
     cwd: ..                # optional, relative to the config file
     env: {KEY: value}      # optional, added to a minimal safe environment
     prefix: "hr_"          # optional, exposed name = prefix + tool name
@@ -269,18 +269,18 @@ policy and SigNoz dashboards work on it:
 | `gen_ai.operation.name` | `execute_tool` |
 | `gen_ai.tool.call.arguments` | arguments as forwarded (redacted; masked in audit mode) |
 | `gen_ai.tool.call.result` | result, masked |
-| `agentward.destination` | tool destination |
-| `agentward.jurisdiction` | tool jurisdiction |
-| `agentward.sensitive` | session or call is tainted |
-| `agentward.taint.classes` / `.level` / `.id` | taint label |
-| `agentward.violation` | the policy found a violation |
-| `agentward.violation.reason` | short reason |
-| `agentward.policy.rules` | rules that fired, e.g. `pii_egress,transfer` |
-| `agentward.mode` | `redact`, `block` or `audit` |
-| `agentward.blocked` | the call was blocked |
-| `agentward.dry_run` | set in audit mode |
-| `agentward.args.redacted` / `agentward.result.redacted` | something was changed |
-| `agentward.gateway.upstream` | upstream name |
+| `taintward.destination` | tool destination |
+| `taintward.jurisdiction` | tool jurisdiction |
+| `taintward.sensitive` | session or call is tainted |
+| `taintward.taint.classes` / `.level` / `.id` | taint label |
+| `taintward.violation` | the policy found a violation |
+| `taintward.violation.reason` | short reason |
+| `taintward.policy.rules` | rules that fired, e.g. `pii_egress,transfer` |
+| `taintward.mode` | `redact`, `block` or `audit` |
+| `taintward.blocked` | the call was blocked |
+| `taintward.dry_run` | set in audit mode |
+| `taintward.args.redacted` / `taintward.result.redacted` | something was changed |
+| `taintward.gateway.upstream` | upstream name |
 
 The chain taint is also put in OTel baggage on the upstream request, so an
 upstream that is itself instrumented can read it.
@@ -288,7 +288,7 @@ upstream that is itself instrumented can read it.
 ## How the policy is evaluated
 
 The Rego file is the source of truth. The gateway does not need OPA: the
-same rules are written in Python in `gateway/policy.py`. A test in
+same rules are written in Python in `taintward/gateway/policy.py`. A test in
 `tests/test_gateway.py` reads the Rego file and fails if its sink set,
 jurisdiction set or rule names change without the Python module being
 updated. If an `opa` binary is on the PATH, another test also runs
@@ -325,7 +325,7 @@ updated. If an `opa` binary is on the PATH, another test also runs
 - Only tools are proxied. Resources, prompts, sampling and elicitation from
   the upstream are not forwarded yet.
 - Reversible tokens for `internal` tools use the SDK redactor (FF1 plus the
-  vault chosen with `AGENTWARD_VAULT`, see
+  vault chosen with `TAINTWARD_VAULT`, see
   [redaction-crypto.md](redaction-crypto.md)).
 - `audit` mode forwards raw data on purpose. Do not leave it on for tools
   that leave your system.

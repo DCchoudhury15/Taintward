@@ -1,4 +1,4 @@
-"""Tests for the evidence report (evidence/report.py, evidence/spans.py)."""
+"""Tests for the evidence report (taintward/evidence/report.py, taintward/evidence/spans.py)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from evidence.report import build_report, main, render_html, scan_text
-from evidence.spans import (
+from taintward.evidence.report import build_report, main, render_html, scan_text
+from taintward.evidence.spans import (
     OtlpFileSource,
     spans_from_clickhouse_rows,
     spans_from_otlp,
@@ -39,15 +39,15 @@ def _span(trace, span, name, offset, **attrs):
 def _tool(trace, span, tool, dest, offset, *, juris="", sensitive=True, classes="pii,secret",
           violation=False, transfer=False, reasons="", redacted=False, args=MASKED, **extra):
     a = {
-        "gen_ai.tool.name": tool, "agentward.destination": dest,
-        "agentward.jurisdiction": juris, "agentward.sensitive": sensitive,
-        "agentward.policy.violation": violation,
-        "agentward.policy.transfer_violation": transfer,
-        "agentward.policy.reasons": reasons, "agentward.policy.decision_engine": "rego",
-        "agentward.redacted": redacted,
+        "gen_ai.tool.name": tool, "taintward.destination": dest,
+        "taintward.jurisdiction": juris, "taintward.sensitive": sensitive,
+        "taintward.policy.violation": violation,
+        "taintward.policy.transfer_violation": transfer,
+        "taintward.policy.reasons": reasons, "taintward.policy.decision_engine": "rego",
+        "taintward.redacted": redacted,
     }
     if sensitive:
-        a["agentward.taint.classes"] = classes
+        a["taintward.taint.classes"] = classes
     if args is not None:
         a["gen_ai.tool.call.arguments"] = args
     a.update(extra)
@@ -57,7 +57,7 @@ def _tool(trace, span, tool, dest, offset, *, juris="", sensitive=True, classes=
 def _doc(spans, service="hr-bot"):
     return {"resourceSpans": [{
         "resource": {"attributes": [{"key": "service.name", "value": _v(service)}]},
-        "scopeSpans": [{"scope": {"name": "agentward"}, "spans": spans}],
+        "scopeSpans": [{"scope": {"name": "taintward"}, "spans": spans}],
     }]}
 
 
@@ -101,8 +101,8 @@ class TestParsing(unittest.TestCase):
         self.assertEqual(a, b)
         s = a[0]
         self.assertEqual(s.service, "hr-bot")
-        self.assertEqual(s.attrs["agentward.destination"], "llm")
-        self.assertIs(s.attrs["agentward.policy.violation"], True)
+        self.assertEqual(s.attrs["taintward.destination"], "llm")
+        self.assertIs(s.attrs["taintward.policy.violation"], True)
         self.assertEqual(s.start_ns, T0)
 
     def test_file_source_jsonl_window_and_dedupe(self):
@@ -120,12 +120,12 @@ class TestParsing(unittest.TestCase):
     def test_clickhouse_rows(self):
         rows = [{"trace_id": TRACE_A, "span_id": "1" * 16, "parent_span_id": "",
                  "name": "ask_llm", "service": "hr-bot", "start_ns": T0,
-                 "attributes_string": {"agentward.destination": "llm"},
-                 "attributes_bool": {"agentward.policy.violation": 1},
+                 "attributes_string": {"taintward.destination": "llm"},
+                 "attributes_bool": {"taintward.policy.violation": 1},
                  "attributes_number": {}}]
         s = spans_from_clickhouse_rows(rows)[0]
-        self.assertIs(s.attrs["agentward.policy.violation"], True)
-        self.assertEqual(s.attrs["agentward.destination"], "llm")
+        self.assertIs(s.attrs["taintward.policy.violation"], True)
+        self.assertEqual(s.attrs["taintward.destination"], "llm")
 
 
 class TestNumbers(unittest.TestCase):
@@ -218,14 +218,14 @@ class TestNeverOverclaims(unittest.TestCase):
 
     def test_audit_mode_is_not_confirmed(self):
         audit = _tool(TRACE_A, "6" * 16, "send", "llm", 80, violation=True,
-                      reasons="pii_egress", **{"agentward.dry_run": True})
+                      reasons="pii_egress", **{"taintward.dry_run": True})
         data = self._with(audit)
         self.assertEqual(data["raw_check"]["claim"]["status"], "not_confirmed")
         self.assertEqual(data["violations"]["by_outcome"]["audit_only"], 1)
 
     def test_blocked_call_is_not_sent(self):
         blocked = _tool(TRACE_A, "5" * 16, "send", "external", 90, violation=True,
-                        reasons="pii_egress", args=None, **{"agentward.blocked": True})
+                        reasons="pii_egress", args=None, **{"taintward.blocked": True})
         data = self._with(blocked)
         self.assertEqual(data["raw_check"]["claim"]["status"], "supported")
         self.assertEqual(data["violations"]["by_outcome"]["blocked"], 1)
@@ -233,7 +233,7 @@ class TestNeverOverclaims(unittest.TestCase):
     def test_no_calls(self):
         data = report([])
         self.assertEqual(data["raw_check"]["claim"]["status"], "no_calls")
-        self.assertIn("No AgentWard tool call spans", " ".join(data["warnings"]))
+        self.assertIn("No Taintward tool call spans", " ".join(data["warnings"]))
 
     def test_luhn_and_masks(self):
         self.assertEqual(scan_text("[PII] [SECRET] 1234"), [])
@@ -248,7 +248,7 @@ class TestOutput(unittest.TestCase):
         self.assertIn("@media print", page)
         self.assertNotRegex(page, r"<(script|link)[^>]+(src|href)=")
         self.assertNotIn(chr(0x2014), page)  # no em dash
-        m = re.search(r"id='agentward-report-data'>(.*?)</script>", page, re.S)
+        m = re.search(r"id='taintward-report-data'>(.*?)</script>", page, re.S)
         data = json.loads(m.group(1))
         self.assertEqual(data["totals"]["violations"], 6)
 
@@ -276,17 +276,17 @@ class TestOutput(unittest.TestCase):
             self.assertEqual(data["raw_check"]["claim"]["status"], "supported")
 
     def test_evidence_section_coverage(self):
-        from evidence.checkpoint import keygen
-        from evidence.report import span_violation_record
-        from evidence.shards import ShardedLog
+        from taintward.evidence.checkpoint import keygen
+        from taintward.evidence.report import span_violation_record
+        from taintward.evidence.shards import ShardedLog
 
         spans = clean_spans()
         with tempfile.TemporaryDirectory() as td:
             keygen(Path(td) / "k", Path(td) / "k.pub")
-            from evidence.checkpoint import load_private_key
+            from taintward.evidence.checkpoint import load_private_key
 
             log = ShardedLog(Path(td) / "ev")
-            viol = [s for s in spans if s.attrs.get("agentward.policy.violation")]
+            viol = [s for s in spans if s.attrs.get("taintward.policy.violation")]
             for s in viol[:4]:
                 log.append(span_violation_record(s), tenant="acme")
             log.checkpoint(load_private_key(Path(td) / "k"))
@@ -301,14 +301,14 @@ class TestOutput(unittest.TestCase):
             self.assertEqual(ev["checkpoint"]["seq"], 1)
 
     def test_single_file_section_binds_tree_size(self):
-        from evidence.merkle import MerkleLog
-        from evidence.report import span_violation_record
+        from taintward.evidence.merkle import MerkleLog
+        from taintward.evidence.report import span_violation_record
 
         spans = clean_spans()
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "v.logl"
             log = MerkleLog(path)
-            for s in [s for s in spans if s.attrs.get("agentward.policy.violation")][:3]:
+            for s in [s for s in spans if s.attrs.get("taintward.policy.violation")][:3]:
                 log.append(span_violation_record(s))
             data = report(spans, log_file=str(path))
             ev = data["evidence_log"]
@@ -318,14 +318,14 @@ class TestOutput(unittest.TestCase):
             self.assertIn("consistency --old-size 3", page)
 
     def test_broken_log_file_is_shown_not_fatal(self):
-        from evidence.merkle import MerkleLog
-        from evidence.report import span_violation_record
+        from taintward.evidence.merkle import MerkleLog
+        from taintward.evidence.report import span_violation_record
 
         spans = clean_spans()
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "v.logl"
             log = MerkleLog(path)
-            viol = [s for s in spans if s.attrs.get("agentward.policy.violation")]
+            viol = [s for s in spans if s.attrs.get("taintward.policy.violation")]
             log.append(span_violation_record(viol[0]))
             with path.open("ab") as f:
                 f.write(b'{"trace_id":"half')

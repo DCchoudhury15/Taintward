@@ -1,18 +1,18 @@
 # Framework integrations
 
-`sdk/integrations/` lets you protect an existing agent without putting
+`taintward/sdk/integrations/` lets you protect an existing agent without putting
 `@instrument_tool(...)` on every tool. You write one map of tool names to
 destinations, then pass your tools, your model or your LLM client through an
 adapter. The adapters use the same gate as `@instrument_tool`
-(`sdk.instrumentation.GuardedCall`, which calls `sdk.detect` and
-`sdk.redact.redact_payload`), so detection and redaction behave the same.
+(`taintward.sdk.instrumentation.GuardedCall`, which calls `taintward.sdk.detect` and
+`taintward.sdk.redact.redact_payload`), so detection and redaction behave the same.
 
 ## Setup
 
 ```python
-from sdk import integrations as agentward
+from taintward.sdk import integrations as taintward
 
-agentward.init(
+taintward.init(
     "hr-agent",                       # service.name in SigNoz
     destinations={
         "search_db": "internal",
@@ -55,7 +55,7 @@ are still scanned, so the taint label and the violation flag stay correct.
 ### One run, one trace
 
 ```python
-with agentward.run("hr-agent.run"):
+with taintward.run("hr-agent.run"):
     agent.invoke(...)
 ```
 
@@ -106,7 +106,7 @@ old behaviour).
    gets the next number, so the model sees the same `<PERSON_1>` in every
    turn.
 2. **The map stays local.** The map from placeholder to real value lives in
-   memory for the run (`agentward.run(...)`). It is never sent to the
+   memory for the run (`taintward.run(...)`). It is never sent to the
    provider, never written to a span, and it is cleared when the run ends.
    Outside `run()`, each LLM call gets its own fresh map, so two users never
    share one.
@@ -129,7 +129,7 @@ old behaviour).
 | argument in the tool's `allow` list | the real SSN |
 
 Why an internal tool gets the token and not the raw value: that is the rule
-for internal sinks everywhere else in AgentWard. The internal store can
+for internal sinks everywhere else in Taintward. The internal store can
 still match and join on the token, `get_redactor().reverse(token)` gives the
 real value back where it is truly needed, and the store never holds raw PII.
 If a tool needs the real value (a database query by name, say), put that
@@ -152,13 +152,13 @@ For a conversation that spans many runs (a chat app), pass a vault and a
 conversation id:
 
 ```python
-from sdk.vault import get_vault
+from taintward.sdk.vault import get_vault
 
-agentward.init("hr-agent", destinations={...},
-               placeholder_vault=get_vault("sqlite:///var/lib/agentward/vault.db"),
+taintward.init("hr-agent", destinations={...},
+               placeholder_vault=get_vault("sqlite:///var/lib/taintward/vault.db"),
                placeholder_ttl=7 * 24 * 3600)
 
-with agentward.run("turn", conversation_id=chat_id):
+with taintward.run("turn", conversation_id=chat_id):
     ...
 ```
 
@@ -170,7 +170,7 @@ conversation, so `PlaceholderMap.forget_conversation()` erases all of them.
 ### Turning it off
 
 ```python
-agentward.init("hr-agent", destinations={...}, placeholders=False)
+taintward.init("hr-agent", destinations={...}, placeholders=False)
 ```
 
 The LLM then gets `[PII]` / `[SECRET]` masks again and nothing is restored.
@@ -197,8 +197,8 @@ The decorator path (`@instrument_tool`) does not use placeholders.
 ## LangChain and LangGraph
 
 ```python
-tools = agentward.wrap_langchain_tools([search_db, cache_record, send_email])
-model = agentward.protect_langchain_model(ChatOpenAI(model="gpt-4o-mini"))
+tools = taintward.wrap_langchain_tools([search_db, cache_record, send_email])
+model = taintward.protect_langchain_model(ChatOpenAI(model="gpt-4o-mini"))
 agent = create_agent(model, tools)          # or langgraph create_react_agent
 ```
 
@@ -226,11 +226,11 @@ the call path, so the adapter wraps the objects.
 from agents import Agent, Runner, set_default_openai_client
 from openai import AsyncOpenAI
 
-client = agentward.protect_openai(AsyncOpenAI())
+client = taintward.protect_openai(AsyncOpenAI())
 set_default_openai_client(client)           # the agent's model calls are redacted
 
-agent = Agent(name="hr", tools=agentward.wrap_function_tools([search_db, send_email]))
-with agentward.run("hr.run"):
+agent = Agent(name="hr", tools=taintward.wrap_function_tools([search_db, send_email]))
+with taintward.run("hr.run"):
     await Runner.run(agent, "...")
 ```
 
@@ -247,8 +247,8 @@ with agentward.run("hr.run"):
 ## Plain OpenAI and Anthropic clients
 
 ```python
-client = agentward.protect_openai(OpenAI())          # or AsyncOpenAI()
-client = agentward.protect_anthropic(Anthropic())    # or AsyncAnthropic()
+client = taintward.protect_openai(OpenAI())          # or AsyncOpenAI()
+client = taintward.protect_anthropic(Anthropic())    # or AsyncAnthropic()
 ```
 
 This patches the client object in place (calling it twice is safe):
@@ -267,15 +267,47 @@ redacted request, the masked response, `gen_ai.provider.name`,
 
 | attribute | meaning |
 | --- | --- |
-| `agentward.destination` | `internal`, `external`, `llm`, `log` or `rag` |
-| `agentward.jurisdiction` | from the map (or `llm_jurisdiction` for LLM spans) |
-| `agentward.taint.classes`, `agentward.taint.level`, `agentward.sensitive` | taint of the call |
-| `agentward.violation` | a tainted run reached an external, llm or log sink |
-| `agentward.redacted` | the gate changed what the sink received |
-| `agentward.framework` | `langchain`, `openai-agents`, `openai.chat`, `openai.responses`, `anthropic` |
+| `taintward.destination` | `internal`, `external`, `llm`, `log` or `rag` |
+| `taintward.jurisdiction` | from the map (or `llm_jurisdiction` for LLM spans) |
+| `taintward.taint.classes`, `taintward.taint.level`, `taintward.sensitive` | taint of the call |
+| `taintward.violation` | a tainted run reached an external, llm or log sink |
+| `taintward.redacted` | the gate changed what the sink received |
+| `taintward.framework` | `langchain`, `openai-agents`, `openai.chat`, `openai.responses`, `anthropic` |
 | `gen_ai.tool.name`, `gen_ai.operation.name` | tool spans (`execute_tool`) and LLM spans (`chat`) |
 | `gen_ai.tool.call.arguments` / `gen_ai.input.messages` | input after redaction |
 | `gen_ai.tool.call.result` / `gen_ai.output.messages` | output, masked |
+| `taintward.args_redacted` | the stored tool arguments are already redacted, so the collector keeps them (and their reversible tokens) as they are |
+| `taintward.taint.source_span` | span id of the call that first found the sensitive data |
+| `taintward.tool.error` | the sink raised; the message with sensitive data masked |
+
+A sink that raises still gets its violation flag, and the exception event
+on the span has its message and stack trace masked.
+
+A wrapped tool that calls another wrapped tool takes on the inner call's
+taint. If the inner tool returns an SSN and the outer one returns a clean
+summary, the next external call is still a violation.
+
+## Settings
+
+All on/off settings accept `1`, `true`, `yes`, `on` and `0`, `false`, `no`,
+`off` (any case). Any other value keeps the default and logs a warning.
+
+| variable | default | meaning |
+| --- | --- | --- |
+| `TAINTWARD_DRY_RUN` | off | record violations but pass raw arguments to sinks (spans are still masked) |
+| `TAINTWARD_MASK_IN_SDK` | on | mask tool I/O on spans in the process; turn off when a sidecar collector masks |
+| `TAINTWARD_FAIL_CLOSED` | off | refuse calls to non-internal sinks while detection is degraded |
+
+## Detection health
+
+If spaCy or Presidio fail to load, detection does not stop. It logs one
+ERROR and falls back to regex-only detection: SSNs, cards, emails, phone
+numbers, IBANs, IP addresses and every secret pattern are still found, but
+names and places are not. `taintward.sdk.detect.health()` returns
+`{"ok": bool, "mode": "full" | "regex_only" | "broken", "error": str | None}`.
+With `TAINTWARD_FAIL_CLOSED=1` a degraded SDK raises
+`DetectionDegradedError` for external, llm, log and rag sinks, and the
+gateway refuses those calls.
 
 ## Limits
 
@@ -285,7 +317,7 @@ redacted request, the masked response, `gen_ai.provider.name`,
 - Streaming: with `stream=True` (OpenAI, Anthropic) or LangChain
   `stream()` / `astream()`, the request uses placeholders but the streamed
   chunks are not restored, because a placeholder can be split across chunks.
-  Collect the text and call `agentward.restore(text)` inside the same
+  Collect the text and call `taintward.restore(text)` inside the same
   `run()`. Tool calls built from a stream are still fine: wrapped tools
   restore placeholders in their arguments.
 - Placeholders across processes: the in-memory map belongs to one process.

@@ -1,6 +1,6 @@
-"""Detection-quality benchmark for sdk.detect.
+"""Detection-quality benchmark for taintward.sdk.detect.
 
-Runs ``sdk.detect.detect_text`` over every example in the labeled dataset and
+Runs ``taintward.sdk.detect.detect_text`` over every example in the labeled dataset and
 reports:
 
 * span-level precision / recall / F1 per entity class and overall. A
@@ -33,7 +33,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from sdk import detect  # noqa: E402
+from taintward.sdk import detect  # noqa: E402
 
 CLASSES = [
     "US_SSN", "EMAIL", "PHONE", "CREDIT_CARD", "IBAN", "PERSON", "ADDRESS",
@@ -258,7 +258,7 @@ def to_markdown(res: dict, label: str) -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Detection-quality benchmark for sdk.detect")
+    ap = argparse.ArgumentParser(description="Detection-quality benchmark for taintward.sdk.detect")
     ap.add_argument("--data", default=str(ROOT / "bench" / "data" / "detection.jsonl"))
     ap.add_argument("--out-dir", default=str(ROOT / "bench" / "results"))
     ap.add_argument("--label", default="current", help="name for this run, used in file names")

@@ -1,24 +1,24 @@
 {
-  "name": "AgentWard: Clean-run SLO + error budget",
+  "name": "Taintward: Clean-run SLO + error budget",
   "description": "A service-level objective for leak-free runs: the fraction of agent runs whose trace contains NO policy violation. The error budget burns on runs that leaked. Goal 99% clean runs; a breach (tainted chain reaching an egress sink) is an SLO miss.",
   "datasource": "signoz_traces.distributed_signoz_index_v3",
   "slo": {
     "goal_ratio": 0.99,
-    "good_event": "a run (trace) with zero spans where agentward.policy.violation = true",
+    "good_event": "a run (trace) with zero spans where taintward.policy.violation = true",
     "bad_event": "a run with >=1 violation span"
   },
   "queries": [
     {
       "title": "Clean-run ratio (SLO)",
-      "sql": "SELECT minute, countDistinct(trace_id) AS total_runs, countDistinctIf(trace_id, hasViolation = 0) AS clean_runs, round(clean_runs / total_runs, 4) AS clean_run_ratio FROM (SELECT trace_id, minute, max(hasViolation) AS hasViolation FROM (SELECT trace_id, toStartOfMinute(timestamp) AS minute, toUInt8(countIf(attributes_bool['agentward.policy.violation'] = 1) > 0) AS hasViolation FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'agentward-hr-bot' GROUP BY trace_id, minute) GROUP BY trace_id, minute) GROUP BY minute ORDER BY minute"
+      "sql": "SELECT minute, countDistinct(trace_id) AS total_runs, countDistinctIf(trace_id, hasViolation = 0) AS clean_runs, round(clean_runs / total_runs, 4) AS clean_run_ratio FROM (SELECT trace_id, minute, max(hasViolation) AS hasViolation FROM (SELECT trace_id, toStartOfMinute(timestamp) AS minute, toUInt8(countIf(attributes_bool['taintward.policy.violation'] = 1) > 0) AS hasViolation FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'taintward-hr-bot' GROUP BY trace_id, minute) GROUP BY trace_id, minute) GROUP BY minute ORDER BY minute"
     },
     {
       "title": "Error budget burn (bad runs per minute)",
-      "sql": "SELECT minute, countDistinctIf(trace_id, hasViolation = 1) AS bad_runs FROM (SELECT trace_id, toStartOfMinute(timestamp) AS minute, toUInt8(countIf(attributes_bool['agentward.policy.violation'] = 1) > 0) AS hasViolation FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'agentward-hr-bot' GROUP BY trace_id, minute) GROUP BY minute ORDER BY minute"
+      "sql": "SELECT minute, countDistinctIf(trace_id, hasViolation = 1) AS bad_runs FROM (SELECT trace_id, toStartOfMinute(timestamp) AS minute, toUInt8(countIf(attributes_bool['taintward.policy.violation'] = 1) > 0) AS hasViolation FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'taintward-hr-bot' GROUP BY trace_id, minute) GROUP BY minute ORDER BY minute"
     },
     {
       "title": "Violation rate by rule (which policy rule burns the budget)",
-      "sql": "SELECT arrayJoin(splitByString(',', attributes_string['agentward.policy.reasons'])) AS rule, count() AS spans FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'agentward-hr-bot' AND attributes_bool['agentward.policy.violation'] = 1 AND attributes_string['agentward.policy.reasons'] != '' GROUP BY rule ORDER BY spans DESC"
+      "sql": "SELECT arrayJoin(splitByString(',', attributes_string['taintward.policy.reasons'])) AS rule, count() AS spans FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'taintward-hr-bot' AND attributes_bool['taintward.policy.violation'] = 1 AND attributes_string['taintward.policy.reasons'] != '' GROUP BY rule ORDER BY spans DESC"
     }
   ],
   "alerts": [

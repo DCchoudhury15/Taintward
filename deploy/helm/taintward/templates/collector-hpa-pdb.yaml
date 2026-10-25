@@ -1,0 +1,43 @@
+{{- $c := .Values.collector -}}
+{{- if $c.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "taintward.collector.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "taintward.collector.fullname" . }}
+  minReplicas: {{ $c.autoscaling.minReplicas }}
+  maxReplicas: {{ $c.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $c.autoscaling.targetCPUUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      # Wait 5 minutes before removing pods, so short dips do not flap.
+      stabilizationWindowSeconds: 300
+{{- end }}
+{{- if $c.pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "taintward.collector.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  minAvailable: {{ $c.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "taintward.selectorLabels" (dict "ctx" . "component" "collector") | nindent 6 }}
+{{- end }}

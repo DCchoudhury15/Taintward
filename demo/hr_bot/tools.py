@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from sdk import instrumentation as instr
+from taintward.sdk import instrumentation as instr
 
 # In-memory "database" seeded by the breach simulator.
 _DB: dict[str, dict] = {}
@@ -91,7 +91,7 @@ def write_log(message: str) -> None:
 def rag_retrieve(query: str, *, chunks: int = 3) -> list[str]:
     """Retrieve chunks from a vector store. Demonstrates fan-out via span
     links: each chunk retrieval is a span linked back to the agent's decision
-    span (passed by the agent as ``agentward_links``).
+    span (passed by the agent as ``taintward_links``).
 
     NOTE: embeddings are invertible (OWASP LLM08:2025), so Phase 5 will add
     redact-before-embed here. For Phase 2 we only propagate taint.

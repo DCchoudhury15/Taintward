@@ -23,7 +23,7 @@ from opentelemetry import trace
 
 from demo.hr_bot import tools
 from demo.hr_bot.agent import run_agent
-from sdk import instrumentation as instr
+from taintward.sdk import instrumentation as instr
 
 
 def seed_breach() -> None:
@@ -37,8 +37,8 @@ def seed_breach() -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="AgentWard HR bot breach simulator")
-    ap.add_argument("--service", default="agentward-hr-bot")
+    ap = argparse.ArgumentParser(description="Taintward HR bot breach simulator")
+    ap.add_argument("--service", default="taintward-hr-bot")
     ap.add_argument("--endpoint", default=instr.DEFAULT_OTLP_HTTP,
                     help="OTLP/HTTP endpoint (default: SigNoz direct; point at the "
                          "Phase 3 sidecar at http://localhost:4319/v1/traces)")
@@ -70,8 +70,8 @@ def main() -> int:
         pass
 
     print(f"\nexternal API ack: {ack}")
-    print("\nInspect in SigNoz: service=agentward-hr-bot, "
-          "filter agentward.violation=true (should see call_external_api + write_log)")
+    print("\nInspect in SigNoz: service=taintward-hr-bot, "
+          "filter taintward.violation=true (should see call_external_api + write_log)")
     return 0
 
 

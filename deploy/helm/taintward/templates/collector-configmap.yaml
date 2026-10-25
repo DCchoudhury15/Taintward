@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "taintward.collector.fullname" . }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+data:
+  config.yaml: |
+    {{- if .Values.collector.configOverride }}
+    {{- .Values.collector.configOverride | nindent 4 }}
+    {{- else }}
+    {{- include "taintward.collector.config" . | nindent 4 }}
+    {{- end }}
+  pii_egress.rego: |
+    {{- include "taintward.policy" . | nindent 4 }}

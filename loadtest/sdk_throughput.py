@@ -34,7 +34,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 # Fixed public demo key so the redactor works without a real key. Benchmark only.
-os.environ.setdefault("AGENTWARD_ALLOW_DEMO_KEY", "1")
+os.environ.setdefault("TAINTWARD_ALLOW_DEMO_KEY", "1")
 
 CLEAN = {"employee_id": "e-1042", "fields": ["team", "manager"], "note": "weekly sync moved"}
 LEAK = {
@@ -51,7 +51,7 @@ def _setup(otlp_endpoint: str | None):
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-    from sdk import instrumentation as instr
+    from taintward.sdk import instrumentation as instr
 
     provider = TracerProvider()
     if otlp_endpoint:

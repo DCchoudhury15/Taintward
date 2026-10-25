@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	policyPackage = "data.agentward"
-	policyQuery   = "data.agentward.decision"
+	policyPackage = "data.taintward"
+	policyQuery   = "data.taintward.decision"
 )
 
 // requiredRules must be defined by any policy the processor loads. `decision`
@@ -51,7 +51,7 @@ type decision struct {
 	reasons      string
 }
 
-var errUndefined = errors.New("policy decision is undefined (does the policy define data.agentward.decision with a default for redact?)")
+var errUndefined = errors.New("policy decision is undefined (does the policy define data.taintward.decision with a default for redact?)")
 
 type policy struct {
 	prepared rego.PreparedEvalQuery
@@ -70,7 +70,7 @@ func loadPolicy(src string, cacheMax int) (*policy, error) {
 		return nil, fmt.Errorf("taint_policy: parse rego: %w", err)
 	}
 	if got := mod.Package.Path.String(); got != policyPackage {
-		return nil, fmt.Errorf("taint_policy: policy package is %q, want %q (package agentward)", strings.TrimPrefix(got, "data."), "agentward")
+		return nil, fmt.Errorf("taint_policy: policy package is %q, want %q (package taintward)", strings.TrimPrefix(got, "data."), "taintward")
 	}
 	defined := map[string]bool{}
 	for _, r := range mod.Rules {

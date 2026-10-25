@@ -13,7 +13,7 @@ processors:
     limit_mib: 800
     spike_limit_mib: 160
   taint_policy:
-    policy_path: /etc/agentward/policy/pii_egress.rego
+    policy_path: /etc/taintward/policy/pii_egress.rego
   batch:
     timeout: 1s
     send_batch_size: 512

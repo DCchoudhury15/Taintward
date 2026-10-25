@@ -1,6 +1,6 @@
 # Gateway throughput (current)
 
-2026-10-25 13:16:23, Python 3.12.3, 12 CPUs, 10 s per point. Upstream: gateway/examples/hr_server.py over stdio.
+2026-10-25 13:16:23, Python 3.12.3, 12 CPUs, 10 s per point. Upstream: taintward/gateway/examples/hr_server.py over stdio.
 
 | mode | tool | gateway processes | concurrency | calls/s |
 |---|---|---|---|---|

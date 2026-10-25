@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Collector throughput test: telemetrygen -> agentward-collector (pinned CPUs).
+# Collector throughput test: telemetrygen -> taintward-collector (pinned CPUs).
 #
 # Usage (from the repo root):
-#   docker build -f collector/Dockerfile -t agentward-collector:local .
+#   docker build -f collector/Dockerfile -t taintward-collector:local .
 #   loadtest/collector/run.sh                       # all scenarios, 1 and 2 CPUs
 #   CPUS="1" DURATION=20 loadtest/collector/run.sh  # quicker
 #
@@ -21,7 +21,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
-IMAGE="${IMAGE:-agentward-collector:local}"
+IMAGE="${IMAGE:-taintward-collector:local}"
 TGEN="${TGEN:-ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.159.0}"
 CPUS="${CPUS:-1 2}"
 DURATION="${DURATION:-30}"
@@ -31,9 +31,9 @@ WORKERS="${WORKERS:-4}"
 # in flight at a time. Several processes are needed to load more than one core.
 SENDERS="${SENDERS:-4}"
 SCENARIOS="${SCENARIOS:-policy-violation policy-clean passthrough}"
-NET="agentward-loadtest"
-COLL="agentward-loadtest-collector"
-TG="agentward-loadtest-tgen"   # sender containers are $TG-1 .. $TG-$SENDERS
+NET="taintward-loadtest"
+COLL="taintward-loadtest-collector"
+TG="taintward-loadtest-tgen"   # sender containers are $TG-1 .. $TG-$SENDERS
 OUT="${OUT:-$REPO/loadtest/results/collector-raw.tsv}"
 
 stop_senders() {
@@ -64,17 +64,17 @@ set_attrs() {
   case "$1" in
     policy-clean)
       ATTRS=(
-        --telemetry-attributes 'agentward.sensitive=false'
-        --telemetry-attributes 'agentward.destination="internal"'
+        --telemetry-attributes 'taintward.sensitive=false'
+        --telemetry-attributes 'taintward.destination="internal"'
         --telemetry-attributes 'gen_ai.tool.name="query_db"'
         --telemetry-attributes 'gen_ai.tool.call.result="employee Alice Lee, manager Bob Perez"'
       ) ;;
     *)
       ATTRS=(
-        --telemetry-attributes 'agentward.sensitive=true'
-        --telemetry-attributes 'agentward.taint.classes="pii,secret"'
-        --telemetry-attributes 'agentward.destination="external"'
-        --telemetry-attributes 'agentward.jurisdiction="us"'
+        --telemetry-attributes 'taintward.sensitive=true'
+        --telemetry-attributes 'taintward.taint.classes="pii,secret"'
+        --telemetry-attributes 'taintward.destination="external"'
+        --telemetry-attributes 'taintward.jurisdiction="us"'
         --telemetry-attributes 'gen_ai.tool.name="call_external_api"'
         --telemetry-attributes 'gen_ai.tool.call.arguments="ssn=[PII] key=[SECRET]"'
         --telemetry-attributes 'gen_ai.tool.call.result="ssn 234-12-1234 key AKIAIOSFODNN7EXAMPLE sent to audit@example.com"'
@@ -91,9 +91,9 @@ for cpus in $CPUS; do
     docker rm -f "$COLL" >/dev/null 2>&1 || true
     stop_senders
     docker run -d --name "$COLL" --network "$NET" --cpus "$cpus" --memory 1g \
-      -v "$cfg:/etc/agentward/loadtest.yaml:ro" \
-      -v "$REPO/collector/policy:/etc/agentward/policy:ro" \
-      "$IMAGE" --config=/etc/agentward/loadtest.yaml >/dev/null
+      -v "$cfg:/etc/taintward/loadtest.yaml:ro" \
+      -v "$REPO/collector/policy:/etc/taintward/policy:ro" \
+      "$IMAGE" --config=/etc/taintward/loadtest.yaml >/dev/null
     sleep 2
 
     set_attrs "$sc"

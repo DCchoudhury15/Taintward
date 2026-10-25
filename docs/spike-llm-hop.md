@@ -33,8 +33,8 @@ The chain-level taint (OTel baggage) persists into the `external_api` sink in
 output text entirely. Verified in SigNoz / ClickHouse:
 
 ```
-agentward.violation=true  on  external_api (dest=external, classes=pii,secret)
-agentward.violation=true  on  llm_rephrase (dest=llm,      classes=pii,secret)
+taintward.violation=true  on  external_api (dest=external, classes=pii,secret)
+taintward.violation=true  on  llm_rephrase (dest=llm,      classes=pii,secret)
 ```
 
 The stored `gen_ai.tool.call.result` shows the **masked** output
@@ -47,7 +47,7 @@ taint *classes* persist on the span regardless of masking.
    the secret's surface form, so it survives *any* transformation, reformat,
    abbreviate, paraphrase, drop, by construction. This is the propagation that
    AgentRaft would need Φ (per-step LLM semantic judgment) to achieve, and
-   AgentWard gets it for free from OTel baggage.
+   Taintward gets it for free from OTel baggage.
 
 2. **Field-level taint (detection re-fire)** catches the PII *additionally*
    when it stays detectable (passthrough, and partially reformat). It doesn't

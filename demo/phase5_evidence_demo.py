@@ -24,19 +24,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from evidence.merkle import MerkleLog, verify_inclusion, violation_record
-from evidence.recorder import record_violations
+from taintward.evidence.merkle import MerkleLog, verify_inclusion, violation_record
+from taintward.evidence.recorder import record_violations
 
 
 def main() -> int:
-    log_path = Path(tempfile.gettempdir()) / "agentward_phase5_demo.logl"
+    log_path = Path(tempfile.gettempdir()) / "taintward_phase5_demo.logl"
     if log_path.exists():
         log_path.unlink()
     log = MerkleLog(log_path)
 
     print("=== recording recent collector violations from SigNoz ===")
     try:
-        n = record_violations(log, service="agentward-hr-bot", since_minutes=60)
+        n = record_violations(log, service="taintward-hr-bot", since_minutes=60)
     except Exception as e:
         print(f"could not read ClickHouse (is SigNoz up? run a breach first?): {e}")
         # fall back to synthetic records so the demo still proves the crypto

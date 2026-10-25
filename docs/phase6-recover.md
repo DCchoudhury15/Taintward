@@ -12,7 +12,7 @@ cheaper) than asking a model to propose a free-form patch.
 
 ## Pieces
 
-- `fix_suggester/suggest.py`
+- `taintward/fix_suggester/suggest.py`
   - `_dotted_name` reconstructs the called function (`requests.post`,
     `openai.ChatCompletion.create`, and so on).
   - `_classify_sink`: external (`*.post`/`*.put`/`*.patch`/`*.delete`/`*.urlopen`)
@@ -24,12 +24,12 @@ cheaper) than asking a model to propose a free-form patch.
     SigNoz MCP read (`signoz_search_traces` for similar past violations, to
     prioritize fixes) is a hook for when the MCP server plus a model key are
     configured.
-  - CLI: `python fix_suggester/suggest.py <agent_source.py> [...]`.
-- `fix_suggester/sample_buggy_agent.py`: a deliberately-leaky agent (raw
+  - CLI: `python taintward/fix_suggester/suggest.py <agent_source.py> [...]`.
+- `taintward/fix_suggester/sample_buggy_agent.py`: a deliberately-leaky agent (raw
   `requests.post`, `openai.ChatCompletion.create`, a module-level
   `requests.put`, plus a safe internal helper) for the suggester to analyze.
-- **DLP simulation mode**: `AGENTWARD_DRY_RUN=1` makes the SDK log the
-  violation (`agentward.dry_run=true`) WITHOUT redacting args, an audit/dry-run
+- **DLP simulation mode**: `TAINTWARD_DRY_RUN=1` makes the SDK log the
+  violation (`taintward.dry_run=true`) WITHOUT redacting args, an audit/dry-run
   mode for safe rollout (see what would be flagged before enforcing).
 - **RAG**: `rag_retrieve` is already masked at the SDK egress gate (Phase 4:
   rag goes to `[PII]`/`[SECRET]`, since embeddings are invertible, OWASP
@@ -39,7 +39,7 @@ cheaper) than asking a model to propose a free-form patch.
 ## Verified
 
 ```
-$ python fix_suggester/suggest.py fix_suggester/sample_buggy_agent.py
+$ python taintward/fix_suggester/suggest.py taintward/fix_suggester/sample_buggy_agent.py
 sample_buggy_agent.py:15: `requests.post` is an unguarded external sink inside `send_to_auditor`. ... fix: redact = redact_payload(payload, instr.DEST_EXTERNAL) ...
 sample_buggy_agent.py:20: `openai.ChatCompletion.create` is an unguarded llm sink inside `summarize_with_llm`. ... fix: redact = redact_payload(prompt/record, instr.DEST_LLM) ...
 sample_buggy_agent.py:29: `requests.put` is an unguarded external sink inside `<module>`. ...

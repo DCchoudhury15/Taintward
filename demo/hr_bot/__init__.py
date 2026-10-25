@@ -1,4 +1,4 @@
-"""HR bot demo for AgentWard."""
+"""HR bot demo for Taintward."""
 
 from demo.hr_bot import agent, tools
 

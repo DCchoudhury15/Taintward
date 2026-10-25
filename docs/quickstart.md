@@ -1,8 +1,8 @@
 # Quickstart
 
-This runs the whole AgentWard demo with one command. A small HR bot reads an
+This runs the whole Taintward demo with one command. A small HR bot reads an
 employee record that holds a fake SSN and a fake AWS key, then sends that data
-to an LLM, an external API and a log. The AgentWard collector checks every
+to an LLM, an external API and a log. The Taintward collector checks every
 span against the Rego policy, marks the leaks as violations and removes the
 raw values before the spans are stored.
 
@@ -25,7 +25,7 @@ What starts:
 | service | what it does | host port |
 |---|---|---|
 | `jaeger` | trace viewer | 16686 (UI) |
-| `agentward-collector` | OTLP receiver + `taint_policy` processor | 14319 (OTLP/HTTP) |
+| `taintward-collector` | OTLP receiver + `taint_policy` processor | 14319 (OTLP/HTTP) |
 | `demo` | runs the breach simulator once, then exits | none |
 
 The demo prints `external API ack: ...` and exits with code 0. That is
@@ -33,10 +33,10 @@ expected. The collector and Jaeger keep running.
 
 ## What you should see
 
-Open http://localhost:16686, pick the service `agentward-hr-bot` and click
+Open http://localhost:16686, pick the service `taintward-hr-bot` and click
 **Find Traces**. Open the `hr_bot.run` trace. It has these spans:
 
-| span | destination | `agentward.policy.violation` |
+| span | destination | `taintward.policy.violation` |
 |---|---|---|
 | `query_db` | internal | false |
 | `internal_store` | internal | false |
@@ -45,7 +45,7 @@ Open http://localhost:16686, pick the service `agentward-hr-bot` and click
 | `call_external_api` | external | **true** (pii_egress + transfer) |
 | `write_log` | log | **true** (pii_egress) |
 
-To list only the leaks, put `agentward.policy.violation=true` in the **Tags**
+To list only the leaks, put `taintward.policy.violation=true` in the **Tags**
 box and search again. You get the three spans above.
 
 Click any span and look at `gen_ai.tool.call.arguments` and
@@ -63,7 +63,7 @@ You can check that last point from the command line too:
 
 ```bash
 curl -s -G http://localhost:16686/api/v3/traces \
-  --data-urlencode query.service_name=agentward-hr-bot \
+  --data-urlencode query.service_name=taintward-hr-bot \
   --data-urlencode query.start_time_min=$(date -u -d '-1 hour' +%FT%TZ) \
   --data-urlencode query.start_time_max=$(date -u -d '+1 min' +%FT%TZ) \
   | grep -c -E '234-12-1234|AKIAIOSFODNN7EXAMPLE'
@@ -85,7 +85,7 @@ The policy file `collector/policy/pii_egress.rego` is mounted into the
 collector. Edit it, then:
 
 ```bash
-docker compose restart agentward-collector
+docker compose restart taintward-collector
 ```
 
 No rebuild needed.
@@ -104,11 +104,11 @@ If SigNoz runs on the same machine and listens on port 4317:
 
 ```bash
 OTLP_EXPORT_ENDPOINT=host.docker.internal:4317 \
-  docker compose up --build --no-deps agentward-collector demo
+  docker compose up --build --no-deps taintward-collector demo
 ```
 
 `--no-deps` skips Jaeger. Then open SigNoz, go to Traces and filter on
-`service.name = agentward-hr-bot` and `agentward.policy.violation = true`.
+`service.name = taintward-hr-bot` and `taintward.policy.violation = true`.
 
 For a remote SigNoz, use its address, for example
 `OTLP_EXPORT_ENDPOINT=signoz.example.com:4317`. The exporter uses plain gRPC
@@ -120,14 +120,14 @@ The collector can also write every checked span as OTLP JSON, one object
 per line:
 
 ```bash
-AGENTWARD_TRACE_EXPORTERS='[otlp_grpc/backend, file]' docker compose up
+TAINTWARD_TRACE_EXPORTERS='[otlp_grpc/backend, file]' docker compose up
 ```
 
-The file is `/var/lib/agentward/spans.jsonl` in the `agentward-spans`
+The file is `/var/lib/taintward/spans.jsonl` in the `taintward-spans`
 volume. To copy it out:
 
 ```bash
-docker compose cp agentward-collector:/var/lib/agentward/spans.jsonl .
+docker compose cp taintward-collector:/var/lib/taintward/spans.jsonl .
 ```
 
 ## Run it on Kubernetes

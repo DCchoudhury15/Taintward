@@ -1,6 +1,6 @@
 """MCP gateway throughput: tool calls per second over stdio and HTTP.
 
-The gateway fronts the example HR server (gateway/examples/hr_server.py).
+The gateway fronts the example HR server (taintward/gateway/examples/hr_server.py).
 Two tools are called in a loop:
 
 * ``clean``:     list_departments, no sensitive data
@@ -41,19 +41,19 @@ import anyio
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-os.environ.setdefault("AGENTWARD_ALLOW_DEMO_KEY", "1")
+os.environ.setdefault("TAINTWARD_ALLOW_DEMO_KEY", "1")
 
 TOOLS = {"clean": ("list_departments", {}), "sensitive": ("get_employee", {"employee_id": "E100"})}
 
 CONFIG = """\
-service_name: agentward-gateway-loadtest
+service_name: taintward-gateway-loadtest
 upstreams:
   - name: hr
     command: python
-    args: ["-m", "gateway.examples.hr_server"]
+    args: ["-m", "taintward.gateway.examples.hr_server"]
     cwd: {root}
     env:
-      AGENTWARD_HR_OUTBOX: {outbox}
+      TAINTWARD_HR_OUTBOX: {outbox}
 defaults:
   destination: external
   mode: redact
@@ -97,7 +97,7 @@ async def run_stdio(cfg: Path, kind: str, inflight: int, seconds: float) -> floa
     from mcp import Client, StdioServerParameters
 
     params = StdioServerParameters(command=sys.executable,
-                                   args=["-m", "gateway", "--config", str(cfg)], cwd=str(ROOT),
+                                   args=["-m", "taintward.gateway", "--config", str(cfg)], cwd=str(ROOT),
                                    env={**os.environ})
     tool, args = TOOLS[kind]
     async with Client(params, read_timeout_seconds=120) as client:
@@ -150,11 +150,11 @@ def start_http_gateways(cfg: Path, n: int, token: str | None) -> tuple[list, lis
     procs, urls = [], []
     env = {**os.environ}
     if token:
-        env["AGENTWARD_GATEWAY_TOKEN"] = token
+        env["TAINTWARD_GATEWAY_TOKEN"] = token
     for _ in range(n):
         port = free_port()
         procs.append(subprocess.Popen(
-            [sys.executable, "-m", "gateway", "--config", str(cfg), "--listen", f"127.0.0.1:{port}"],
+            [sys.executable, "-m", "taintward.gateway", "--config", str(cfg), "--listen", f"127.0.0.1:{port}"],
             cwd=str(ROOT), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
         urls.append(f"http://127.0.0.1:{port}/mcp")
     import httpx
@@ -184,7 +184,7 @@ def main() -> int:
                     help="http: local gateway processes")
     ap.add_argument("--seconds", type=float, default=10.0)
     ap.add_argument("--url", default=None, help="http: test this gateway instead of starting local ones")
-    ap.add_argument("--token", default=os.environ.get("AGENTWARD_GATEWAY_TOKEN"))
+    ap.add_argument("--token", default=os.environ.get("TAINTWARD_GATEWAY_TOKEN"))
     ap.add_argument("--label", default="current")
     args = ap.parse_args()
 
@@ -223,7 +223,7 @@ def main() -> int:
     (out / f"gateway-{args.label}.json").write_text(json.dumps({"meta": meta, "rows": rows}, indent=2) + "\n")
     lines = [f"# Gateway throughput ({args.label})", "",
              f"{meta['time']}, Python {meta['python']}, {meta['cpus']} CPUs, "
-             f"{args.seconds:g} s per point. Upstream: gateway/examples/hr_server.py over stdio.", "",
+             f"{args.seconds:g} s per point. Upstream: taintward/gateway/examples/hr_server.py over stdio.", "",
              "| mode | tool | gateway processes | concurrency | calls/s |", "|---|---|---|---|---|"]
     lines += [f"| {r['mode']} | {r['tool']} | {r['replicas']} | {r['concurrency']} | {r['calls_per_s']:.0f} |"
               for r in rows]

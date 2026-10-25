@@ -1,19 +1,19 @@
 {
-  "name": "AgentWard: Blast radius (who else saw it)",
+  "name": "Taintward: Blast radius (who else saw it)",
   "description": "For each tainted run, how many distinct tools/destinations the sensitive data reached, the GDPR Art. 30 disclosure-recipients / Art. 15 access surface. A run that touched external+llm+log has a larger blast radius than one that stayed internal.",
   "datasource": "signoz_traces.distributed_signoz_index_v3",
   "queries": [
     {
       "title": "Blast radius per trace (distinct tools + destinations touched by the taint)",
-      "sql": "SELECT trace_id, uniqExact(name) AS tools_touched, uniqExact(attributes_string['agentward.destination']) AS distinct_destinations, groupArrayDistinct(attributes_string['agentward.destination']) AS destinations, countIf(attributes_bool['agentward.policy.violation'] = 1) AS violations, countIf(attributes_bool['agentward.policy.transfer_violation'] = 1) AS cross_border_transfers FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'agentward-hr-bot' AND attributes_bool['agentward.sensitive'] = 1 GROUP BY trace_id ORDER BY violations DESC"
+      "sql": "SELECT trace_id, uniqExact(name) AS tools_touched, uniqExact(attributes_string['taintward.destination']) AS distinct_destinations, groupArrayDistinct(attributes_string['taintward.destination']) AS destinations, countIf(attributes_bool['taintward.policy.violation'] = 1) AS violations, countIf(attributes_bool['taintward.policy.transfer_violation'] = 1) AS cross_border_transfers FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'taintward-hr-bot' AND attributes_bool['taintward.sensitive'] = 1 GROUP BY trace_id ORDER BY violations DESC"
     },
     {
       "title": "Top leak surfaces (destination classes that most often receive tainted data)",
-      "sql": "SELECT attributes_string['agentward.destination'] AS destination, count() AS tainted_spans, countIf(attributes_bool['agentward.policy.violation'] = 1) AS violations FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'agentward-hr-bot' AND attributes_bool['agentward.sensitive'] = 1 GROUP BY destination ORDER BY violations DESC"
+      "sql": "SELECT attributes_string['taintward.destination'] AS destination, count() AS tainted_spans, countIf(attributes_bool['taintward.policy.violation'] = 1) AS violations FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'taintward-hr-bot' AND attributes_bool['taintward.sensitive'] = 1 GROUP BY destination ORDER BY violations DESC"
     },
     {
       "title": "Cross-border transfers (Art. 44) by jurisdiction",
-      "sql": "SELECT attributes_string['agentward.jurisdiction'] AS jurisdiction, attributes_string['agentward.destination'] AS destination, count() AS transfer_violations FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'agentward-hr-bot' AND attributes_bool['agentward.policy.transfer_violation'] = 1 GROUP BY jurisdiction, destination ORDER BY transfer_violations DESC"
+      "sql": "SELECT attributes_string['taintward.jurisdiction'] AS jurisdiction, attributes_string['taintward.destination'] AS destination, count() AS transfer_violations FROM signoz_traces.distributed_signoz_index_v3 WHERE serviceName = 'taintward-hr-bot' AND attributes_bool['taintward.policy.transfer_violation'] = 1 GROUP BY jurisdiction, destination ORDER BY transfer_violations DESC"
     }
   ],
   "notes": "Blast radius = Art. 30 disclosure recipients + Art. 15 access scope, derived from the live taint graph. DLP 'sequence detection' (collection -> evasion -> exfil) reduces to this same blast-radius view."

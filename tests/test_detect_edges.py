@@ -3,8 +3,8 @@
 import ast
 import json
 
-from sdk.detect import detect_text, mask_text
-from sdk.redact import redact_payload
+from taintward.sdk.detect import detect_text, mask_text
+from taintward.sdk.redact import redact_payload
 
 
 def test_mask_keeps_repr_quotes():

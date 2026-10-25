@@ -1,9 +1,9 @@
-# AgentWard sidecar collector, runtime config.
+# Taintward sidecar collector, runtime config.
 #
 # Flow:  SDK  --OTLP/HTTP :4319-->  [taint_policy processor]  --batch-->  --OTLP/HTTP :4318-->  SigNoz
 #
 # taint_policy evaluates collector/policy/pii_egress.rego per span, writes
-# authoritative agentward.policy.* attrs, and redacts raw PII from span
+# authoritative taintward.policy.* attrs, and redacts raw PII from span
 # attributes before they reach SigNoz/ClickHouse.
 receivers:
   otlp:
@@ -14,7 +14,7 @@ receivers:
 processors:
   taint_policy:
     # Edit this file and restart, no rebuild needed. Empty => embedded policy.
-    policy_path: /home/divyanshu/agentward/collector/policy/pii_egress.rego
+    policy_path: /home/divyanshu/taintward/collector/policy/pii_egress.rego
   # taint_policy runs BEFORE batch (batching clears request context).
   batch:
     timeout: 1s

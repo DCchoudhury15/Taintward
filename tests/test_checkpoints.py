@@ -12,7 +12,7 @@ from unittest import mock
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from evidence.checkpoint import (
+from taintward.evidence.checkpoint import (
     ENV_KEY,
     body_hash,
     keygen,
@@ -25,9 +25,9 @@ from evidence.checkpoint import (
     verify_log,
     verify_record_proof,
 )
-from evidence.log import main as log_main
-from evidence.merkle import MerkleLog, violation_record
-from evidence.shards import ShardedLog
+from taintward.evidence.log import main as log_main
+from taintward.evidence.merkle import MerkleLog, violation_record
+from taintward.evidence.shards import ShardedLog
 
 DAY1_NS = 1_792_800_000_000_000_000   # 2026-10-24
 DAY2_NS = DAY1_NS + 86_400 * 10**9      # 2026-10-25
@@ -424,12 +424,12 @@ class TestKeys(unittest.TestCase):
     def test_key_from_env_hex(self):
         seed = "11" * 32
         with mock.patch.dict(os.environ, {ENV_KEY: seed}, clear=False):
-            os.environ.pop("AGENTWARD_EVIDENCE_KEY_FILE", None)
+            os.environ.pop("TAINTWARD_EVIDENCE_KEY_FILE", None)
             k = load_private_key()
         self.assertEqual(len(k.sign(b"x")), 64)
 
     def test_missing_key_errors(self):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("AGENTWARD_EVIDENCE")}
+        env = {k: v for k, v in os.environ.items() if not k.startswith("TAINTWARD_EVIDENCE")}
         with mock.patch.dict(os.environ, env, clear=True):
             with self.assertRaises(ValueError):
                 load_private_key()

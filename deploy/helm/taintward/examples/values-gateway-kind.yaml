@@ -1,0 +1,29 @@
+# Adds the MCP gateway (2 replicas, shared Redis sessions) on top of
+# values-jaeger.yaml. Create the Secret first:
+#
+#   kubectl -n taintward create secret generic taintward-keys \
+#     --from-literal=TAINTWARD_FPE_KEY=$(openssl rand -hex 32) \
+#     --from-literal=TAINTWARD_GATEWAY_TOKEN=$(openssl rand -hex 16)
+#   kubectl -n taintward apply -f deploy/helm/taintward/examples/redis.yaml
+#   helm upgrade --install taintward deploy/helm/taintward -n taintward \
+#     -f deploy/helm/taintward/examples/values-jaeger.yaml \
+#     -f deploy/helm/taintward/examples/values-gateway-kind.yaml
+gateway:
+  enabled: true
+  image:
+    repository: taintward-gateway
+    tag: local
+    pullPolicy: Never
+  existingSecret: taintward-keys
+  sessionStore:
+    redisUrl: redis://redis:6379/0
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 3

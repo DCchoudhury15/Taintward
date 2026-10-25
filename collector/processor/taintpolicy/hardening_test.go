@@ -97,29 +97,29 @@ func assertNoRaw(t *testing.T, td ptrace.Traces, raws ...string) {
 func TestArgs_RedactedWithoutMarker(t *testing.T) {
 	td := ptrace.NewTraces()
 	sp := newSpan(td, "send_email")
-	sp.Attributes().PutBool("agentward.sensitive", true)
+	sp.Attributes().PutBool("taintward.sensitive", true)
 	sp.Attributes().PutStr("gen_ai.tool.call.arguments", `{"kwargs":{"ssn":"`+rawSSN+`"}}`)
 	got := run(t, defaultCfg(), td)
 	assertNoRaw(t, got, rawSSN)
 }
 
 func TestArgs_RedactedWhenDryRun(t *testing.T) {
-	// SDK dry-run sends raw args and sets agentward.dry_run, not the marker.
+	// SDK dry-run sends raw args and sets taintward.dry_run, not the marker.
 	td := ptrace.NewTraces()
 	sp := newSpan(td, "send_email")
-	sp.Attributes().PutBool("agentward.dry_run", true)
-	sp.Attributes().PutBool("agentward.redacted", false)
+	sp.Attributes().PutBool("taintward.dry_run", true)
+	sp.Attributes().PutBool("taintward.redacted", false)
 	sp.Attributes().PutStr("gen_ai.tool.call.arguments", `{"kwargs":{"ssn":"`+rawSSN+`"}}`)
 	got := run(t, defaultCfg(), td)
 	assertNoRaw(t, got, rawSSN)
 }
 
 func TestArgs_LegacyRedactedFlagIsNotTheMarker(t *testing.T) {
-	// agentward.redacted=true only means "the gate changed the input"; a
+	// taintward.redacted=true only means "the gate changed the input"; a
 	// passthrough kwarg can still be raw. It must not disable redaction.
 	td := ptrace.NewTraces()
 	sp := newSpan(td, "send_email")
-	sp.Attributes().PutBool("agentward.redacted", true)
+	sp.Attributes().PutBool("taintward.redacted", true)
 	sp.Attributes().PutStr("gen_ai.tool.call.arguments", `{"kwargs":{"to":"jane@example.com"}}`)
 	got := run(t, defaultCfg(), td)
 	assertNoRaw(t, got, "jane@example.com")
@@ -140,8 +140,8 @@ func TestArgs_SkippedWhenMarkerSet(t *testing.T) {
 	const fpe = `{"kwargs":{"ssn":"871-55-0392"}}`
 	td := ptrace.NewTraces()
 	sp := newSpan(td, "query_db")
-	sp.Attributes().PutBool("agentward.sensitive", true)
-	sp.Attributes().PutBool("agentward.args_redacted", true)
+	sp.Attributes().PutBool("taintward.sensitive", true)
+	sp.Attributes().PutBool("taintward.args_redacted", true)
 	sp.Attributes().PutStr("gen_ai.tool.call.arguments", fpe)
 	sp.Attributes().PutStr("gen_ai.tool.call.result", `{"ssn":"`+rawSSN+`"}`)
 	got := firstSpan(run(t, defaultCfg(), td)).Attributes()
@@ -156,7 +156,7 @@ func TestArgs_SkippedWhenMarkerSet(t *testing.T) {
 func TestArgs_StringMarkerNotAccepted(t *testing.T) {
 	td := ptrace.NewTraces()
 	sp := newSpan(td, "query_db")
-	sp.Attributes().PutStr("agentward.args_redacted", "true")
+	sp.Attributes().PutStr("taintward.args_redacted", "true")
 	sp.Attributes().PutStr("gen_ai.tool.call.arguments", rawSSN)
 	assertNoRaw(t, run(t, defaultCfg(), td), rawSSN)
 }
@@ -176,7 +176,7 @@ func TestRedact_NestedMapAndSlice(t *testing.T) {
 	sp.Attributes().PutEmptyBytes("blob").FromRaw([]byte("ssn " + rawSSN))
 	got := run(t, defaultCfg(), td)
 	assertNoRaw(t, got, rawSSN, "jane@example.com", "AKIAIOSFODNN7EXAMPLE")
-	if n, _ := firstSpan(got).Attributes().Get("agentward.policy.masked_values"); n.Int() != 4 {
+	if n, _ := firstSpan(got).Attributes().Get("taintward.policy.masked_values"); n.Int() != 4 {
 		t.Errorf("masked_values = %d, want 4", n.Int())
 	}
 }
@@ -295,7 +295,7 @@ func TestFailClosed_RegoErrorStillRedacts(t *testing.T) {
 	// Valid at startup (probes do not trigger it), errors at runtime for a
 	// specific tool: a builtin error with strict-builtin semantics comes from
 	// a conflict in a complete rule.
-	pol := `package agentward
+	pol := `package taintward
 
 import rego.v1
 
@@ -316,29 +316,29 @@ decision := {"redact": false, "violations": set()} if input.tool == "boom"
 	td := ptrace.NewTraces()
 	sp := newSpan(td, "x")
 	sp.Attributes().PutStr("gen_ai.tool.name", "boom")
-	sp.Attributes().PutBool("agentward.policy.violation", false)     // spoofed by producer
-	sp.Attributes().PutStr("agentward.policy.rules", "gateway_rule") // gateway-owned, kept
+	sp.Attributes().PutBool("taintward.policy.violation", false)     // spoofed by producer
+	sp.Attributes().PutStr("taintward.policy.rules", "gateway_rule") // gateway-owned, kept
 	sp.Attributes().PutStr("gen_ai.tool.call.result", rawSSN)
 	got := run(t, &Config{PolicyPath: path, DecisionCacheSize: 16}, td)
 	assertNoRaw(t, got, rawSSN)
 	a := firstSpan(got).Attributes()
-	if strAttr(a, "agentward.policy.error") == "" {
-		t.Error("agentward.policy.error not recorded on eval error")
+	if strAttr(a, "taintward.policy.error") == "" {
+		t.Error("taintward.policy.error not recorded on eval error")
 	}
-	if !boolAttr(a, "agentward.policy.redacted") {
+	if !boolAttr(a, "taintward.policy.redacted") {
 		t.Error("policy.redacted should be true on fail closed")
 	}
-	if _, ok := a.Get("agentward.policy.violation"); ok {
-		t.Error("spoofed agentward.policy.violation survived a policy error")
+	if _, ok := a.Get("taintward.policy.violation"); ok {
+		t.Error("spoofed taintward.policy.violation survived a policy error")
 	}
-	if strAttr(a, "agentward.policy.rules") != "gateway_rule" {
-		t.Error("gateway-owned agentward.policy.rules was removed")
+	if strAttr(a, "taintward.policy.rules") != "gateway_rule" {
+		t.Error("gateway-owned taintward.policy.rules was removed")
 	}
 }
 
 func TestFailClosed_UndefinedDecisionStillRedacts(t *testing.T) {
 	// decision defined for the probe inputs only.
-	pol := `package agentward
+	pol := `package taintward
 
 import rego.v1
 
@@ -358,7 +358,7 @@ decision := {"redact": redact, "violations": set()} if input.tool == ""
 	sp.Attributes().PutStr("gen_ai.tool.call.result", rawSSN)
 	got := run(t, &Config{PolicyPath: path}, td)
 	assertNoRaw(t, got, rawSSN)
-	if !strings.Contains(strAttr(firstSpan(got).Attributes(), "agentward.policy.error"), "undefined") {
+	if !strings.Contains(strAttr(firstSpan(got).Attributes(), "taintward.policy.error"), "undefined") {
 		t.Error("undefined decision not recorded as policy error")
 	}
 }
@@ -367,10 +367,10 @@ func TestSensitive_StringTrue(t *testing.T) {
 	for _, v := range []string{"true", "TRUE", " 1 "} {
 		td := ptrace.NewTraces()
 		sp := newSpan(td, "x")
-		sp.Attributes().PutStr("agentward.sensitive", v)
-		sp.Attributes().PutStr("agentward.destination", "external")
+		sp.Attributes().PutStr("taintward.sensitive", v)
+		sp.Attributes().PutStr("taintward.destination", "external")
 		a := firstSpan(run(t, defaultCfg(), td)).Attributes()
-		if !boolAttr(a, "agentward.policy.redacted") || !boolAttr(a, "agentward.policy.violation") {
+		if !boolAttr(a, "taintward.policy.redacted") || !boolAttr(a, "taintward.policy.violation") {
 			t.Errorf("sensitive=%q not treated as true", v)
 		}
 	}
@@ -378,21 +378,21 @@ func TestSensitive_StringTrue(t *testing.T) {
 
 func TestSensitive_MissingStillRedactsRawSSN(t *testing.T) {
 	td := ptrace.NewTraces()
-	sp := newSpan(td, "plain_otel_span") // another producer, no agentward attrs
+	sp := newSpan(td, "plain_otel_span") // another producer, no taintward attrs
 	sp.Attributes().PutStr("db.statement", "SELECT * FROM users WHERE ssn='"+rawSSN+"'")
 	got := run(t, defaultCfg(), td)
 	assertNoRaw(t, got, rawSSN)
 	a := firstSpan(got).Attributes()
-	if boolAttr(a, "agentward.policy.violation") {
+	if boolAttr(a, "taintward.policy.violation") {
 		t.Error("no violation expected for a non-sensitive span")
 	}
-	if strAttr(a, "agentward.policy.decision_engine") != "rego" {
+	if strAttr(a, "taintward.policy.decision_engine") != "rego" {
 		t.Error("decision must be recorded for every span (default redact := false)")
 	}
 }
 
 func TestStartup_RejectsWrongPackage(t *testing.T) {
-	pol := strings.Replace(embeddedPolicy, "package agentward", "package acme", 1)
+	pol := strings.Replace(embeddedPolicy, "package taintward", "package acme", 1)
 	path := filepath.Join(t.TempDir(), "p.rego")
 	_ = os.WriteFile(path, []byte(pol), 0o644)
 	_, err := newProcessor(&Config{PolicyPath: path}, &sink{})
@@ -402,7 +402,7 @@ func TestStartup_RejectsWrongPackage(t *testing.T) {
 }
 
 func TestStartup_RejectsMissingRules(t *testing.T) {
-	pol := "package agentward\n\nimport rego.v1\n\nallow := true\n"
+	pol := "package taintward\n\nimport rego.v1\n\nallow := true\n"
 	path := filepath.Join(t.TempDir(), "p.rego")
 	_ = os.WriteFile(path, []byte(pol), 0o644)
 	_, err := newProcessor(&Config{PolicyPath: path}, &sink{})
@@ -432,15 +432,15 @@ func TestStartup_RejectsNegativeCache(t *testing.T) {
 func TestPolicy_UppercaseUSIsTransfer(t *testing.T) {
 	td := ptrace.NewTraces()
 	sp := newSpan(td, "ask_llm")
-	sp.Attributes().PutBool("agentward.sensitive", true)
-	sp.Attributes().PutStr("agentward.taint.classes", "PII, Secret")
-	sp.Attributes().PutStr("agentward.destination", "LLM")
-	sp.Attributes().PutStr("agentward.jurisdiction", "US")
+	sp.Attributes().PutBool("taintward.sensitive", true)
+	sp.Attributes().PutStr("taintward.taint.classes", "PII, Secret")
+	sp.Attributes().PutStr("taintward.destination", "LLM")
+	sp.Attributes().PutStr("taintward.jurisdiction", "US")
 	a := firstSpan(run(t, defaultCfg(), td)).Attributes()
-	if !boolAttr(a, "agentward.policy.transfer_violation") {
+	if !boolAttr(a, "taintward.policy.transfer_violation") {
 		t.Error("jurisdiction \"US\" did not trigger the transfer rule")
 	}
-	if !boolAttr(a, "agentward.policy.violation") {
+	if !boolAttr(a, "taintward.policy.violation") {
 		t.Error("destination \"LLM\" did not trigger the egress rule")
 	}
 }
@@ -448,7 +448,7 @@ func TestPolicy_UppercaseUSIsTransfer(t *testing.T) {
 func TestPolicy_RegoItselfIsCaseInsensitive(t *testing.T) {
 	// Evaluate the policy directly with raw upper-case input, without the
 	// Go-side lower-casing, so a custom caller cannot reintroduce the bug.
-	q, err := rego.New(rego.Query("data.agentward.decision"),
+	q, err := rego.New(rego.Query("data.taintward.decision"),
 		rego.Module("p.rego", embeddedPolicy)).PrepareForEval(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -485,10 +485,10 @@ func TestCache_SameDecisionAsUncached(t *testing.T) {
 	mk := func() ptrace.Traces {
 		td := ptrace.NewTraces()
 		sp := newSpan(td, "x")
-		sp.Attributes().PutBool("agentward.sensitive", true)
-		sp.Attributes().PutStr("agentward.taint.classes", "pii")
-		sp.Attributes().PutStr("agentward.destination", "external")
-		sp.Attributes().PutStr("agentward.jurisdiction", "us")
+		sp.Attributes().PutBool("taintward.sensitive", true)
+		sp.Attributes().PutStr("taintward.taint.classes", "pii")
+		sp.Attributes().PutStr("taintward.destination", "external")
+		sp.Attributes().PutStr("taintward.jurisdiction", "us")
 		return td
 	}
 	s := &sink{}
@@ -499,12 +499,12 @@ func TestCache_SameDecisionAsUncached(t *testing.T) {
 	for i := 0; i < 3; i++ { // miss, hit, hit
 		_ = p.ConsumeTraces(context.Background(), mk())
 		a := firstSpan(s.got).Attributes()
-		if strAttr(a, "agentward.policy.reasons") != "transfer,pii_egress" {
-			t.Fatalf("run %d: reasons = %q", i, strAttr(a, "agentward.policy.reasons"))
+		if strAttr(a, "taintward.policy.reasons") != "transfer,pii_egress" {
+			t.Fatalf("run %d: reasons = %q", i, strAttr(a, "taintward.policy.reasons"))
 		}
 	}
 	uncached := firstSpan(run(t, &Config{DecisionCacheSize: 0}, mk())).Attributes()
-	if strAttr(uncached, "agentward.policy.violations") != strAttr(firstSpan(s.got).Attributes(), "agentward.policy.violations") {
+	if strAttr(uncached, "taintward.policy.violations") != strAttr(firstSpan(s.got).Attributes(), "taintward.policy.violations") {
 		t.Error("cached and uncached decisions differ")
 	}
 }

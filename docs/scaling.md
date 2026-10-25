@@ -1,6 +1,6 @@
-# Scaling AgentWard
+# Scaling Taintward
 
-This page explains how AgentWard is laid out when it has to handle many
+This page explains how Taintward is laid out when it has to handle many
 agents, what one pod can do (measured), and how to size a deployment. The
 install steps are in [deploy-kubernetes.md](deploy-kubernetes.md).
 
@@ -41,7 +41,7 @@ There are three parts:
    agents themselves: every agent process does its own detection.
 2. **The collector tier.** Agents send spans here. The `taint_policy`
    processor runs the Rego policy on each span, writes the
-   `agentward.policy.*` attributes and removes any raw PII or secret that is
+   `taintward.policy.*` attributes and removes any raw PII or secret that is
    still in the span. Then the spans go to the backend. The pods hold no
    state, so the HPA can add and remove them freely.
    * With one policy pod, or when you do not care which pod sees which span,
@@ -95,10 +95,12 @@ Details: [loadtest/results/sdk-current.md](../loadtest/results/sdk-current.md).
 
 Detection (Presidio and spaCy) is about 25 to 50 ms per call and is pure
 Python, so more **threads do not help** (the GIL), and they even slow down a
-little. More **processes** do help. In practice this means the SDK adds tens
-of milliseconds per tool call; an agent that makes a few tool calls per
-second is fine, a tool loop that makes hundreds per second is not. The
-detection step is being made faster; re-run the script to get new numbers:
+little. More **processes** do help.
+
+These SDK and gateway numbers were measured before the fast detection path
+landed (see [benchmark.md](benchmark.md): a 1 KB wrapped call went from
+518 ms to 8.4 ms p50), so they are lower than what 0.2.0 does. Re-run the
+scripts to get numbers for the current code and your hardware:
 
 ```bash
 .venv/bin/python loadtest/sdk_throughput.py --label after-change
@@ -188,7 +190,7 @@ there is more than one replica.
   but expect a short bump in latency.
 * **The routing tier can drop data** if every policy pod is down for longer
   than its retry window (2 minutes) or its queue (5,000 batches) fills.
-* **Detection fails open.** If Presidio or spaCy cannot load, `sdk/detect.py`
+* **Detection fails open.** If Presidio or spaCy cannot load, `taintward/sdk/detect.py`
   finds nothing, and the collector only redacts spans marked sensitive. The
   gateway image checks detection at build time for this reason (see
   [loadtest/results/kind-verification.md](../loadtest/results/kind-verification.md)).

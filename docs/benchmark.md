@@ -1,6 +1,6 @@
 # Benchmark: detection quality and runtime overhead
 
-This page gives the numbers behind AgentWard's detection step (`sdk/detect.py`):
+This page gives the numbers behind Taintward's detection step (`taintward/sdk/detect.py`):
 how much sensitive data it finds, how often it raises a false alarm, and how
 much time it adds to every tool call. Everything here can be re-run from the
 `bench/` folder.
@@ -240,14 +240,14 @@ Two things to read carefully:
    slowest recognizer. Two recognizers that can never reach the 0.5 threshold
    (US bank numbers at 0.05, passports at 0.1) are skipped.
 5. **Cache per value.** A bounded LRU cache (4,096 entries,
-   `AGENTWARD_DETECT_CACHE_SIZE`, 0 turns it off) maps a hash of each value to
+   `TAINTWARD_DETECT_CACHE_SIZE`, 0 turns it off) maps a hash of each value to
    its detections. The cache holds only hashes and fingerprints, never the raw
    text.
 6. **Per-call scope.** `instrument_tool` opens a `detection_scope()` around
    its input step and its output step. Inside it, every value is detected once
    by `detect_mapping`; the redactor's and the masker's own `detect_text`
    calls on the same strings reuse that answer. Before, each value was
-   detected four times per call. `sdk/redact.py` did not need to change.
+   detected four times per call. `taintward/sdk/redact.py` did not need to change.
 
 ### False alarms
 
@@ -256,7 +256,7 @@ Two things to read carefully:
    alarms: `DATE_TIME` fired on integer IDs, zip codes and timestamps;
    `ORGANIZATION` on UUIDs and words like "SSN"; `URL` on the domain inside
    every email; `MEDICAL_LICENSE` on git SHAs (3 hits, 0 real). Turn any of
-   them back on with `AGENTWARD_PII_EXTRA_TYPES=DATE_TIME,URL` or
+   them back on with `TAINTWARD_PII_EXTRA_TYPES=DATE_TIME,URL` or
    `detect.set_pii_types(enable=[...])`. Recognizers that only find ignored
    types are not run at all.
 8. **Person-name clean-up.** A `PERSON` hit that contains digits or symbols
@@ -341,7 +341,7 @@ no longer shifts every later offset.
 * `tests/test_detect_latency.py` times 15 wrapped calls on the 1 KB payload
   with the cache cleared and fails if the median is over 50 ms (5 to 10x what
   this laptop measures, so a slow CI runner still passes). Set
-  `AGENTWARD_SKIP_LATENCY_TEST=1` to skip it, or `AGENTWARD_LATENCY_BOUND_MS`
+  `TAINTWARD_SKIP_LATENCY_TEST=1` to skip it, or `TAINTWARD_LATENCY_BOUND_MS`
   to change the bound.
 * `tests/test_detect_fast.py` covers each new rule, the ignored types, the
   cache, the per-call scope and offset mapping.

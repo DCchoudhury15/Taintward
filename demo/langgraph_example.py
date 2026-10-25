@@ -1,6 +1,6 @@
-"""LangGraph agent protected by AgentWard with a few lines of setup.
+"""LangGraph agent protected by Taintward with a few lines of setup.
 
-The setup is the block marked "AgentWard setup". Everything else is a normal
+The setup is the block marked "Taintward setup". Everything else is a normal
 LangGraph agent. Runs offline: the model is a scripted fake that answers the
 way a real model would. It only ever sees placeholders such as <PERSON_1> and
 <SSN_1>, never the real name, email or SSN, and it still finishes the task:
@@ -28,7 +28,7 @@ from langchain_core.language_models.fake_chat_models import FakeMessagesListChat
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
 
-from sdk import integrations as agentward
+from taintward.sdk import integrations as taintward
 
 OUTBOX: list[dict] = []  # what the external email service received
 CACHE: list[str] = []    # what the internal cache received
@@ -110,8 +110,8 @@ def main() -> None:
                     help="turn placeholders off (the LLM gets [PII] masks)")
     args = ap.parse_args()
 
-    # --- AgentWard setup -------------------------------------------------
-    agentward.init("langgraph-demo", endpoint=args.endpoint, console=args.console,
+    # --- Taintward setup -------------------------------------------------
+    taintward.init("langgraph-demo", endpoint=args.endpoint, console=args.console,
                    placeholders=not args.masks,
                    destinations={
                        # the HR database needs the real name to run its query
@@ -120,12 +120,12 @@ def main() -> None:
                        # the mail service needs the real address, nothing else
                        "send_email": {"destination": "external", "allow": ["to"]},
                    })
-    tools = agentward.wrap_langchain_tools([search_db, cache_record, send_email])
-    model = agentward.protect_langchain_model(scripted_model(masks=args.masks))
+    tools = taintward.wrap_langchain_tools([search_db, cache_record, send_email])
+    model = taintward.protect_langchain_model(scripted_model(masks=args.masks))
     agent = build_agent(tools, model)
     # ---------------------------------------------------------------------
 
-    with agentward.run("langgraph-demo.run"):
+    with taintward.run("langgraph-demo.run"):
         result = agent.invoke({"messages": [("user", USER_REQUEST)]})
 
     print("user   :", USER_REQUEST)

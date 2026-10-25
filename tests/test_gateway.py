@@ -1,4 +1,4 @@
-"""Tests for the AgentWard MCP gateway (gateway/).
+"""Tests for the Taintward MCP gateway (taintward/gateway/).
 
 Offline: the example HR upstream runs in process (mcp in-memory transport)
 or as a stdio subprocess; nothing talks to the network.
@@ -26,18 +26,22 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (  # noqa: E4
     InMemorySpanExporter,
 )
 
-from gateway import BLOCKED_ERROR_CODE, Gateway, parse_config  # noqa: E402
-from gateway.config import ConfigError, load_config  # noqa: E402
-from gateway.examples import hr_server  # noqa: E402
-from gateway.policy import (  # noqa: E402
+from taintward.gateway import BLOCKED_ERROR_CODE, Gateway, parse_config  # noqa: E402
+from taintward.gateway.config import ConfigError, load_config  # noqa: E402
+from taintward.gateway.examples import hr_server  # noqa: E402
+from taintward.gateway.policy import (  # noqa: E402
     NON_ADEQUATE_JURISDICTIONS,
     RULE_NAMES,
     SENSITIVE_SINKS,
     PolicyInput,
     evaluate,
 )
-from sdk.instrumentation import ATTR_DEST, ATTR_JURISDICTION, ATTR_VIOLATION  # noqa: E402
-from sdk.taint import ATTR_CLASSES, ATTR_SENSITIVE  # noqa: E402
+from taintward.sdk.instrumentation import (  # noqa: E402
+    ATTR_DEST,
+    ATTR_JURISDICTION,
+    ATTR_VIOLATION,
+)
+from taintward.sdk.taint import ATTR_CLASSES, ATTR_SENSITIVE  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 REGO = REPO / "collector" / "policy" / "pii_egress.rego"
@@ -53,7 +57,7 @@ RAW_BODY = f"Employee SSN is {SSN} and the key is {AWS_KEY}"
 def _config(send_email_mode: str = "redact", **extra):
     cfg = parse_config({
         "upstreams": [{"name": "hr", "command": "python",
-                       "args": ["-m", "gateway.examples.hr_server"]}],
+                       "args": ["-m", "taintward.gateway.examples.hr_server"]}],
         "defaults": {"destination": "external", "mode": "redact"},
         "tools": [
             {"match": "get_*", "destination": "internal"},
@@ -76,7 +80,7 @@ def _tracer():
 
 def _gateway_spans(exporter, tool=None):
     spans = [s for s in exporter.get_finished_spans()
-             if s.name.startswith("agentward.gateway ")]
+             if s.name.startswith("taintward.gateway ")]
     if tool is not None:
         spans = [s for s in spans if s.attributes.get("gen_ai.tool.name") == tool]
     return spans
@@ -128,7 +132,7 @@ def test_policy_rule_names_match_rego():
     src = REGO.read_text()
     assert set(re.findall(r'"rule":\s*"([^"]+)"', src)) == set(RULE_NAMES)
     # The rule heads the Python module mirrors. A new rule in the Rego file
-    # must be mirrored in gateway/policy.py (and added here).
+    # must be mirrored in taintward/gateway/policy.py (and added here).
     heads = set(re.findall(r"^([a-z_]+)(?:\([^)]*\))?\s+(?:contains|if)\b", src, re.M))
     assert heads == {"has_class", "violation", "transfer_violation", "redact", "deny"}
 
@@ -156,7 +160,7 @@ def test_policy_matches_opa_eval():
     for inp in _grid():
         out = subprocess.run(
             ["opa", "eval", "-f", "json", "-d", str(REGO), "--stdin-input",
-             "data.agentward.decision"],
+             "data.taintward.decision"],
             input=json.dumps(inp.as_dict()), capture_output=True, text=True, check=True,
         )
         val = json.loads(out.stdout)["result"][0]["expressions"][0]["value"]
@@ -195,7 +199,7 @@ def test_config_globs_defaults_and_validation():
 
 
 def test_example_config_loads():
-    cfg = load_config(REPO / "gateway" / "example-config.yaml")
+    cfg = load_config(REPO / "taintward" / "gateway" / "example-config.yaml")
     assert cfg.upstreams[0].command == sys.executable
     assert cfg.upstreams[0].cwd == str(REPO)
     assert cfg.policy_for("send_email").mode == "block"
@@ -253,17 +257,17 @@ def test_redact_mode_raw_values_never_reach_send_email():
     assert emp_span.attributes[ATTR_SENSITIVE] is True
     assert emp_span.attributes[ATTR_CLASSES] == "pii,secret"
     assert emp_span.attributes[ATTR_VIOLATION] is False
-    assert emp_span.attributes["agentward.result.redacted"] is True
+    assert emp_span.attributes["taintward.result.redacted"] is True
 
     (mail_span,) = _gateway_spans(exporter, "send_email")
     a = mail_span.attributes
     assert a[ATTR_DEST] == "external"
     assert a[ATTR_JURISDICTION] == ""
     assert a[ATTR_VIOLATION] is True
-    assert a["agentward.policy.rules"] == "pii_egress"
-    assert a["agentward.mode"] == "redact"
-    assert a["agentward.blocked"] is False
-    assert a["agentward.args.redacted"] is True
+    assert a["taintward.policy.rules"] == "pii_egress"
+    assert a["taintward.mode"] == "redact"
+    assert a["taintward.blocked"] is False
+    assert a["taintward.args.redacted"] is True
     assert a["gen_ai.operation.name"] == "execute_tool"
     for span in (emp_span, mail_span):
         for v in span.attributes.values():
@@ -306,7 +310,7 @@ def test_block_mode_returns_error_and_sends_nothing():
     spans = _gateway_spans(exporter, "send_email")
     assert len(spans) == 2
     for s in spans:
-        assert s.attributes["agentward.blocked"] is True
+        assert s.attributes["taintward.blocked"] is True
         assert s.attributes[ATTR_VIOLATION] is True
         assert SSN not in s.attributes["gen_ai.tool.call.arguments"]
 
@@ -319,7 +323,7 @@ def test_block_mode_allows_clean_call_in_clean_session():
     exporter = _run(_config("block"), body)
     assert hr_server.OUTBOX == [{"to": "a@b.c", "subject": "s", "body": "hi"}]
     (s,) = _gateway_spans(exporter, "send_email")
-    assert s.attributes["agentward.blocked"] is False
+    assert s.attributes["taintward.blocked"] is False
 
 
 def test_audit_mode_passes_through_but_records_violation():
@@ -332,8 +336,8 @@ def test_audit_mode_passes_through_but_records_violation():
     assert hr_server.OUTBOX[0]["body"] == RAW_BODY
     (s,) = _gateway_spans(exporter, "send_email")
     assert s.attributes[ATTR_VIOLATION] is True
-    assert s.attributes["agentward.dry_run"] is True
-    assert s.attributes["agentward.mode"] == "audit"
+    assert s.attributes["taintward.dry_run"] is True
+    assert s.attributes["taintward.mode"] == "audit"
     # The span itself never stores the raw value.
     assert SSN not in s.attributes["gen_ai.tool.call.arguments"]
     assert AWS_KEY not in s.attributes["gen_ai.tool.call.arguments"]
@@ -349,13 +353,13 @@ def test_transfer_rule_and_passthrough_args():
     assert msg["to"] == "alice@example.com"  # passthrough: not redacted
     assert SSN not in msg["body"]
     (s,) = _gateway_spans(exporter, "send_email")
-    assert s.attributes["agentward.policy.rules"] == "pii_egress,transfer"
+    assert s.attributes["taintward.policy.rules"] == "pii_egress,transfer"
     assert s.attributes[ATTR_JURISDICTION] == "us"
     assert "alice@example.com" not in s.attributes["gen_ai.tool.call.arguments"]
 
 
 def test_internal_destination_gets_reversible_token_not_raw():
-    from sdk.redact import get_redactor
+    from taintward.sdk.redact import get_redactor
 
     cfg = _config()
     cfg.rules.insert(0, type(cfg.rules[0])(match="send_email", destination="internal"))
@@ -394,7 +398,7 @@ def test_prefix_renames_tools():
 
 
 # ---------------------------------------------------------------------------
-# end to end over stdio: client -> `python -m gateway` -> stdio HR upstream
+# end to end over stdio: client -> `python -m taintward.gateway` -> stdio HR upstream
 # ---------------------------------------------------------------------------
 
 def test_cli_stdio_end_to_end(tmp_path):
@@ -404,10 +408,10 @@ def test_cli_stdio_end_to_end(tmp_path):
         "upstreams:\n"
         "  - name: hr\n"
         "    command: python\n"
-        "    args: [\"-m\", \"gateway.examples.hr_server\"]\n"
+        "    args: [\"-m\", \"taintward.gateway.examples.hr_server\"]\n"
         f"    cwd: {REPO}\n"
         "    env:\n"
-        f"      AGENTWARD_HR_OUTBOX: {outbox}\n"
+        f"      TAINTWARD_HR_OUTBOX: {outbox}\n"
         "tools:\n"
         "  - match: \"get_*\"\n"
         "    destination: internal\n"
@@ -420,7 +424,7 @@ def test_cli_stdio_end_to_end(tmp_path):
     )
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "gateway", "--config", str(cfg_path)],
+        args=["-m", "taintward.gateway", "--config", str(cfg_path)],
         cwd=str(REPO),
     )
     seen = {}

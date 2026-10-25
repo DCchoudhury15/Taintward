@@ -14,7 +14,7 @@ Rather than rebuild SigNoz's forked collector, a minimal **sidecar collector**
 sits between the SDK and SigNoz:
 
 ```
-SDK  --OTLP/HTTP :4319-->  agentward-collector
+SDK  --OTLP/HTTP :4319-->  taintward-collector
                              [otlp receiver]
                                     |
                              [taint_policy processor]  <-- Rego eval + redact
@@ -25,7 +25,7 @@ SDK  --OTLP/HTTP :4319-->  agentward-collector
 ```
 
 - SDK `configure_tracing(endpoint=http://localhost:4319/v1/traces)`.
-- `AGENTWARD_MASK_IN_SDK=0` makes the SDK send **raw** tool I/O to the trusted
+- `TAINTWARD_MASK_IN_SDK=0` makes the SDK send **raw** tool I/O to the trusted
   local sidecar, and the **collector** applies Rego and redacts before SigNoz
   stores anything. (With the flag on, the SDK masks in-process instead, which
   is the Phase 2 backstop for when no sidecar is present.)
@@ -45,7 +45,7 @@ SDK  --OTLP/HTTP :4319-->  agentward-collector
 - `collector/processor/taintpolicy/` (Go module, processor v1.66.0 + OPA):
   - embeds the policy (`//go:embed`), runs `rego.PrepareForEval` at startup
     (compile once, eval many), calls `EvalInput(spanAttrs)` per span.
-  - writes collector-authoritative `agentward.policy.*` attrs:
+  - writes collector-authoritative `taintward.policy.*` attrs:
     `redacted`, `violation`, `transfer_violation`, `violations` (JSON),
     `reasons`, `decision_engine=rego`.
   - redacts raw PII and secrets (regexes go to `[PII]` / `[SECRET]`) on
@@ -53,7 +53,7 @@ SDK  --OTLP/HTTP :4319-->  agentward-collector
   - forwards to the next consumer (the `next consumer.Traces` from the factory).
   - `MutatesData=true`; runs before `batch`.
 - `collector/builder.yaml` (ocb manifest) + `collector/config.yaml` (runtime).
-  Built with `ocb` (builder v0.160.0) into `collector/bin/agentward-collector`.
+  Built with `ocb` (builder v0.160.0) into `collector/bin/taintward-collector`.
 
 ## Verified in SigNoz (breach run, SDK mask off)
 
@@ -68,7 +68,7 @@ SDK  --OTLP/HTTP :4319-->  agentward-collector
 
 **Redaction proof:** the SDK sent `ask_llm`'s output with raw `"ssn":
 "234-12-1234"`; the collector masked it to `"ssn": "[PII]"` before storage
-(`agentward.policy.decision_engine=rego`, `redacted=true`). `query_db` shows
+(`taintward.policy.decision_engine=rego`, `redacted=true`). `query_db` shows
 both `"ssn": "[PII]"` and `"deploy_key": "[SECRET]"`. **Zero raw SSN/AWS
 values anywhere** in the stored hr_bot spans.
 
@@ -92,9 +92,9 @@ A security review found ways raw PII could still reach SigNoz. What changed:
 always, so the SDK's reversible tokens would not be masked again. But then raw
 arguments got through in SDK dry-run mode, for non-string arguments, and from
 any other OTel producer. Now the processor skips that attribute only when the
-span has `agentward.args_redacted = true` (a real bool). Anything else (missing,
+span has `taintward.args_redacted = true` (a real bool). Anything else (missing,
 the string "true", false) means the arguments are scanned like every other
-value. The older `agentward.redacted` flag is not used for this: it only says
+value. The older `taintward.redacted` flag is not used for this: it only says
 "the gate changed what the sink got", so it is false when nothing was found and
 true even when a passthrough kwarg stayed raw.
 
@@ -139,18 +139,18 @@ New patterns:
 - The regex backstop runs on every span, whatever the policy says. The policy
   decides violations; the backstop decides redaction.
 - If Rego evaluation fails or the decision is undefined or has the wrong
-  shape, the span is still redacted, `agentward.policy.redacted = true` and
-  `agentward.policy.error` holds the reason.
-- `agentward.sensitive` also accepts the strings "true" and "1" (any case)
+  shape, the span is still redacted, `taintward.policy.redacted = true` and
+  `taintward.policy.error` holds the reason.
+- `taintward.sensitive` also accepts the strings "true" and "1" (any case)
   and a non-zero int.
-- Any `agentward.policy.*` attributes the producer sent are removed first, so
+- Any `taintward.policy.*` attributes the producer sent are removed first, so
   a fake `violation = false` cannot survive.
 - The policy now has `default redact := false`. Before, `decision` was
   undefined for every span that was not sensitive, so no transfer violation
   was ever reported for those spans. (`violation`, `transfer_violation` and
   `deny` are multi-value rules: they are already the empty set when nothing
   matches, and Rego does not allow a default on them.)
-- At startup the processor checks that the policy is `package agentward`,
+- At startup the processor checks that the policy is `package taintward`,
   defines `decision` and `redact`, and gives a well formed decision for two
   sample inputs. If not, the collector does not start and says why.
 

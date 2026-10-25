@@ -1,12 +1,12 @@
-"""Tests for sdk/redact.py: destination-aware reversible redaction."""
+"""Tests for taintward/sdk/redact.py: destination-aware reversible redaction."""
 
 from __future__ import annotations
 
 import unittest
 
-from core.doe import Sensitivity
-from sdk import instrumentation as instr
-from sdk.redact import Redactor, redact_payload
+from taintward.core.doe import Sensitivity
+from taintward.sdk import instrumentation as instr
+from taintward.sdk.redact import Redactor, redact_payload
 
 SSN = "234-12-1234"
 AWS = "AKIAIOSFODNN7EXAMPLE"

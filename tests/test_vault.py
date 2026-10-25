@@ -1,4 +1,4 @@
-"""Tests for sdk/vault.py and the Redactor's vault, key and short-value handling."""
+"""Tests for taintward/sdk/vault.py and the Redactor's vault, key and short-value handling."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ import time
 import unittest
 from unittest import mock
 
-from core.doe import Sensitivity
-from sdk import redact as redact_mod
-from sdk.destinations import DEST_EXTERNAL, DEST_INTERNAL
-from sdk.redact import Redactor
-from sdk.vault import MemoryVault, SQLiteVault, Vault, get_vault
+from taintward.core.doe import Sensitivity
+from taintward.sdk import redact as redact_mod
+from taintward.sdk.destinations import DEST_EXTERNAL, DEST_INTERNAL
+from taintward.sdk.redact import Redactor
+from taintward.sdk.vault import MemoryVault, SQLiteVault, Vault, get_vault
 
 SSN = "234-12-1234"
 FPE_KEY = "2B7E151628AED2A6ABF7158809CF4F3CEF4359D8D580AA4F7F036D6F04FC6A94"
@@ -23,7 +23,7 @@ class _TmpDir(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.path = os.path.join(self._tmp.name, "vault.db")
-        self._env = mock.patch.dict(os.environ, {"AGENTWARD_VAULT_KEY": VAULT_KEY})
+        self._env = mock.patch.dict(os.environ, {"TAINTWARD_VAULT_KEY": VAULT_KEY})
         self._env.start()
 
     def tearDown(self):
@@ -83,7 +83,7 @@ class TestSQLiteVault(_TmpDir):
         with mock.patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(ValueError):
                 SQLiteVault(self.path)
-        with mock.patch.dict(os.environ, {"AGENTWARD_FPE_KEY": VAULT_KEY}):
+        with mock.patch.dict(os.environ, {"TAINTWARD_FPE_KEY": VAULT_KEY}):
             with self.assertRaises(ValueError):
                 SQLiteVault(self.path)
 
@@ -159,7 +159,7 @@ class TestGetVault(_TmpDir):
         self.assertIsInstance(get_vault("memory"), MemoryVault)
 
     def test_sqlite_spec_from_env(self):
-        with mock.patch.dict(os.environ, {"AGENTWARD_VAULT": "sqlite://" + self.path}):
+        with mock.patch.dict(os.environ, {"TAINTWARD_VAULT": "sqlite://" + self.path}):
             v = get_vault()
             self.assertIsInstance(v, SQLiteVault)
             self.assertEqual(v.path, self.path)
@@ -224,11 +224,11 @@ class TestRedactorKeysAndShortValues(unittest.TestCase):
             self.assertEqual(r1.key, r2.key)
 
     def test_demo_key_needs_explicit_opt_in(self):
-        with mock.patch.dict(os.environ, {"AGENTWARD_ALLOW_DEMO_KEY": "1"}, clear=True):
+        with mock.patch.dict(os.environ, {"TAINTWARD_ALLOW_DEMO_KEY": "1"}, clear=True):
             self.assertEqual(Redactor().key, redact_mod._DEMO_KEY)
 
     def test_env_key_used(self):
-        with mock.patch.dict(os.environ, {"AGENTWARD_FPE_KEY": FPE_KEY}, clear=True):
+        with mock.patch.dict(os.environ, {"TAINTWARD_FPE_KEY": FPE_KEY}, clear=True):
             self.assertEqual(Redactor().key, FPE_KEY)
 
     def test_bad_key_rejected(self):

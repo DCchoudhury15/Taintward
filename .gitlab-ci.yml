@@ -58,11 +58,11 @@ helm-lint:
     entrypoint: [""]
   stage: test
   script:
-    - diff collector/policy/pii_egress.rego deploy/helm/agentward/files/pii_egress.rego
-    - helm lint deploy/helm/agentward
-    - helm template t deploy/helm/agentward > /dev/null
+    - diff collector/policy/pii_egress.rego deploy/helm/taintward/files/pii_egress.rego
+    - helm lint deploy/helm/taintward
+    - helm template t deploy/helm/taintward > /dev/null
     - >-
-      helm template t deploy/helm/agentward
+      helm template t deploy/helm/taintward
       --set gateway.enabled=true --set gateway.existingSecret=keys
       --set routingTier.enabled=true --set collector.fileExport.enabled=true > /dev/null
 
@@ -76,5 +76,5 @@ collector-image:
     DOCKER_TLS_CERTDIR: "/certs"
   stage: test
   script:
-    - docker build -f collector/Dockerfile -t agentward-collector:ci .
-    - docker image ls agentward-collector:ci
+    - docker build -f collector/Dockerfile -t taintward-collector:ci .
+    - docker image ls taintward-collector:ci

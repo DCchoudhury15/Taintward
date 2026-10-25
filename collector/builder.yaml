@@ -1,9 +1,9 @@
 dist:
-  name: agentward-collector
-  module: github.com/DCchoudhury15/agentward/collector
+  name: taintward-collector
+  module: github.com/DCchoudhury15/taintward/collector
   go: "1.26"
   output_path: ./build
-  description: AgentWard collector, OTLP receiver + taint_policy (Rego) processor + OTLP, load balancing and file exporters.
+  description: Taintward collector, OTLP receiver + taint_policy (Rego) processor + OTLP, load balancing and file exporters.
 
 # Component versions aligned with the collector core the builder ships (v0.160.0).
 # Contrib components use the same release number (opentelemetry-collector-contrib v0.160.0).
@@ -16,8 +16,8 @@ processors:
   # instead of the pod being OOM killed.
   - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.160.0
   # Custom processor, local module, pulled in via the replace below.
-  - gomod: github.com/DCchoudhury15/agentward/collector/processor/taintpolicy v0.0.0
-    import: github.com/DCchoudhury15/agentward/collector/processor/taintpolicy
+  - gomod: github.com/DCchoudhury15/taintward/collector/processor/taintpolicy v0.0.0
+    import: github.com/DCchoudhury15/taintward/collector/processor/taintpolicy
 
 exporters:
   - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.160.0
@@ -33,4 +33,4 @@ extensions:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.160.0
 
 replaces:
-  - github.com/DCchoudhury15/agentward/collector/processor/taintpolicy => /home/divyanshu/agentward/collector/processor/taintpolicy
+  - github.com/DCchoudhury15/taintward/collector/processor/taintpolicy => /home/divyanshu/taintward/collector/processor/taintpolicy

@@ -1,6 +1,6 @@
 """Detection-quality smoke test (a tiny slice of bench/run_detection.py).
 
-Runs sdk.detect on fixed, synthetic examples and fails if recall on key
+Runs taintward.sdk.detect on fixed, synthetic examples and fails if recall on key
 classes drops below the baseline measured when this test was written. The
 full benchmark lives in bench/ and docs/benchmark.md.
 """
@@ -11,7 +11,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from sdk import detect
+from taintward.sdk import detect
 
 # (text, class, value) - value must occur exactly once in text.
 POSITIVES = [

@@ -1,5 +1,5 @@
-# AgentWard collector image.
-# Build from the repo root:  docker build -f collector/Dockerfile -t agentward-collector .
+# Taintward collector image.
+# Build from the repo root:  docker build -f collector/Dockerfile -t taintward-collector .
 
 # Stage 1: build the collector binary with the OpenTelemetry builder (ocb).
 FROM golang:1.26 AS build
@@ -23,20 +23,20 @@ ENV CGO_ENABLED=0
 # ocb already strips the binary (-s -w). The load_balancing exporter adds
 # about 35 MB (Kubernetes and AWS resolver clients); the image is about 85 MB.
 RUN builder --config=builder.yaml \
- && mkdir -p /out/var/lib/agentward
+ && mkdir -p /out/var/lib/taintward
 
 # Stage 2: small runtime image with only the static binary, config and policy.
 FROM gcr.io/distroless/static-debian12:nonroot
 
-COPY --from=build /src/collector/build/agentward-collector /agentward-collector
-COPY collector/config.docker.yaml /etc/agentward/config.yaml
-COPY collector/policy/pii_egress.rego /etc/agentward/policy/pii_egress.rego
+COPY --from=build /src/collector/build/taintward-collector /taintward-collector
+COPY collector/config.docker.yaml /etc/taintward/config.yaml
+COPY collector/policy/pii_egress.rego /etc/taintward/policy/pii_egress.rego
 # Writable by the nonroot user, for the optional file exporter.
-COPY --from=build --chown=65532:65532 /out/var/lib/agentward /var/lib/agentward
+COPY --from=build --chown=65532:65532 /out/var/lib/taintward /var/lib/taintward
 
 # Any OTLP gRPC backend, as host:port.
 ENV OTLP_EXPORT_ENDPOINT=jaeger:4317
 # 4319 OTLP/HTTP, 4317 OTLP/gRPC, 13133 health check.
 EXPOSE 4319 4317 13133
-ENTRYPOINT ["/agentward-collector"]
-CMD ["--config=/etc/agentward/config.yaml"]
+ENTRYPOINT ["/taintward-collector"]
+CMD ["--config=/etc/taintward/config.yaml"]
