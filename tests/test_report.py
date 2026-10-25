@@ -300,6 +300,41 @@ class TestOutput(unittest.TestCase):
             self.assertTrue(ev["verification"]["ok"])
             self.assertEqual(ev["checkpoint"]["seq"], 1)
 
+    def test_single_file_section_binds_tree_size(self):
+        from evidence.merkle import MerkleLog
+        from evidence.report import span_violation_record
+
+        spans = clean_spans()
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "v.logl"
+            log = MerkleLog(path)
+            for s in [s for s in spans if s.attrs.get("agentward.policy.violation")][:3]:
+                log.append(span_violation_record(s))
+            data = report(spans, log_file=str(path))
+            ev = data["evidence_log"]
+            self.assertEqual((ev["records"], ev["root"]), (3, log.root().hex()))
+            page = render_html(data)
+            self.assertIn("root --size 3", page)
+            self.assertIn("consistency --old-size 3", page)
+
+    def test_broken_log_file_is_shown_not_fatal(self):
+        from evidence.merkle import MerkleLog
+        from evidence.report import span_violation_record
+
+        spans = clean_spans()
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "v.logl"
+            log = MerkleLog(path)
+            viol = [s for s in spans if s.attrs.get("agentward.policy.violation")]
+            log.append(span_violation_record(viol[0]))
+            with path.open("ab") as f:
+                f.write(b'{"trace_id":"half')
+            data = report(spans, log_file=str(path))
+            ev = data["evidence_log"]
+            self.assertFalse(ev["verification"]["ok"])
+            self.assertIn("repair", ev["verification"]["errors"][0])
+            self.assertIn("FAILED", render_html(data))
+
 
 if __name__ == "__main__":
     unittest.main()

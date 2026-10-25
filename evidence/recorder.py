@@ -71,13 +71,17 @@ def _query_clickhouse(service: str, since_minutes: int) -> list[dict]:
 
 def record_violations(log: MerkleLog, *, service: str = "agentward-hr-bot",
                       since_minutes: int = 5) -> int:
-    """Append every recent collector violation to ``log``. Returns the count."""
+    """Append every recent collector violation to ``log``; return how many
+    were new. A violation already in the log (same trace_id and span_id) is
+    skipped, so recording overlapping time windows adds no duplicates."""
     rows = _query_clickhouse(service, since_minutes)
+    added = 0
     for r in rows:
-        log.append(violation_record(
+        idx = log.append(violation_record(
             trace_id=r["trace_id"], span_id=r["span_id"], tool=r["tool"],
             destination=r["destination"], jurisdiction=r["jurisdiction"],
             classes=r["classes"], reasons=r["reasons"],
             timestamp_ns=int(r["timestamp_ns"]),
-        ))
-    return len(rows)
+        ), unique=True)
+        added += idx is not None
+    return added
