@@ -1,0 +1,20 @@
+# Values for sending to a SigNoz installed with the official SigNoz Helm
+# chart in the "platform" namespace (its default). Change the endpoint if
+# your SigNoz lives elsewhere.
+exporter:
+  protocol: grpc
+  endpoint: signoz-otel-collector.platform.svc.cluster.local:4317
+  insecure: true
+
+# SigNoz Cloud instead: use the ingest endpoint and the ingestion key from a Secret.
+# exporter:
+#   protocol: grpc
+#   endpoint: ingest.<region>.signoz.cloud:443
+#   insecure: false
+#   headers:
+#     signoz-ingestion-key: ${env:SIGNOZ_INGESTION_KEY}
+# collector:
+#   extraEnv:
+#     - name: SIGNOZ_INGESTION_KEY
+#       valueFrom:
+#         secretKeyRef: {name: signoz-cloud, key: ingestion-key}
