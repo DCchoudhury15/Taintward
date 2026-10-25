@@ -40,7 +40,7 @@ from opentelemetry import baggage, trace
 from opentelemetry import context as context_api
 
 from sdk import taint as tnt
-from sdk.detect import detect_mapping, mask_value, taint_for
+from sdk.detect import detect_mapping, detection_scope, mask_value, taint_for
 from sdk.redact import redact_payload
 
 logger = logging.getLogger("agentward.sdk")
@@ -196,22 +196,30 @@ class GuardedCall:
         incoming = _incoming_taint()  # chain-level taint (baggage + run box)
 
         # Field-level taint on the input, computed from the ORIGINAL input so
-        # the label reflects what was actually requested.
-        payload = [*self._raw_args, *self._raw_kwargs.values()]
-        in_detections = detect_mapping(payload) if payload else []
-        input_label = taint_for(in_detections)
+        # the label reflects what was actually requested. Keyword names are
+        # kept so they count as context (a kwarg ``ssn="536228491"``).
+        #
+        # One detection_scope covers detection and redaction: every value is
+        # detected once here and the redactor's own lookups reuse the result
+        # (including hits that only fired because of the key).
+        with detection_scope():
+            if self._raw_args or self._raw_kwargs:
+                in_detections = detect_mapping([self._raw_args, self._raw_kwargs])
+            else:
+                in_detections = []
+            input_label = taint_for(in_detections)
 
-        # Phase 4 egress gate: redact the ACTUAL input for this destination
-        # BEFORE the call. internal -> reversible token; external/llm/log/rag
-        # -> non-reversible mask. DLP simulation mode (DRY_RUN) skips it.
-        if DRY_RUN:
-            self.args, self.kwargs = list(self._raw_args), dict(self._raw_kwargs)
-        else:
-            self.args = [self._redact(a, self.destination) for a in self._raw_args]
-            self.kwargs = {
-                k: (v if k in self._passthrough else self._redact(v, self.destination))
-                for k, v in self._raw_kwargs.items()
-            }
+            # Phase 4 egress gate: redact the ACTUAL input for this destination
+            # BEFORE the call. internal -> reversible token; external/llm/log/rag
+            # -> non-reversible mask. DLP simulation mode (DRY_RUN) skips it.
+            if DRY_RUN:
+                self.args, self.kwargs = list(self._raw_args), dict(self._raw_kwargs)
+            else:
+                self.args = [self._redact(a, self.destination) for a in self._raw_args]
+                self.kwargs = {
+                    k: (v if k in self._passthrough else self._redact(v, self.destination))
+                    for k, v in self._raw_kwargs.items()
+                }
 
         merged_in = (incoming or tnt.TaintLabel.of(set())).merge(input_label)
         self.merged_in = merged_in
@@ -251,15 +259,17 @@ class GuardedCall:
         plain value (for example a framework message object).
         """
         seen = result if view is None else view
-        out_detections = detect_mapping([seen])
-        output_label = taint_for(
-            out_detections,
-            source_span_id=format(self.span.get_span_context().span_id, "016x"),
-        )
+        # Detect once; masking below reuses the result inside the scope.
+        with detection_scope():
+            out_detections = detect_mapping([seen])
+            output_label = taint_for(
+                out_detections,
+                source_span_id=format(self.span.get_span_context().span_id, "016x"),
+            )
+            stored = mask_value(seen) if MASK_IN_PROCESS else seen
         self.merged_out = self.merged_in.merge(output_label)
         if self.merged_out.is_tainted:
             self.span.set_attributes(self.merged_out.to_span_attrs())
-        stored = mask_value(seen) if MASK_IN_PROCESS else seen
         self.span.set_attribute(self._output_attr, _jsonable(stored))
 
     # -- exit: violation flag, end span, carry taint forward ---------------
