@@ -1,0 +1,83 @@
+# AgentWard two tier layout, agent side (first tier).
+#
+#   agents --OTLP--> [this config, one per node or per agent pod]
+#          --load_balancing by traceID, OTLP/gRPC--> policy tier (config.docker.yaml)
+#          --OTLP/gRPC--> backend (SigNoz, Jaeger, ...)
+#
+# Why: the policy tier is where taint_policy runs. Routing by traceID sends
+# every span of one agent run to the same policy pod, so per trace state
+# (and the trace in the backend) stays in one place, and the policy tier can
+# scale out without splitting traces.
+#
+# This tier does not run taint_policy. It only buffers and routes. The SDK
+# already redacts before export; the policy tier is the authoritative gate.
+#
+# Environment variables:
+#   AGENTWARD_POLICY_TIER_HOST   DNS name that resolves to every policy tier
+#                                pod. In Kubernetes use a headless Service,
+#                                for example agentward-collector-headless.agentward.svc.cluster.local
+#   AGENTWARD_POLICY_TIER_PORT   OTLP/gRPC port of the policy tier. Default 4317.
+#   AGENTWARD_MEMORY_LIMIT_MIB   memory_limiter hard limit. Default 400.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4319
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: ${env:AGENTWARD_MEMORY_LIMIT_MIB:-400}
+    spike_limit_mib: 80
+  # No batch processor here: load_balancing splits batches by traceID anyway,
+  # and the policy tier batches before the backend.
+
+exporters:
+  load_balancing:
+    routing_key: traceID
+    # Top level queue and retry: when a policy pod goes away (rollout, scale
+    # in), data that could not reach it comes back here and is routed again
+    # over the new set of pods instead of being dropped.
+    timeout: 20s
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 120s
+    sending_queue:
+      enabled: true
+      queue_size: 5000
+    protocol:
+      otlp:
+        tls:
+          insecure: true
+        timeout: 5s
+        # Fail fast per pod and hand the data back to the top level queue.
+        retry_on_failure:
+          enabled: true
+          max_interval: 2s
+          max_elapsed_time: 10s
+        sending_queue:
+          enabled: false
+    resolver:
+      # The DNS resolver needs no Kubernetes RBAC. It re-resolves every 5s,
+      # so new policy pods (HPA scale out) get traffic within seconds.
+      dns:
+        hostname: ${env:AGENTWARD_POLICY_TIER_HOST}
+        port: ${env:AGENTWARD_POLICY_TIER_PORT:-4317}
+        interval: 5s
+
+service:
+  extensions: [health_check]
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter]
+      exporters: [load_balancing]

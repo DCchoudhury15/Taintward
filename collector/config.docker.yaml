@@ -1,16 +1,39 @@
 # AgentWard collector config for the Docker image.
 #
-# Flow:  SDK --OTLP/HTTP :4319--> [taint_policy] --batch--> --OTLP/gRPC--> ${OTLP_EXPORT_ENDPOINT}
+# Flow:  SDK --OTLP/HTTP :4319 or OTLP/gRPC :4317--> [memory_limiter] -> [taint_policy] -> [batch]
+#        --OTLP/gRPC--> ${OTLP_EXPORT_ENDPOINT}
 #
-# OTLP_EXPORT_ENDPOINT is any OTLP gRPC backend as host:port, for example
-# jaeger:4317 (the quickstart default) or a SigNoz collector at <host>:4317.
+# Environment variables:
+#   OTLP_EXPORT_ENDPOINT        any OTLP gRPC backend as host:port, for example
+#                               jaeger:4317 (the quickstart default) or a SigNoz
+#                               collector at <host>:4317.
+#   AGENTWARD_TRACE_EXPORTERS   exporters used by the traces pipeline, as a YAML
+#                               list. Default: [otlp_grpc/backend, debug].
+#                               Add file to also write OTLP JSON lines:
+#                               [otlp_grpc/backend, file]
+#   AGENTWARD_FILE_EXPORT_PATH  where the file exporter writes. Default:
+#                               /var/lib/agentward/spans.jsonl (mount a volume there).
+#   AGENTWARD_MEMORY_LIMIT_MIB  memory_limiter hard limit. Default 400.
+#                               Keep it about 80% of the container memory limit.
 receivers:
   otlp:
     protocols:
       http:
         endpoint: 0.0.0.0:4319
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+extensions:
+  # GET http://<pod>:13133/ returns 200 when the collector is up.
+  health_check:
+    endpoint: 0.0.0.0:13133
 
 processors:
+  # First in the pipeline: refuses data (the SDK retries) instead of being OOM killed.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: ${env:AGENTWARD_MEMORY_LIMIT_MIB:-400}
+    spike_limit_mib: 80
   taint_policy:
     # Baked into the image. Mount your own file over this path and restart
     # the container to change the policy. No rebuild needed.
@@ -18,22 +41,31 @@ processors:
   # taint_policy runs BEFORE batch (batching clears request context).
   batch:
     timeout: 1s
-    send_batch_size: 100
+    send_batch_size: 512
 
 exporters:
   otlp_grpc/backend:
     endpoint: ${env:OTLP_EXPORT_ENDPOINT}
     tls:
       insecure: true
+  # Only used when listed in AGENTWARD_TRACE_EXPORTERS. One OTLP JSON object per line.
+  file:
+    path: ${env:AGENTWARD_FILE_EXPORT_PATH:-/var/lib/agentward/spans.jsonl}
+    format: json
+    create_directory: true
+    rotation:
+      max_megabytes: 100
+      max_backups: 5
   debug:
     verbosity: basic
 
 service:
+  extensions: [health_check]
   telemetry:
     logs:
       level: info
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [taint_policy, batch]
-      exporters: [otlp_grpc/backend, debug]
+      processors: [memory_limiter, taint_policy, batch]
+      exporters: ${env:AGENTWARD_TRACE_EXPORTERS:-[otlp_grpc/backend, debug]}

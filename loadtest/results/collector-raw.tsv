@@ -1,0 +1,10 @@
+scenario	cpus	senders	spans_per_s	refused	collector_cpu_pct
+policy-violation	1	4	3931	0	99
+policy-clean	1	4	17282	0	99
+passthrough	1	4	43927	0	71
+policy-violation	2	4	6794	0	174
+policy-clean	2	4	25299	0	145
+passthrough	2	4	43836	0	70
+policy-violation	4	4	9211	0	248
+policy-clean	4	4	30212	0	188
+passthrough	4	4	44644	0	76

@@ -1,6 +1,7 @@
 name: ci
 
-# Same jobs as .gitlab-ci.yml. Runs on pull requests and on main only.
+# Same jobs as .gitlab-ci.yml except collector-image (the Docker build check).
+# Runs on pull requests and on main only.
 on:
   pull_request:
   push:
@@ -52,3 +53,18 @@ jobs:
           cache-dependency-path: collector/processor/taintpolicy/go.sum
       - run: go vet ./...
       - run: go test ./...
+
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+      - run: diff collector/policy/pii_egress.rego deploy/helm/agentward/files/pii_egress.rego
+      - run: helm lint deploy/helm/agentward
+      - run: helm template t deploy/helm/agentward > /dev/null
+      - run: >-
+          helm template t deploy/helm/agentward
+          --set gateway.enabled=true --set gateway.existingSecret=keys
+          --set routingTier.enabled=true --set collector.fileExport.enabled=true > /dev/null

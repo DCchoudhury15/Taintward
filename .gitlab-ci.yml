@@ -49,3 +49,32 @@ go-tests:
     - cd collector/processor/taintpolicy
     - go vet ./...
     - go test ./...
+
+# Lints the Helm chart, renders it with the gateway and routing tier on, and
+# checks the chart's policy copy matches collector/policy/pii_egress.rego.
+helm-lint:
+  image:
+    name: alpine/helm:3.16.2
+    entrypoint: [""]
+  stage: test
+  script:
+    - diff collector/policy/pii_egress.rego deploy/helm/agentward/files/pii_egress.rego
+    - helm lint deploy/helm/agentward
+    - helm template t deploy/helm/agentward > /dev/null
+    - >-
+      helm template t deploy/helm/agentward
+      --set gateway.enabled=true --set gateway.existingSecret=keys
+      --set routingTier.enabled=true --set collector.fileExport.enabled=true > /dev/null
+
+# Builds the collector image (ocb compile included) to catch build breaks.
+# Nothing is pushed.
+collector-image:
+  image: docker:27.3.1
+  services:
+    - docker:27.3.1-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  stage: test
+  script:
+    - docker build -f collector/Dockerfile -t agentward-collector:ci .
+    - docker image ls agentward-collector:ci

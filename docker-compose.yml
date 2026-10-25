@@ -13,6 +13,11 @@
 #
 # Host ports: 16686 (Jaeger UI) and 14319 (collector OTLP/HTTP, for your own
 # agents). 4317, 4318 and 8080 are left free so a local SigNoz keeps working.
+#
+# To also write every checked span as OTLP JSON lines into the
+# agentward-spans volume (file /var/lib/agentward/spans.jsonl):
+#
+#   AGENTWARD_TRACE_EXPORTERS='[otlp_grpc/backend, file]' docker compose up
 
 name: agentward
 
@@ -30,12 +35,15 @@ services:
     image: agentward-collector:local
     environment:
       OTLP_EXPORT_ENDPOINT: ${OTLP_EXPORT_ENDPOINT:-jaeger:4317}
+      AGENTWARD_TRACE_EXPORTERS: ${AGENTWARD_TRACE_EXPORTERS:-[otlp_grpc/backend, debug]}
     # Lets OTLP_EXPORT_ENDPOINT=host.docker.internal:4317 reach a backend on the host (Linux).
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       # Edit collector/policy/pii_egress.rego and restart this service to change the policy.
       - ./collector/policy:/etc/agentward/policy:ro
+      # Used only when AGENTWARD_TRACE_EXPORTERS lists file.
+      - agentward-spans:/var/lib/agentward
     ports:
       - "14319:4319"
     depends_on:
@@ -55,3 +63,6 @@ services:
     depends_on:
       - agentward-collector
     restart: "no"
+
+volumes:
+  agentward-spans:

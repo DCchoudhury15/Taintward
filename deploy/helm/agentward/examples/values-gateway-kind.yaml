@@ -1,0 +1,29 @@
+# Adds the MCP gateway (2 replicas, shared Redis sessions) on top of
+# values-jaeger.yaml. Create the Secret first:
+#
+#   kubectl -n agentward create secret generic agentward-keys \
+#     --from-literal=AGENTWARD_FPE_KEY=$(openssl rand -hex 32) \
+#     --from-literal=AGENTWARD_GATEWAY_TOKEN=$(openssl rand -hex 16)
+#   kubectl -n agentward apply -f deploy/helm/agentward/examples/redis.yaml
+#   helm upgrade --install agentward deploy/helm/agentward -n agentward \
+#     -f deploy/helm/agentward/examples/values-jaeger.yaml \
+#     -f deploy/helm/agentward/examples/values-gateway-kind.yaml
+gateway:
+  enabled: true
+  image:
+    repository: agentward-gateway
+    tag: local
+    pullPolicy: Never
+  existingSecret: agentward-keys
+  sessionStore:
+    redisUrl: redis://redis:6379/0
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 3
