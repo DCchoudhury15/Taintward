@@ -11,6 +11,11 @@ Measures, at payload sizes of about 100 B, 1 KB, 10 KB and 100 KB:
                         redact input, detect output, mask output, set span
                         attributes), exported to an in-memory span exporter so
                         no network time is included
+* ``tool_wrapped_cached``: the same wrapped call when the exact same payload
+                        was already seen (the detection cache is warm)
+
+The detection cache is cleared before every timed call of the other
+operations, so their numbers are for payloads the SDK has never seen.
 
 All warm numbers are taken after Presidio has been built once. The one-time
 cold init cost (imports + building the analyzer + first call) is measured in
@@ -181,6 +186,7 @@ def main() -> None:
     ap.add_argument("--cold-runs", type=int, default=3)
     ap.add_argument("--quick", action="store_true", help="small budget for a smoke run")
     ap.add_argument("--out-dir", default=str(ROOT / "bench" / "results"))
+    ap.add_argument("--name", default="latency", help="output file name (without extension)")
     args = ap.parse_args()
     budget = 1.0 if args.quick else args.budget
 
@@ -207,9 +213,15 @@ def main() -> None:
 
     wrapped = instr.instrument_tool("bench.echo", destination=instr.DEST_EXTERNAL, tracer=tracer)(echo)
 
+    clear = getattr(detect, "clear_cache", lambda: None)  # older detect.py had no cache
+
     def reset():
         exporter.clear()
         instr.end_run()  # drop the taint frames the wrapper attaches between calls
+
+    def reset_cold():
+        reset()
+        clear()
 
     detect.detect_text("warm up")
     redact_payload({"x": "warm up 536-22-8491"}, instr.DEST_EXTERNAL)
@@ -227,14 +239,20 @@ def main() -> None:
             "redact_payload": lambda: redact_payload(payload, instr.DEST_EXTERNAL),
             "tool_unwrapped": lambda: echo(payload),
             "tool_wrapped": lambda: wrapped(payload),
+            "tool_wrapped_cached": lambda: wrapped(payload),
         }
         results[label] = {"payload_bytes": nbytes, "text_chars": len(text),
                           "leaf_values": sum(len(r) for r in payload)}
         for op, fn in ops.items():
             heavy = op != "tool_unwrapped"
+            if op == "tool_wrapped_cached":
+                fn()  # see the payload once, so every timed call is a cache hit
+                after = reset
+            else:
+                after = reset_cold if heavy else None
+                clear()
             times = bench(fn, budget_s=budget, min_iter=3 if heavy else 1000,
-                          max_iter=400 if heavy else 100_000,
-                          after=reset if op == "tool_wrapped" else None)
+                          max_iter=400 if heavy else 100_000, after=after)
             results[label][op] = summarize(times, len(text) if op == "detect_text" else nbytes)
             print(f"{label:>6} {op:<15} n={len(times):<6} p50={results[label][op]['p50_ms']:.3f}ms "
                   f"p99={results[label][op]['p99_ms']:.3f}ms", flush=True)
@@ -244,9 +262,9 @@ def main() -> None:
     res = {"machine": machine_info(), "budget_s": budget, "cold_init": cold, "warm": results}
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "latency.json").write_text(json.dumps(res, indent=2) + "\n")
+    (out / f"{args.name}.json").write_text(json.dumps(res, indent=2) + "\n")
     md_text = to_markdown(res)
-    (out / "latency.md").write_text(md_text)
+    (out / f"{args.name}.md").write_text(md_text)
     print(md_text)
 
 
@@ -267,7 +285,10 @@ def to_markdown(res: dict) -> str:
          "| size | operation | n | p50 ms | p95 ms | p99 ms | calls/s | KB/s |",
          "|---|---|---:|---:|---:|---:|---:|---:|"]
     for label, r in res["warm"].items():
-        for op in ["detect_mapping", "detect_text", "redact_payload", "tool_unwrapped", "tool_wrapped"]:
+        for op in ["detect_mapping", "detect_text", "redact_payload", "tool_unwrapped", "tool_wrapped",
+                   "tool_wrapped_cached"]:
+            if op not in r:
+                continue
             s = r[op]
             L.append(f"| {label} | {op} | {s['n']} | {s['p50_ms']:.3f} | {s['p95_ms']:.3f} | "
                      f"{s['p99_ms']:.3f} | {s['calls_per_s']:.1f} | {s['kb_per_s']:.1f} |")

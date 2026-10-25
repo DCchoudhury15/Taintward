@@ -5,21 +5,43 @@ how much sensitive data it finds, how often it raises a false alarm, and how
 much time it adds to every tool call. Everything here can be re-run from the
 `bench/` folder.
 
+Two rounds of work are recorded here. Round 1 added JWT and private key
+recognizers. Round 2 (the "fast path") fixed the two problems round 1 found:
+detection was far too slow, and half of all clean payloads were flagged.
+
+## Summary
+
+| | before round 2 | after round 2 |
+|---|---:|---:|
+| false alarm rate on hard negatives (payload mode) | 0.52 | **0.00** |
+| example-level recall (payload mode) | 0.94 | 0.94 |
+| span precision, strict | 0.42 | **0.96** |
+| span recall, strict | 0.85 | **0.94** |
+| wrapped tool call, 1 KB, p50 | 518 ms | **8.4 ms** |
+| wrapped tool call, 1 KB, p99 | 690 ms | **11.6 ms** |
+| wrapped tool call, 10 KB, p50 | 4,067 ms | **38 ms** |
+| wrapped tool call, 100 KB, p50 | 43,938 ms | **355 ms** |
+
+The target for the 1 KB wrapped call was p99 under 10 ms. It is close but
+not quite met on this laptop: p50 is 5 to 8 ms and p95 is under 10 ms, but
+p99 is 11 to 12 ms across runs (see "Noise" below).
+
 ## How to reproduce
 
 ```bash
 source .venv/bin/activate
 python bench/make_dataset.py              # writes bench/data/detection.jsonl (seed 1337)
 python bench/run_detection.py --label current
-python bench/run_latency.py               # about 7 minutes on the machine below
+python bench/run_latency.py               # about 2 minutes now (was about 7)
 ```
 
-Results land in `bench/results/` as JSON plus a markdown table. The files
-committed today are:
+Results land in `bench/results/` as JSON plus a markdown table:
 
-* `detection_baseline.*`: detect.py before this change
-* `detection_after_extra_recognizers.*`: with the new JWT and private key recognizers
-* `latency.*`: the timing run (taken with the new recognizers in place)
+* `detection_baseline.*`: detect.py before round 1
+* `detection_after_extra_recognizers.*`: after round 1 (this is "before" for round 2)
+* `detection_after_fast_path.*`: after round 2
+* `latency_before_fast_path.*`: timing run after round 1 (before round 2)
+* `latency.*`: timing run after round 2
 
 ## Machine
 
@@ -33,6 +55,14 @@ committed today are:
 
 All timing is single-threaded. Laptop numbers are noisy (turbo, thermal), so
 treat them as "order of magnitude" figures, not exact ones.
+
+**Noise.** The round 2 timing runs were taken while other jobs (load tests of
+the collector and gateway) were running on the same laptop, with a load
+average of 1 to 4. A re-run of the old code under that load was about 30%
+slower than its original run, so the "before" column uses the original, quieter
+run. The "after" numbers moved by up to 2x between runs at different load; the
+table uses a run started at a load average of 1.3. Treat a 1 KB p99 of "about
+10 ms" as the honest figure.
 
 ## The dataset
 
@@ -52,65 +82,85 @@ for cards, mod-97 for IBANs).
 Every example is wrapped in one of five shapes an agent's tool I/O really has:
 JSON payload, chat message, log line, email, code or config file.
 
+**Caveat.** There is no held-out set. The new rules in round 2 (street
+address pattern, SSN context words, key names for secrets) were written while
+looking at the false negatives on this same dataset. They are general rules,
+not lists of the dataset's values, but real data will score lower than this
+page shows. A second, independently written dataset would be the next step.
+
 ## How it is scored
 
 * **Span match:** a detection counts if its character span overlaps a labeled
-  span. "Strict" also needs the type to match (Presidio's `LOCATION` counts as
-  an address). "Any type" accepts any overlapping detection, because for taint
-  an SSN flagged as some other PII type still taints the chain.
+  span. "Strict" also needs the type to match (Presidio's `LOCATION` and the new
+  `STREET_ADDRESS` count as an address). "Any type" accepts any overlapping
+  detection, because for taint an SSN flagged as some other PII type still
+  taints the chain.
 * **Example level:** "did detection flag anything in this example?" This is
   what decides taint in `instrument_tool`. It is measured on the raw text and
   in "payload" mode, where JSON examples are parsed and walked with
   `detect_mapping` the way the SDK does it.
-* Precision counts every detection that `detect_text` returns, including types
-  outside the 12 classes (`DATE_TIME`, `ORGANIZATION`, `URL`), because
-  `detect.py` treats all of them as PII and they all taint the chain.
+* Precision counts every sensitive detection that `detect_text` returns. Before
+  round 2 that included `DATE_TIME`, `ORGANIZATION` and `URL`, because they
+  tainted the chain. After round 2 they are not sensitive by default, so they
+  are no longer returned (see below).
 
 ## Detection results
 
-Per class, strict span match. "Before" is detect.py as it was; "after" adds the
-two new recognizers described below. Classes not listed with a change were the
-same before and after.
+Per class, strict span match, before and after round 2:
 
-| class | labels | precision | recall | F1 | recall (any type) |
+| class | labels | precision before | precision after | recall before | recall after |
 |---|---:|---:|---:|---:|---:|
-| US_SSN | 43 | 1.00 | 0.65 | 0.79 | 0.81 |
+| US_SSN | 43 | 1.00 | 1.00 | 0.65 | **0.81** |
 | EMAIL | 47 | 1.00 | 1.00 | 1.00 | 1.00 |
-| PHONE | 36 | 0.97 | 0.81 | 0.88 | 0.86 |
-| CREDIT_CARD | 42 | 1.00 | 0.81 | 0.89 | 0.90 |
+| PHONE | 36 | 0.97 | 0.97 | 0.81 | **0.97** |
+| CREDIT_CARD | 42 | 1.00 | 1.00 | 0.81 | **0.90** |
 | IBAN | 20 | 1.00 | 1.00 | 1.00 | 1.00 |
-| PERSON | 36 | 0.44 | 0.94 | 0.60 | 0.94 |
-| ADDRESS | 28 | 0.87 | 0.68 | 0.76 | 0.96 |
-| AWS_ACCESS_KEY | 26 | 1.00 | 0.85 | 0.92 | 0.88 |
-| GITHUB_TOKEN | 22 | 1.00 | 0.77 | 0.87 | 0.86 |
-| GENERIC_API_KEY | 20 | 0.46 | 0.80 | 0.58 | 0.80 |
-| JWT (before) | 20 | - | 0.00 | 0.00 | 0.75 |
-| **JWT (after)** | 20 | **1.00** | **1.00** | **1.00** | 1.00 |
-| PRIVATE_KEY (before) | 20 | - | 0.00 | 0.00 | 0.50 |
-| **PRIVATE_KEY (after)** | 20 | **1.00** | **1.00** | **1.00** | 1.00 |
-| overall strict, before | 360 | 0.39 | 0.74 | 0.51 | |
-| **overall strict, after** | 360 | **0.42** | **0.85** | **0.57** | |
-| overall any type, before | 360 | 0.70 | 0.88 | 0.78 | |
-| **overall any type, after** | 360 | **0.72** | **0.92** | **0.81** | |
+| PERSON | 36 | 0.44 | **0.76** | 0.94 | 0.94 |
+| ADDRESS | 28 | 0.87 | **0.96** | 0.68 | **1.00** |
+| AWS_ACCESS_KEY | 26 | 1.00 | 1.00 | 0.85 | 0.85 |
+| GITHUB_TOKEN | 22 | 1.00 | 1.00 | 0.77 | **1.00** |
+| GENERIC_API_KEY | 20 | 0.46 | **1.00** | 0.80 | **0.95** |
+| JWT | 20 | 1.00 | 1.00 | 1.00 | 1.00 |
+| PRIVATE_KEY | 20 | 1.00 | 1.00 | 1.00 | 1.00 |
+| **overall, strict** | 360 | 0.42 | **0.96** | 0.85 | **0.94** |
+| **overall, any type** | 360 | 0.72 | **0.99** | 0.92 | **0.94** |
 
-Example level ("was anything flagged?"), after the change:
+Example level ("was anything flagged?"):
 
-| mode | precision | recall | F1 | false alarm rate on hard negatives |
-|---|---:|---:|---:|---:|
-| raw text | 0.85 | 0.93 | 0.89 | **0.48** |
-| payload (`detect_mapping`, what the SDK runs) | 0.84 | 0.94 | 0.88 | **0.52** |
+| mode | precision before | precision after | recall before | recall after | false alarms before | false alarms after |
+|---|---:|---:|---:|---:|---:|---:|
+| raw text | 0.85 | **1.00** | 0.93 | **0.94** | 0.48 | **0.00** |
+| payload (`detect_mapping`) | 0.84 | **1.00** | 0.94 | 0.94 | 0.52 | **0.00** |
 
-Before the change the example-level recall was 0.91 (text) and 0.91 (payload)
-with the same false alarm rates.
+All 108 hard negatives are now clean: none of the order IDs, UUIDs,
+timestamps, versions, SHAs, zip codes, random 9-digit numbers, base64 blobs or
+hex hashes is flagged.
 
-Evasion cases (any-type hit rate, after):
+Evasion cases (any-type hit rate):
 
-| evasion | caught |
-|---|---:|
-| fullwidth digits | 12/12 |
-| zero-width characters | 12/12 |
-| spaced-out digits | 7/12 |
-| split across JSON fields | 6/12 (and only through unrelated noise hits, see below) |
+| evasion | before | after |
+|---|---:|---:|
+| fullwidth digits | 12/12 | 12/12 |
+| zero-width characters | 12/12 | 12/12 |
+| spaced-out digits | 7/12 | **12/12** |
+| split across JSON fields | 6/12 (noise hits only) | 0/12 |
+
+The split-field number went down, but the 6 "hits" before were all
+`DATE_TIME` or `ORGANIZATION` noise on a fragment, not real catches. This
+case is still not handled (see "Still weak").
+
+### What the recall change hides
+
+Example-level recall stayed at 0.94 in payload mode, but what makes it up
+changed. 8 positives that used to be "caught" only through noise (a
+`DATE_TIME` hit on the integer ID next to the real value) are no longer
+flagged: 2 plain 9-digit SSNs with no SSN word nearby (`member_ref`,
+"Please verify ..."), and 6 split-field cases. In exchange 18 positives that
+were missed or only caught through noise are now caught for the right
+reason (plain SSNs next to `ssn`/"social security"/`tax_id`, `github_pat_`
+tokens, `sk_live_` keys, spaced digits, phones under a `tel` key, full
+street addresses). So the taint signal is much more trustworthy at the same
+recall.
 
 ## Latency results
 
@@ -120,131 +170,178 @@ about the given size. `detect_text` runs on one plain string of the same size.
 The wrapped tool is an echo tool under `@instrument_tool(destination="external")`,
 exporting to an in-memory span exporter, so there is no network time.
 
-Cold init (median of 3 fresh processes): import 0.96 s, building the analyzer
-0.32 s, first call 0.14 s, **1.43 s total** (with a warm OS file cache; a truly
-cold disk is slower).
+Round 2 adds a detection cache. To keep the numbers honest, the cache is
+cleared before every timed call, so every row is for a payload the SDK has
+never seen. The extra row "wrapped, same payload again" shows the cost when
+the exact payload was seen before (cache hit).
 
-| size | operation | p50 ms | p95 ms | p99 ms | calls/s |
+| size | operation | p50 before | p50 after | p99 before | p99 after |
 |---|---|---:|---:|---:|---:|
-| 100 B | detect_mapping | 8.2 | 9.2 | 9.9 | 119 |
-| 100 B | detect_text | 5.1 | 6.2 | 10.7 | 188 |
-| 100 B | redact_payload | 5.6 | 6.2 | 7.0 | 177 |
-| 100 B | **wrapped tool** | **31.1** | 45.2 | **57.1** | 29 |
-| 1 KB | detect_mapping | 166 | 188 | 211 | 6.2 |
-| 1 KB | detect_text | 27 | 37 | 45 | 34 |
-| 1 KB | redact_payload | 101 | 112 | 122 | 9.7 |
-| 1 KB | **wrapped tool** | **518** | 646 | **690** | 1.9 |
-| 10 KB | detect_mapping | 1,354 | 1,603 | 1,624 | 0.7 |
-| 10 KB | detect_text | 419 | 472 | 477 | 2.5 |
-| 10 KB | redact_payload | 949 | 1,233 | 1,234 | 1.0 |
-| 10 KB | **wrapped tool** | **4,067** | 4,166 | **4,174** | 0.2 |
-| 100 KB | detect_mapping | 12,166 | 12,289 | 12,300 | 0.08 |
-| 100 KB | detect_text | 13,883 | 14,048 | 14,063 | 0.07 |
-| 100 KB | redact_payload | 10,579 | 11,755 | 11,859 | 0.09 |
-| 100 KB | **wrapped tool** | **43,938** | 46,899 | **47,162** | 0.02 |
+| 100 B | detect_mapping | 8.2 | 3.4 | 9.9 | 6.5 |
+| 100 B | detect_text | 5.1 | 5.6 | 10.7 | 9.2 |
+| 100 B | redact_payload | 5.6 | 2.6 | 7.0 | 4.1 |
+| 100 B | **wrapped tool** | **31.1** | **2.8** | **57.1** | **5.8** |
+| 100 B | wrapped, same payload again | | 0.16 | | 0.29 |
+| 1 KB | detect_mapping | 166 | 5.6 | 211 | 8.8 |
+| 1 KB | detect_text | 27 | 15 | 45 | 28 |
+| 1 KB | redact_payload | 101 | 30 | 122 | 48 |
+| 1 KB | **wrapped tool** | **518** | **8.4** | **690** | **11.6** |
+| 1 KB | wrapped, same payload again | | 0.81 | | 1.5 |
+| 10 KB | detect_mapping | 1,354 | 32 | 1,624 | 47 |
+| 10 KB | detect_text | 419 | 128 | 477 | 182 |
+| 10 KB | redact_payload | 949 | 164 | 1,234 | 209 |
+| 10 KB | **wrapped tool** | **4,067** | **38** | **4,174** | **61** |
+| 10 KB | wrapped, same payload again | | 4.3 | | 6.1 |
+| 100 KB | detect_mapping | 12,166 | 405 | 12,300 | 602 |
+| 100 KB | detect_text | 13,883 | 1,629 | 14,063 | 1,805 |
+| 100 KB | redact_payload | 10,579 | 396 | 11,859 | 453 |
+| 100 KB | **wrapped tool** | **43,938** | **355** | **47,162** | **432** |
+| 100 KB | wrapped, same payload again | | 51 | | 98 |
 
-The unwrapped echo tool takes about 0.0001 ms, so the overhead column is the
-wrapped number itself. The 10 KB and 100 KB rows have only 3 to 21 samples
-each, so their p95/p99 are rough.
+All times in ms. Cold init (median of 3 fresh processes) is about the same as
+before: 0.9 s to 1.7 s depending on load, most of it importing Presidio and
+loading the spaCy model.
 
-## What is weak
+Growth with size is now roughly linear for the wrapped call: about 10x time
+for 10x data from 1 KB up (8.4, 38, 355 ms). Before it was 518 ms, 4 s, 44 s.
 
-1. **Too many false alarms.** Half of the hard negatives (48% raw, 52% as
-   payloads) get flagged, so in practice almost every chain becomes tainted.
-   The cause is not the 12 target classes: it is Presidio's `DATE_TIME`
-   (190 hits, most on timestamps, zip codes and plain integer IDs like
-   `"id": 96930`), `ORGANIZATION` (77 hits on UUIDs, SHAs, order IDs) and `URL`
-   (80 hits, mostly the domain inside an email). `detect.py` treats all of them
-   as PII. Taint that fires on everything carries no signal.
-2. **The SDK is slow on anything bigger than a short string.** Each
-   `detect_text` call has a fixed cost of about 4 to 5 ms (spaCy plus about 30
-   recognizers), and `detect_mapping` pays it once per leaf value. A wrapped
-   tool runs detection four times (input detect, input redact, output detect,
-   output mask), so a 1 KB result costs about half a second and a 10 KB result
-   about 4 seconds. Long strings are worse than linear: 10 KB of text takes
-   0.42 s but 100 KB takes 13.9 s. Profiling a 50 KB string showed spaCy itself
-   is under 1 s of a 9 s call; the rest is Presidio's `remove_duplicates`
-   (quadratic in the number of hits) and its lemma context enhancer
-   (`_find_index_of_match_token`, hits times tokens).
-3. **SSNs without dashes are missed** (0 of 7 plain 9-digit SSNs), even when the
-   JSON key or log key is literally `ssn`, because `detect_mapping` throws keys
-   away and the context words never reach Presidio.
-4. **Fine-grained GitHub tokens (`github_pat_...`) are missed** (5 of 5). The
-   regex only knows the `ghp_`/`gho_`/... form.
-5. **Generic API keys:** precision 0.46. The pattern fires on the prefix of
-   JWTs and `github_pat_` tokens (wrong type, but at least it taints), and it
-   misses `sk_live_...`, `SECRET_KEY=...` and bare 32-char hex keys.
-6. **Person names:** recall is fine (0.94) but precision is 0.44: spaCy calls
-   order IDs, zip codes and parts of addresses a `PERSON`.
-7. **Addresses:** `LOCATION` usually finds only the city name. Something always
-   overlaps the address (0.96 any-type), but the street and number stay
-   unmasked after redaction.
-8. **Phones:** 7 of 36 missed, mostly numbers in chat text with no "phone"
-   word nearby, and Indian mobile numbers, which spaCy labels as `DATE_TIME`.
-9. **Evasion:** spaced-out digits (`5 3 6 - 2 2 - ...`) and values split across
-   JSON fields are not handled. The split-field cases that did "hit" were
-   noise detections (`DATE_TIME` on a fragment), not real catches. In payload
-   mode every fragment is scanned alone, so they are never caught.
+Two things to read carefully:
 
-Fullwidth digits and zero-width characters, which `detect.py` already
-normalizes, were caught 24 of 24.
+* `redact_payload` called on its own (outside a wrapped call) is still slower
+  than `detect_mapping`, because it looks up each string separately and, with
+  the cache cleared, each lookup is its own small detection pass. Inside a
+  wrapped call it costs almost nothing, since `detect_mapping` has already
+  found every value (see "per-call scope" below).
+* `detect_text` on one long block of prose is the slowest row. Its cost is
+  spaCy's NER, which has to read every word of text full of capitalized
+  names. That is linear but about 15 ms per KB of dense prose.
 
-## Change made in this round
+## What changed in round 2
 
-Two new recognizers in a new file, `sdk/recognizers_extra.py`, registered from
-`detect.py` (three small lines: one import, the registration loop, and adding
-the two types to the SECRET class set):
+### Speed
 
-* `JWT`: `eyJ<header>.eyJ<payload>.<signature>` in base64url.
-* `PRIVATE_KEY`: a PEM or OpenSSH `-----BEGIN ... PRIVATE KEY-----` block,
-  with or without its body and END line (so a truncated key in a log still
-  counts).
+1. **No more `AnalyzerEngine.analyze` per value.** `detect.py` now runs
+   Presidio's recognizers itself. Each pattern recognizer runs once over all
+   values of a payload joined together (with a separator no regex can cross;
+   a match that still crosses one is dropped and the recognizer re-runs on the
+   values involved). Plain pattern recognizers are run with the same regexes
+   and checksum validation, but without Presidio's per-call
+   `remove_duplicates`, which was quadratic in the number of hits.
+2. **spaCy runs only the NER step, and only where it can matter.** The tagger,
+   parser and lemmatizer are switched off (they were only used by Presidio's
+   context step). Values without a capitalized word (IDs, numbers, emails,
+   lower-case notes) skip spaCy entirely. Short values are packed into shared
+   documents (spaCy has a fixed cost per document) and long text is cut into
+   4,000-character windows with a 200-character overlap.
+3. **Cheap context words.** Presidio's lemma-based context step was replaced
+   with a regex look at the 5 words before a match, plus the value's JSON key.
+   Same boost (+0.35) and same word lists as Presidio.
+4. **The phone matcher only sees values with 7+ digits.** It was the single
+   slowest recognizer. Two recognizers that can never reach the 0.5 threshold
+   (US bank numbers at 0.05, passports at 0.1) are skipped.
+5. **Cache per value.** A bounded LRU cache (4,096 entries,
+   `AGENTWARD_DETECT_CACHE_SIZE`, 0 turns it off) maps a hash of each value to
+   its detections. The cache holds only hashes and fingerprints, never the raw
+   text.
+6. **Per-call scope.** `instrument_tool` opens a `detection_scope()` around
+   its input step and its output step. Inside it, every value is detected once
+   by `detect_mapping`; the redactor's and the masker's own `detect_text`
+   calls on the same strings reuse that answer. Before, each value was
+   detected four times per call. `sdk/redact.py` did not need to change.
 
-Both classes went from 0.00 to 1.00 recall with precision 1.00, and no new
-false alarms appeared on the hard negatives (the negative counts are
-identical before and after). All existing tests still pass.
+### False alarms
 
-## Ranked list of improvements
+7. **`DATE_TIME`, `ORGANIZATION`, `URL`, `NRP` and `MEDICAL_LICENSE` are not
+   sensitive by default.** On this dataset they made up nearly all false
+   alarms: `DATE_TIME` fired on integer IDs, zip codes and timestamps;
+   `ORGANIZATION` on UUIDs and words like "SSN"; `URL` on the domain inside
+   every email; `MEDICAL_LICENSE` on git SHAs (3 hits, 0 real). Turn any of
+   them back on with `AGENTWARD_PII_EXTRA_TYPES=DATE_TIME,URL` or
+   `detect.set_pii_types(enable=[...])`. Recognizers that only find ignored
+   types are not run at all.
+8. **Person-name clean-up.** A `PERSON` hit that contains digits or symbols
+   (`_ = @ / :` and so on) or has no capitalized word is dropped; for log lines
+   like `full_name="Lena Chen"` the name part is kept.
+9. **The generic API-key rule gives way** to a JWT, GitHub, AWS or private key
+   hit on the same characters, so one token is no longer reported twice.
 
-Ordered by how much each one moves the numbers, for the effort.
+### Misses fixed
 
-1. **Stop tainting on `DATE_TIME`, `ORGANIZATION` and `URL`** (and stop
-   defaulting unknown Presidio types to PII). Measured what-if on this
-   dataset: example-level false alarm rate drops from 0.48 to **0.09**, strict
-   span precision goes from 0.42 to **0.82**. Cost: example-level recall
-   drops from 0.93 to 0.86, because some positives were only "caught" through
-   noise. Items 3, 4 and 5 below win most of that back. The cleanest way is to
-   pass an explicit `entities=[...]` list to `analyzer.analyze`, which also
-   skips the unused recognizers and saves time.
-2. **Batch and chunk before calling Presidio.** Join a payload's leaf strings
-   into one text (with a separator, keeping an offset map, the same trick the
-   normalizer already uses) so the 4 to 5 ms fixed cost is paid once per
-   payload, not once per field. Split very long strings into windows of a few
-   KB with a small overlap to avoid the quadratic steps. Also detect once per
-   tool call and reuse the result for redaction and masking instead of four
-   separate passes. Together these should bring a 10 KB wrapped call from
-   about 4 s to well under 0.5 s.
-3. **Use JSON keys and log keys as context.** Pass the field name (`ssn`,
-   `card_number`, `phone`, `iban`) to Presidio as `context` when walking a
-   payload. This fixes plain 9-digit SSNs and phones without a nearby word.
-4. **Add `github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}`** to the GitHub token
-   recognizer (and `ASIA...` temporary AWS keys next to `AKIA`).
-5. **Widen the generic API key rule:** known prefixes (`sk_live_`, `sk_test_`,
-   `xoxb-`, ...), `Authorization: Bearer <token>`, and key names ending in
-   `_KEY` or `_SECRET`; and let JWT/GitHub matches win over it when they
-   overlap.
-6. **US street address pattern** (`<number> <words> <St|Ave|Rd|...>, <City>,
-   <ST> <zip>`) so the whole address is masked, not only the city.
-7. **Evasion:** in the normalizer, also try a copy with single spaces removed
-   between digits; in `detect_mapping`, also scan the joined values of
-   sibling fields whose keys share a prefix (`ssn_area`, `ssn_group`, ...).
-8. **Person-name precision:** require a minimum token shape (letters only,
-   capitalized) or drop `PERSON` hits inside identifier-looking tokens such as
-   `ORD-...` and hex strings.
+10. **Plain 9-digit SSN** when the JSON key or the words just before it say
+    `ssn`, "social security" or `tax_id` (and the number passes SSN area/group
+    rules). A 9-digit number with no such context is still never flagged,
+    so tracking numbers stay clean. `detect_mapping` and `instrument_tool` now
+    pass JSON keys and keyword-argument names along as context.
+11. **`github_pat_...` fine-grained tokens** and **`ASIA...` temporary AWS
+    keys**.
+12. **Generic keys:** `sk_live_` / `sk_test_` / `rk_` / `pk_` prefixes, Slack
+    `xox?-` tokens, `Bearer <token>`, and any credential-looking value (16+
+    characters with letters and digits) under a key such as `api_key`,
+    `client_secret`, `password` or `gh_token`.
+13. **Spaced-out digits** (`7 2 4 - 6 8 - 6 9 6 6`). The run is collapsed and
+    only accepted if the result passes a real check: SSN rules, a Luhn checksum
+    for cards, a valid number for phones. A plain list like "1 2 3 4 5 6 7 8 9"
+    is not flagged.
+14. **US street addresses** (`<number> <Capitalized words> <St|Ave|Rd|...>`
+    with optional unit, city, state and ZIP), as a new `STREET_ADDRESS` type,
+    so the whole address is masked and not only the city.
+
+Also fixed on the way: the offset map for non-ASCII text now folds each
+character on its own, so a character that NFKC turns into two (a ligature)
+no longer shifts every later offset.
+
+## Tradeoffs
+
+* **Not exactly Presidio any more.** The context step is a cheap copy of
+  Presidio's (same words, same boost, regex words instead of lemmas). On this
+  dataset it found everything the old one did, but a word that only matches
+  as a lemma ("calling" vs "call") can now be missed.
+* **Names in lower case or in scripts without capitals are skipped by NER.**
+  The small English spaCy model rarely found those anyway, but it is a real
+  gap for non-Latin names.
+* **Dates, organizations and URLs no longer taint.** That is the point, but a
+  team that treats a date of birth or an internal URL as sensitive must turn
+  the type back on. Turning `DATE_TIME` back on brings most of the false
+  alarms back.
+* **A value with SSN context under one key and none under another** gets the
+  stronger answer in both places inside one call (the scope keeps the union).
+  This can over-redact, never under-redact.
+* **The cache only helps repeated values.** The headline numbers are with an
+  empty cache. Agents often repeat the same values across calls (a customer
+  record read and then written), and then the cost drops by about 10x.
+
+## Still weak
+
+1. **Values split across JSON fields** (`ssn_area`/`ssn_group`/`ssn_serial`,
+   a card in four parts, an AWS key in two halves): 0 of 12. Joining sibling
+   fields whose keys share a prefix would catch most of them.
+2. **Plain 9-digit SSNs with no SSN word** (`member_ref: "547915995"`,
+   "Please verify 259213629"): 3 of 7 still missed. Without context they look
+   exactly like tracking numbers, and flagging all 9-digit numbers would bring
+   back the false alarms.
+3. **Bare 32-character hex API keys** without a key name: indistinguishable
+   from hex hashes.
+4. **Person names:** 2 names in JSON rows are missed by the small spaCy model,
+   and capitalized words at the start of a line ("Cookie:", "Push") are
+   sometimes called a person.
+5. **1 KB p99** is about 11 ms here, a bit over the 10 ms target. Most of the
+   remaining time is spaCy NER on the name fields and the per-recognizer
+   Python overhead.
 
 ## Regression guard
 
-`tests/test_bench_smoke.py` runs detection on 18 fixed positive examples and 3
-hard negatives and fails if recall on US SSN, AWS access key, email, JWT or
-private key drops below the measured baseline (all 1.00 on those examples),
-or if a UUID, git SHA or version number gets flagged as an SSN or a secret.
+* `tests/test_bench_smoke.py` runs detection on 25 fixed positive examples and
+  7 hard negatives. It fails if recall on US SSN (including plain and spaced
+  ones), AWS key, email, JWT, private key, GitHub token, address or credit card
+  drops below 1.00 on those examples, or if any hard negative gets flagged at
+  all. When `bench/data/detection.jsonl` is present it also runs the full
+  benchmark and fails if payload recall drops below 0.94, payload precision
+  below 1.00, strict span precision below 0.96, strict span recall below 0.94,
+  or the false alarm rate goes above 0.00.
+* `tests/test_detect_latency.py` times 15 wrapped calls on the 1 KB payload
+  with the cache cleared and fails if the median is over 50 ms (5 to 10x what
+  this laptop measures, so a slow CI runner still passes). Set
+  `AGENTWARD_SKIP_LATENCY_TEST=1` to skip it, or `AGENTWARD_LATENCY_BOUND_MS`
+  to change the bound.
+* `tests/test_detect_fast.py` covers each new rule, the ignored types, the
+  cache, the per-call scope and offset mapping.

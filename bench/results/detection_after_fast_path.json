@@ -1,0 +1,533 @@
+{
+  "n_examples": 420,
+  "n_entities": 360,
+  "seconds": 1.86,
+  "per_class": {
+    "US_SSN": {
+      "precision": 1.0,
+      "recall": 0.813953488372093,
+      "f1": 0.8974358974358974,
+      "n_pred": 35,
+      "n_gold": 43,
+      "tp_pred": 35,
+      "tp_gold": 35,
+      "recall_any_type": 0.813953488372093
+    },
+    "EMAIL": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_pred": 47,
+      "n_gold": 47,
+      "tp_pred": 47,
+      "tp_gold": 47,
+      "recall_any_type": 1.0
+    },
+    "PHONE": {
+      "precision": 0.9722222222222222,
+      "recall": 0.9722222222222222,
+      "f1": 0.9722222222222222,
+      "n_pred": 36,
+      "n_gold": 36,
+      "tp_pred": 35,
+      "tp_gold": 35,
+      "recall_any_type": 0.9722222222222222
+    },
+    "CREDIT_CARD": {
+      "precision": 1.0,
+      "recall": 0.9047619047619048,
+      "f1": 0.9500000000000001,
+      "n_pred": 38,
+      "n_gold": 42,
+      "tp_pred": 38,
+      "tp_gold": 38,
+      "recall_any_type": 0.9047619047619048
+    },
+    "IBAN": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_pred": 20,
+      "n_gold": 20,
+      "tp_pred": 20,
+      "tp_gold": 20,
+      "recall_any_type": 1.0
+    },
+    "PERSON": {
+      "precision": 0.7555555555555555,
+      "recall": 0.9444444444444444,
+      "f1": 0.8395061728395062,
+      "n_pred": 45,
+      "n_gold": 36,
+      "tp_pred": 34,
+      "tp_gold": 34,
+      "recall_any_type": 0.9444444444444444
+    },
+    "ADDRESS": {
+      "precision": 0.9583333333333334,
+      "recall": 1.0,
+      "f1": 0.9787234042553191,
+      "n_pred": 48,
+      "n_gold": 28,
+      "tp_pred": 46,
+      "tp_gold": 28,
+      "recall_any_type": 1.0
+    },
+    "AWS_ACCESS_KEY": {
+      "precision": 1.0,
+      "recall": 0.8461538461538461,
+      "f1": 0.9166666666666666,
+      "n_pred": 22,
+      "n_gold": 26,
+      "tp_pred": 22,
+      "tp_gold": 22,
+      "recall_any_type": 0.8461538461538461
+    },
+    "GITHUB_TOKEN": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_pred": 22,
+      "n_gold": 22,
+      "tp_pred": 22,
+      "tp_gold": 22,
+      "recall_any_type": 1.0
+    },
+    "GENERIC_API_KEY": {
+      "precision": 1.0,
+      "recall": 0.95,
+      "f1": 0.9743589743589743,
+      "n_pred": 25,
+      "n_gold": 20,
+      "tp_pred": 25,
+      "tp_gold": 19,
+      "recall_any_type": 0.95
+    },
+    "JWT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_pred": 20,
+      "n_gold": 20,
+      "tp_pred": 20,
+      "tp_gold": 20,
+      "recall_any_type": 1.0
+    },
+    "PRIVATE_KEY": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_pred": 20,
+      "n_gold": 20,
+      "tp_pred": 20,
+      "tp_gold": 20,
+      "recall_any_type": 1.0
+    }
+  },
+  "other_detector_types": {},
+  "overall_strict": {
+    "precision": 0.9629629629629629,
+    "recall": 0.9444444444444444,
+    "f1": 0.95361380798274,
+    "n_pred": 378,
+    "n_gold": 360,
+    "tp_pred": 364,
+    "tp_gold": 340
+  },
+  "overall_any_type": {
+    "precision": 0.9894179894179894,
+    "recall": 0.9444444444444444,
+    "f1": 0.96640826873385,
+    "n_pred": 378,
+    "n_gold": 360,
+    "tp_pred": 374,
+    "tp_gold": 340
+  },
+  "binary": {
+    "text": {
+      "precision": 1.0,
+      "recall": 0.9423076923076923,
+      "f1": 0.9702970297029703,
+      "false_alarm_rate": 0.0,
+      "tp": 294,
+      "fp": 0,
+      "fn": 18,
+      "tn": 108
+    },
+    "payload": {
+      "precision": 1.0,
+      "recall": 0.9423076923076923,
+      "f1": 0.9702970297029703,
+      "false_alarm_rate": 0.0,
+      "tp": 294,
+      "fp": 0,
+      "fn": 18,
+      "tn": 108
+    },
+    "correct_span": {
+      "precision": 1.0,
+      "recall": 0.9423076923076923,
+      "f1": 0.9702970297029703,
+      "false_alarm_rate": 0.0,
+      "tp": 294,
+      "fp": 0,
+      "fn": 18,
+      "tn": 108
+    }
+  },
+  "per_tag": {
+    "ADDRESS": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "AWS_ACCESS_KEY": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "CREDIT_CARD": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "EMAIL": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "GENERIC_API_KEY": {
+      "examples": 20,
+      "flagged": 19,
+      "gold": 20,
+      "gold_hit": 19
+    },
+    "GITHUB_TOKEN": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "IBAN": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "JWT": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "PERSON": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "PHONE": {
+      "examples": 20,
+      "flagged": 19,
+      "gold": 20,
+      "gold_hit": 19
+    },
+    "PRIVATE_KEY": {
+      "examples": 20,
+      "flagged": 20,
+      "gold": 20,
+      "gold_hit": 20
+    },
+    "US_SSN": {
+      "examples": 20,
+      "flagged": 16,
+      "gold": 20,
+      "gold_hit": 16
+    },
+    "evasion:fullwidth": {
+      "examples": 12,
+      "flagged": 12,
+      "gold": 12,
+      "gold_hit": 12
+    },
+    "evasion:spaced": {
+      "examples": 12,
+      "flagged": 12,
+      "gold": 12,
+      "gold_hit": 12
+    },
+    "evasion:split_json": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 12,
+      "gold_hit": 0
+    },
+    "evasion:zero_width": {
+      "examples": 12,
+      "flagged": 12,
+      "gold": 12,
+      "gold_hit": 12
+    },
+    "multi": {
+      "examples": 24,
+      "flagged": 24,
+      "gold": 72,
+      "gold_hit": 70
+    },
+    "neg:b64_blob": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:git_sha": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:hex_hash": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:nine_digits": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:order_id": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:timestamp": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:uuid": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:version": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    },
+    "neg:zip_code": {
+      "examples": 12,
+      "flagged": 0,
+      "gold": 0,
+      "gold_hit": 0
+    }
+  },
+  "false_negatives": [
+    {
+      "id": "ex-0001",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "json",
+      "value": "547915995",
+      "found_as": []
+    },
+    {
+      "id": "ex-0010",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "code",
+      "value": "772845778",
+      "found_as": []
+    },
+    {
+      "id": "ex-0014",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "email",
+      "value": "259213629",
+      "found_as": []
+    },
+    {
+      "id": "ex-0015",
+      "class": "US_SSN",
+      "tag": "US_SSN",
+      "format": "code",
+      "value": "428217688",
+      "found_as": []
+    },
+    {
+      "id": "ex-0409",
+      "class": "US_SSN",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "886\", \"ssn_group\": \"02\", \"ssn_serial\": \"6183",
+      "found_as": []
+    },
+    {
+      "id": "ex-0412",
+      "class": "US_SSN",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "303\", \"ssn_group\": \"94\", \"ssn_serial\": \"6524",
+      "found_as": []
+    },
+    {
+      "id": "ex-0415",
+      "class": "US_SSN",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "615\", \"ssn_group\": \"31\", \"ssn_serial\": \"4665",
+      "found_as": []
+    },
+    {
+      "id": "ex-0418",
+      "class": "US_SSN",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "750\", \"ssn_group\": \"07\", \"ssn_serial\": \"2156",
+      "found_as": []
+    },
+    {
+      "id": "ex-0411",
+      "class": "AWS_ACCESS_KEY",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "AKIAELZZRP\", \"key_suffix\": \"L27XYZQGUF",
+      "found_as": []
+    },
+    {
+      "id": "ex-0414",
+      "class": "AWS_ACCESS_KEY",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "AKIAWZTPF4\", \"key_suffix\": \"YERDGIPEUF",
+      "found_as": []
+    },
+    {
+      "id": "ex-0417",
+      "class": "AWS_ACCESS_KEY",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "AKIA2U3UOP\", \"key_suffix\": \"OATA2QTHPI",
+      "found_as": []
+    },
+    {
+      "id": "ex-0420",
+      "class": "AWS_ACCESS_KEY",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "AKIA43OBIU\", \"key_suffix\": \"65GA7XS3E3",
+      "found_as": []
+    },
+    {
+      "id": "ex-0410",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "4757\", \"3361\", \"8319\", \"5994",
+      "found_as": []
+    },
+    {
+      "id": "ex-0413",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "4999\", \"5857\", \"7064\", \"6003",
+      "found_as": []
+    },
+    {
+      "id": "ex-0416",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "4943\", \"0075\", \"3705\", \"5953",
+      "found_as": []
+    },
+    {
+      "id": "ex-0419",
+      "class": "CREDIT_CARD",
+      "tag": "evasion:split_json",
+      "format": "json",
+      "value": "4357\", \"3910\", \"2051\", \"8274",
+      "found_as": []
+    },
+    {
+      "id": "ex-0244",
+      "class": "PERSON",
+      "tag": "multi",
+      "format": "json",
+      "value": "Noah Cohen",
+      "found_as": []
+    },
+    {
+      "id": "ex-0253",
+      "class": "PERSON",
+      "tag": "multi",
+      "format": "json",
+      "value": "Kenji Rossi",
+      "found_as": []
+    },
+    {
+      "id": "ex-0187",
+      "class": "GENERIC_API_KEY",
+      "tag": "GENERIC_API_KEY",
+      "format": "chat",
+      "value": "cdf523d2fc7c2eb7041c77dbef46326f",
+      "found_as": []
+    },
+    {
+      "id": "ex-0047",
+      "class": "PHONE",
+      "tag": "PHONE",
+      "format": "chat",
+      "value": "(713) 865-7130",
+      "found_as": []
+    }
+  ],
+  "false_positives": [
+    {
+      "id": "ex-0169",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "GITHUB_TOKEN",
+      "format": "email",
+      "matched_text": "Push"
+    },
+    {
+      "id": "ex-0202",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "chat",
+      "matched_text": "Cookie"
+    },
+    {
+      "id": "ex-0209",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "email",
+      "matched_text": "Cookie"
+    },
+    {
+      "id": "ex-0219",
+      "predicted": "PERSON",
+      "score": 0.85,
+      "tag": "JWT",
+      "format": "email",
+      "matched_text": "Cookie"
+    }
+  ],
+  "label": "after_fast_path"
+}
