@@ -17,6 +17,13 @@ Use the protected OpenAI client with the OpenAI Agents SDK too
 ``OpenAIChatCompletionsModel(openai_client=client)``) so the agent's own model
 calls are redacted.
 
+With placeholders on (the default), the request carries stable placeholders
+(``<PERSON_1>``, ``<SSN_1>``) instead of masks, and the response object is
+restored in place before it is returned: message text, tool call arguments
+(OpenAI JSON strings, Anthropic ``tool_use.input``) and Responses API output
+items get the real values back. The span keeps the placeholder version.
+Streamed responses are not restored (see docs/integrations.md).
+
 The patch is applied to one client object only. Other clients, and the
 ``with_raw_response`` / ``with_streaming_response`` helpers, are not covered.
 """
@@ -32,7 +39,7 @@ from opentelemetry import trace
 from sdk.destinations import DEST_LLM
 from sdk.instrumentation import GuardedCall
 from sdk.integrations import Ward, _resolve
-from sdk.integrations._payload import redact_structure, to_plain
+from sdk.integrations._payload import structure_redactor, to_plain
 
 _PATCHED_MARK = "__agentward_patched__"
 
@@ -77,7 +84,7 @@ def _usage_attrs(span, resp: Any) -> None:
 
 
 def _guard_request(provider: str, system: str, fields: tuple[str, ...],
-                   kwargs: dict, ward: Ward) -> GuardedCall:
+                   kwargs: dict, ward: Ward, pmap=None) -> GuardedCall:
     model = str(kwargs.get("model", ""))
     content = {k: kwargs[k] for k in fields if k in kwargs}
     return GuardedCall(
@@ -86,7 +93,7 @@ def _guard_request(provider: str, system: str, fields: tuple[str, ...],
         jurisdiction=ward.llm_jurisdiction,
         tracer=ward.tracer,
         kwargs=content,
-        redact=redact_structure,
+        redact=structure_redactor(pmap),
         input_attr="gen_ai.input.messages",
         output_attr="gen_ai.output.messages",
         input_view=lambda _a, kw: kw,
@@ -104,27 +111,33 @@ def _wrap_create(original: Callable, provider: str, system: str,
                  fields: tuple[str, ...], ward: Ward) -> Callable:
     is_async = inspect.iscoroutinefunction(inspect.unwrap(original))
 
-    def finish(call: GuardedCall, kwargs: dict, resp: Any) -> None:
+    def finish(call: GuardedCall, kwargs: dict, resp: Any, pmap) -> Any:
         if kwargs.get("stream"):
-            return  # streamed output is not inspected; the request still was
+            return resp  # streamed output is not inspected; the request still was
+        # Record first: the span keeps the placeholder version of the answer.
         call.record_result(resp, view=_output_view(provider, resp))
         _usage_attrs(call.span, resp)
+        if pmap is not None and len(pmap):
+            resp = pmap.restore_inplace(resp)
+        return resp
 
     if is_async:
         @functools.wraps(original)
         async def acreate(*args, **kwargs):
-            with _guard_request(provider, system, fields, kwargs, ward) as call:
+            pmap = ward.llm_placeholder_map()
+            with _guard_request(provider, system, fields, kwargs, ward, pmap) as call:
                 resp = await original(*args, **{**kwargs, **call.kwargs})
-                finish(call, kwargs, resp)
+                resp = finish(call, kwargs, resp, pmap)
             return resp
         setattr(acreate, _PATCHED_MARK, True)
         return acreate
 
     @functools.wraps(original)
     def create(*args, **kwargs):
-        with _guard_request(provider, system, fields, kwargs, ward) as call:
+        pmap = ward.llm_placeholder_map()
+        with _guard_request(provider, system, fields, kwargs, ward, pmap) as call:
             resp = original(*args, **{**kwargs, **call.kwargs})
-            finish(call, kwargs, resp)
+            resp = finish(call, kwargs, resp, pmap)
         return resp
     setattr(create, _PATCHED_MARK, True)
     return create

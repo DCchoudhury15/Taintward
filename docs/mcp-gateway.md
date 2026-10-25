@@ -6,8 +6,16 @@ server. The gateway checks every tool call against the AgentWard policy and
 then forwards it. The agent code does not change.
 
 ```
-agent (MCP client)  --stdio-->  python -m gateway  --stdio or HTTP-->  upstream MCP server(s)
+agent (MCP client)  --stdio or HTTP-->  python -m gateway  --stdio or HTTP-->  upstream MCP server(s)
 ```
+
+The gateway can serve its clients in two ways:
+
+- **stdio** (default): the client starts the gateway as a local command.
+  One process is one session.
+- **streamable HTTP** (`--listen HOST:PORT`): the gateway runs as a network
+  service, and you can run several replicas behind a load balancer. See
+  [Serving over HTTP](#serving-over-http).
 
 ## What it does on each tool call
 
@@ -18,7 +26,8 @@ agent (MCP client)  --stdio-->  python -m gateway  --stdio or HTTP-->  upstream 
 3. Updates the session taint. Once any argument or result in this session
    was sensitive, every later call in the session counts as tainted. This
    is the gateway version of the SDK's baggage chain taint: the agent has
-   seen sensitive data, so anything it sends next may carry it.
+   seen sensitive data, so anything it sends next may carry it. The taint
+   lives in a session store (memory, or Redis for several replicas).
 4. Runs the policy. The rules are the ones in
    `collector/policy/pii_egress.rego`:
    - `pii_egress`: tainted data going to an `external`, `llm` or `log` tool.
@@ -105,10 +114,110 @@ To send spans to SigNoz (or any OTLP/HTTP collector), add
 `--otlp-endpoint http://localhost:4318/v1/traces` or set
 `AGENTWARD_OTLP_ENDPOINT`. Without it no spans are exported.
 
+## Serving over HTTP
+
+```bash
+python -m gateway --config gateway.yaml --listen 0.0.0.0:8811
+```
+
+| path | what |
+|---|---|
+| `POST /mcp` | the MCP endpoint (streamable HTTP) |
+| `DELETE /mcp` | ends the session named in `Mcp-Session-Id` |
+| `GET /healthz` | returns 200 with `{"status": "ok"}` while the process is up. No auth, for Kubernetes liveness and readiness probes |
+
+Point any MCP client that supports streamable HTTP at
+`http://<host>:8811/mcp`.
+
+How sessions work:
+
+1. The client sends `initialize` without a session id. The gateway answers
+   with a new `Mcp-Session-Id` header and records the id in the session
+   store.
+2. The client sends that id on every later request. The session taint is
+   stored under it.
+3. A request with an id the store does not know (never issued, ended with
+   `DELETE`, or expired after `session_ttl`) gets 404. The MCP spec says the
+   client must then start a new session.
+4. A request without an id is only accepted for `initialize`. Clients that
+   try the newer session-less protocol revision (2026-07-28) first get error
+   `-32022` listing the handshake versions, and fall back to `initialize`.
+   The gateway needs a session to track taint, so it does not serve calls
+   without one.
+
+The gateway does not open a server to client stream (`GET /mcp` answers
+405), because it does not forward server initiated messages.
+
+**Shutdown.** On SIGTERM or SIGINT the gateway stops accepting new
+connections, lets running requests finish (25 seconds by default, change it
+with `--shutdown-timeout`), closes the upstream connections and the session
+store, and exits with code 0. Keep the Kubernetes
+`terminationGracePeriodSeconds` above that timeout.
+
+### Auth
+
+Set `AGENTWARD_GATEWAY_TOKEN` to require a bearer token:
+
+```bash
+export AGENTWARD_GATEWAY_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+python -m gateway --config gateway.yaml --listen 0.0.0.0:8811
+```
+
+Every request except `/healthz` must then send
+`Authorization: Bearer <token>`. Others get 401. When the variable is not
+set there is no auth, and the gateway logs a warning if it listens on
+anything other than localhost. Without a token anyone who can reach the
+port can call the upstream tools, so only skip it on a trusted network.
+
+The token is one shared secret, not per user auth. Put TLS in front of the
+gateway (an ingress or a service mesh) so the token is not sent in clear.
+
+### Session store and several replicas
+
+By default the session taint is kept in memory, which is right for stdio
+and for a single HTTP replica. With more than one replica, a load balancer
+can send the requests of one session to different replicas, so they must
+share the taint. Use Redis:
+
+```yaml
+session_store: redis://redis.agentward.svc:6379/0   # or rediss:// for TLS
+session_ttl: 86400                                  # seconds, default 1 day
+```
+
+This needs the `redis` Python package (`pip install redis`).
+`AGENTWARD_SESSION_STORE` overrides `session_store` from the config, which
+is handy in a container.
+
+What is stored per session: a set of taint class names (`pii`, `secret`)
+and a random taint id. Never data values. Taint only grows. Each merge is
+one Lua script in Redis (set union plus expiry refresh), so two replicas
+that add different classes at the same moment both keep theirs. The expiry
+is sliding: every request refreshes it.
+
+To run several replicas:
+
+1. Run one Redis (with persistence on if taint must survive a Redis
+   restart).
+2. Give every replica the same config with `session_store: redis://...`,
+   the same `AGENTWARD_GATEWAY_TOKEN` and the same `AGENTWARD_FPE_KEY`, so a
+   token made by one replica reverses on another. For reversible tokens
+   that must survive restarts, also set a shared vault (`AGENTWARD_VAULT`,
+   Postgres or Redis, see [redaction-crypto.md](redaction-crypto.md)).
+3. Put them behind any HTTP load balancer. No sticky sessions are needed:
+   the MCP layer runs in stateless mode and any replica can serve any
+   request of any session.
+4. Use `/healthz` for the probes.
+
+If the session store cannot be reached, the gateway fails closed: tool
+calls get an error and are not forwarded, and new sessions get 503. It
+never runs a call with unknown taint.
+
 ## Config reference
 
 ```yaml
 service_name: agentward-mcp-gateway   # OTel service.name
+session_store: memory      # memory | redis://host:6379/0 (shared by replicas)
+session_ttl: 86400         # seconds a session's taint is kept after last use
 
 upstreams:                 # one or more, tools from all of them are exposed
   - name: hr               # unique name, used in rules and spans
@@ -187,8 +296,17 @@ updated. If an `opa` binary is on the PATH, another test also runs
 
 ## Limits
 
-- The gateway serves its own clients over stdio only. One gateway process
-  is one session. Upstreams can be stdio or streamable HTTP.
+- Over stdio one gateway process is one session. Over HTTP each MCP
+  session has its own taint; upstreams can be stdio or streamable HTTP.
+- Over HTTP, upstream connections are opened once per replica and shared
+  by all sessions on it. If an upstream process dies, restart the replica
+  (a failing liveness check does not detect this yet).
+- Clients that only speak the session-less 2026-07-28 protocol revision and
+  cannot fall back to `initialize` are not supported over HTTP.
+- The memory session store is per process. With several replicas and no
+  Redis, a session opened on one replica gets 404 on the others.
+- The Redis session store and vault need a single Redis (a primary with
+  replicas or Sentinel is fine), not Redis Cluster.
 - Session taint is coarse on purpose. After the agent reads one sensitive
   value, every later call to an `external`, `llm` or `log` tool is a
   violation, and in `block` mode it is blocked, even if its arguments look
@@ -206,7 +324,8 @@ updated. If an `opa` binary is on the PATH, another test also runs
   unchanged.
 - Only tools are proxied. Resources, prompts, sampling and elicitation from
   the upstream are not forwarded yet.
-- Reversible tokens for `internal` tools use the SDK redactor, which is demo
-  grade (FF3 with an in process vault, see `sdk/redact.py`).
+- Reversible tokens for `internal` tools use the SDK redactor (FF1 plus the
+  vault chosen with `AGENTWARD_VAULT`, see
+  [redaction-crypto.md](redaction-crypto.md)).
 - `audit` mode forwards raw data on purpose. Do not leave it on for tools
   that leave your system.

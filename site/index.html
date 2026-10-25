@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AgentWard</title>
-<meta name="description" content="AgentWard tracks sensitive data through AI agent tool chains on OpenTelemetry and redacts it before it leaves.">
+<title>Taintward</title>
+<meta name="description" content="Taintward lets AI agents work on customer data without sending it to LLM providers or third parties, and gives you the evidence to prove it. Open source, built on OpenTelemetry.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -164,6 +164,48 @@
   footer { border-top: 1px solid var(--line); padding: 34px 0 50px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
   footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 
+  /* placeholders before/after */
+  .swap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 36px; }
+  .swap .col { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; min-width: 0; }
+  .swap .col h3 { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
+  .swap .col.mid { border-color: var(--amber); }
+  .swap .col.mid h3 { color: var(--amber-2); }
+  .swap pre { font-family: var(--mono); font-size: 13px; line-height: 1.7; margin-top: 10px; white-space: pre-wrap; overflow-wrap: anywhere; color: #e2d6c8; }
+  .swap .r { color: #f3c2b6; }
+  .swap .ph { color: var(--amber-2); background: rgba(212, 137, 74, 0.1); border-radius: 4px; padding: 0 3px; }
+  .swap .note { color: var(--muted); font-size: 14px; margin-top: 12px; }
+
+  /* install paths */
+  .paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 36px; }
+  .path { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; min-width: 0; }
+  .path .who { font-family: var(--mono); font-size: 11.5px; color: var(--amber); letter-spacing: 0.08em; text-transform: uppercase; }
+  .path h3 { font-size: 20px; margin-top: 6px; letter-spacing: -0.01em; }
+  .path p { color: var(--muted); font-size: 14.5px; margin-top: 8px; }
+  .path pre { margin-top: 14px; background: #0a0806; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; overflow-x: auto; color: #eadfd2; flex: 1; }
+  .path pre .c { color: var(--dim); }
+  .path a.more { margin-top: 12px; font-size: 14px; }
+
+  /* proof */
+  .proof { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 18px; margin-top: 36px; align-items: start; }
+  .report { background: #f6f1ea; color: #1c1612; border-radius: 14px; padding: 22px 24px; font-size: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
+  .report .rh { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid #d9cfc3; padding-bottom: 10px; }
+  .report .rh b { font-size: 16px; }
+  .report .rh span { font-family: var(--mono); font-size: 11.5px; color: #6f6152; }
+  .report .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .report .kpi { background: #ede5da; border-radius: 8px; padding: 10px; }
+  .report .kpi i { display: block; font-style: normal; font-size: 22px; font-weight: 700; }
+  .report .kpi small { font-size: 11.5px; color: #6f6152; }
+  .report .stmt { margin-top: 14px; padding: 10px 12px; border-left: 3px solid #4f7a4d; background: #e7efe3; font-size: 13.5px; }
+  .report .root { margin-top: 12px; font-family: var(--mono); font-size: 11px; color: #6f6152; overflow-wrap: anywhere; }
+  .facts { display: grid; gap: 12px; }
+  .fact { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .fact h3 { font-size: 16px; }
+  .fact p { color: var(--muted); font-size: 14.5px; margin-top: 4px; }
+
+  @media (max-width: 900px) {
+    .swap, .paths, .proof { grid-template-columns: 1fr; }
+  }
+
   @media (max-width: 900px) {
     .policy, .stepper { grid-template-columns: 1fr; }
     .steps { grid-template-columns: repeat(3, 1fr); }
@@ -188,12 +230,13 @@
   <div class="wrap">
     <a class="brand" href="#">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#8b5e3c"/><circle cx="12" cy="11" r="3" fill="#d4894a" stroke="none"/></svg>
-      AgentWard
+      Taintward
     </a>
     <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a href="#proof">Proof</a>
       <a href="#policy">Policy</a>
-      <a href="#pipeline">Pipeline</a>
-      <a href="#vs">vs AgentRaft</a>
       <a class="gh" href="https://gitlab.com/divyanshuchoudhury51/agentward">GitLab</a>
     </div>
   </div>
@@ -201,19 +244,19 @@
 
 <div class="wrap">
   <header class="hero">
-    <div class="chip"><b></b> OpenTelemetry &middot; SigNoz &middot; Rego</div>
-    <h1>A <span class="bl">GPS tracker</span> for the sensitive data <span class="hl">inside your AI agent.</span></h1>
-    <p class="lead">Agents chain tool calls together. Somewhere between the database and the LLM, an SSN or an API key slips out. AgentWard follows the data along the call chain, live, and redacts it before it leaves.</p>
+    <div class="chip"><b></b> Open source &middot; OpenTelemetry &middot; Apache-2.0</div>
+    <h1>Let your AI agent use customer data <span class="hl">without sending it to the LLM.</span></h1>
+    <p class="lead">Taintward follows sensitive data through every tool call your agent makes. The model gets placeholders, third parties get nothing, your own systems get the real values back. And you get a signed report to show your customers.</p>
     <div class="actions">
-      <a class="btn btn-amber" href="https://gitlab.com/divyanshuchoudhury51/agentward">View source</a>
-      <a class="btn btn-line" href="#run">Run it yourself</a>
+      <a class="btn btn-amber" href="#install">Get started</a>
+      <a class="btn btn-line" href="#run">Run the demo in one command</a>
     </div>
 
     <div class="stage" id="stage">
       <div class="stage-top">
         <div class="switch" role="tablist">
-          <button type="button" data-mode="off">Without AgentWard</button>
-          <button type="button" data-mode="on" class="on">With AgentWard</button>
+          <button type="button" data-mode="off">Without Taintward</button>
+          <button type="button" data-mode="on" class="on">With Taintward</button>
         </div>
         <span class="meta">breach simulator &middot; hr_bot &middot; fake SSN planted</span>
       </div>
@@ -230,12 +273,119 @@
       </div>
       <div class="readout">
         <div class="cell"><div class="k">span</div><div class="v" id="rTool">click a tool</div></div>
-        <div class="cell"><div class="k">stored in SigNoz</div><div class="v" id="rVal">&nbsp;</div></div>
+        <div class="cell"><div class="k">what the sink received</div><div class="v" id="rVal">&nbsp;</div></div>
         <div class="cell"><div class="k">decision</div><div class="v" id="rDec">&nbsp;</div></div>
       </div>
     </div>
   </header>
 </div>
+
+<section id="how">
+  <div class="wrap">
+    <div class="kicker">How it works</div>
+    <h2>The model gets placeholders. Your agent still works.</h2>
+    <p class="intro">Masking everything to <code>[PII]</code> breaks the agent: it can no longer write to Alice about her tax form. Taintward swaps each value for a stable placeholder on the way to the LLM, and swaps the real value back on the way to your user or your own systems.</p>
+    <div class="swap">
+      <div class="col">
+        <h3>1 &middot; your agent sends</h3>
+<pre>Write to <span class="r">Alice Lee</span> (<span class="r">alice@acme.com</span>)
+about the missing form for
+SSN <span class="r">234-12-1234</span>.</pre>
+      </div>
+      <div class="col mid">
+        <h3>2 &middot; the LLM provider sees</h3>
+<pre>Write to <span class="ph">&lt;PERSON_1&gt;</span> (<span class="ph">&lt;EMAIL_1&gt;</span>)
+about the missing form for
+SSN <span class="ph">&lt;SSN_1&gt;</span>.</pre>
+        <p class="note">The real values never leave your process.</p>
+      </div>
+      <div class="col">
+        <h3>3 &middot; your user gets</h3>
+<pre>Hi <span class="r">Alice Lee</span>, we are still
+missing one form for the account
+ending in <span class="r">1234</span>...</pre>
+        <p class="note">An external API or a log line only ever gets a one-way mask.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <div class="kicker">Install</div>
+    <h2>Three ways in. Pick the one that fits.</h2>
+    <p class="intro">Every path writes standard OpenTelemetry spans, so you can view them in SigNoz, Jaeger, Grafana, Datadog or anything else that speaks OTLP.</p>
+    <div class="paths">
+      <div class="path">
+        <div class="who">you write the agent</div>
+        <h3>Python SDK</h3>
+        <p>LangChain, LangGraph, the OpenAI Agents SDK, or plain OpenAI and Anthropic clients. A few lines, no decorators on every tool.</p>
+<pre>pip install "taintward[langchain]"
+
+<span class="c"># unknown tools are treated as external</span>
+ward = tw.init("support-bot", destinations={
+  "search_crm": "internal",
+  "send_email": "external",
+})
+tools = tw.wrap_langchain_tools(tools)
+model = tw.protect_langchain_model(model)</pre>
+        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/agentward/-/blob/main/docs/integrations.md">Integration guide</a>
+      </div>
+      <div class="path">
+        <div class="who">you use MCP tools</div>
+        <h3>MCP gateway</h3>
+        <p>Put it in front of any MCP server. No code changes. Per tool: redact, block, or only record.</p>
+<pre><span class="c"># gateway.yaml</span>
+upstreams:
+  crm: { command: crm-mcp-server }
+tools:
+  - match: "crm.get_*"
+    destination: internal
+  - match: "*.send_*"
+    destination: external
+    mode: block</pre>
+        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/agentward/-/blob/main/docs/mcp-gateway.md">Gateway guide</a>
+      </div>
+      <div class="path">
+        <div class="who">you run the platform</div>
+        <h3>Collector + Helm</h3>
+        <p>An OpenTelemetry collector with a Rego policy step. Scales out on Kubernetes, and edits to the policy roll out without a rebuild.</p>
+<pre>helm install taintward \
+  ./deploy/helm/taintward \
+  --set exporter.endpoint=signoz:4317
+
+<span class="c"># the policy is a plain .rego file</span>
+<span class="c"># your security team can read</span></pre>
+        <a class="more" href="https://gitlab.com/divyanshuchoudhury51/agentward/-/blob/main/docs/deploy-kubernetes.md">Deploy guide</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="proof">
+  <div class="wrap">
+    <div class="kicker">Proof</div>
+    <h2>When a customer asks "do you send our data to OpenAI?", send them this.</h2>
+    <p class="intro">One command turns your traces into a report: what data your agents touched, where it went, what was redacted or blocked, and a signed, tamper-evident log root anyone can verify.</p>
+    <div class="proof">
+      <div class="report" aria-label="Example report">
+        <div class="rh"><b>Agent data handling report</b><span>example &middot; support-bot &middot; 30 days</span></div>
+        <div class="kpis">
+          <div class="kpi"><i>12,408</i><small>tool calls</small></div>
+          <div class="kpi"><i>831</i><small>touched personal data</small></div>
+          <div class="kpi"><i>0</i><small>raw values sent out</small></div>
+        </div>
+        <div class="stmt">No raw sensitive values were sent to LLM or external destinations in this window. Method and limits are listed in section 4.</div>
+        <div class="root">merkle root 9f2c41e0b7...a61d &middot; signed checkpoint #212 (Ed25519)</div>
+      </div>
+      <div class="facts">
+        <div class="fact"><h3>GDPR Art. 30 and Art. 44</h3><p>Which tools and which services received personal data, and which calls crossed borders.</p></div>
+        <div class="fact"><h3>Tamper-evident</h3><p>Every violation goes into an append-only Merkle log with signed checkpoints, so a deleted or edited record is detected.</p></div>
+        <div class="fact"><h3>Honest by design</h3><p>The report only claims what was measured, and says how. Detection accuracy is published, not promised.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <section id="policy">
   <div class="wrap">
@@ -271,10 +421,10 @@
 <section id="vs">
   <div class="wrap">
     <div class="kicker">Research to runtime</div>
-    <h2>AgentRaft measured the leak. AgentWard stops it.</h2>
-    <p class="intro">AgentRaft (Lin et al., 2026) found data over-exposure in 57% of the agent call chains it analyzed. AgentWard keeps its formal model, <code>D_OE = (D_trans \ (D_nec &cup; D_int)) &cap; D_total</code>, and makes it enforceable.</p>
+    <h2>Built on research. AgentRaft measured the leak, Taintward stops it.</h2>
+    <p class="intro">AgentRaft (Lin et al., 2026) found data over-exposure in 57% of the agent call chains it analyzed. Taintward keeps its formal model, <code>D_OE = (D_trans \ (D_nec &cup; D_int)) &cap; D_total</code>, and makes it enforceable.</p>
     <div class="compare">
-      <div class="cmp-row head"><div class="what"></div><div class="old">AgentRaft</div><div class="new">AgentWard</div></div>
+      <div class="cmp-row head"><div class="what"></div><div class="old">AgentRaft</div><div class="new">Taintward</div></div>
       <div class="cmp-row"><div class="what">propagation</div><div class="old">LLM-judged semantic dependency</div><div class="new">OTel baggage and span links, no LLM</div></div>
       <div class="cmp-row"><div class="what">necessity</div><div class="old">Majority vote of three LLMs</div><div class="new">Deterministic, auditable Rego policy</div></div>
       <div class="cmp-row"><div class="what">input</div><div class="old">Custom benchmark trace format</div><div class="new">Standard OTel <code>gen_ai.*</code> spans in SigNoz</div></div>
@@ -287,21 +437,20 @@
 <section id="run">
   <div class="wrap">
     <div class="kicker">Try it</div>
-    <h2>Run the breach yourself.</h2>
-    <p class="intro">Unit tests need nothing else. The end-to-end run needs SigNoz and the sidecar collector.</p>
+    <h2>See it in one command.</h2>
+    <p class="intro">Starts the collector, a demo agent that leaks an SSN and an AWS key, and a trace viewer. Open <code>localhost:16686</code> and look for the raw values. You will not find them.</p>
     <div class="term">
       <div class="term-head"><span>bash</span><button class="copy" id="copy" type="button">copy</button></div>
 <pre id="cmds"><span class="p">$ </span>git clone https://gitlab.com/divyanshuchoudhury51/agentward &amp;&amp; cd agentward
-<span class="p">$ </span>python3 -m unittest discover tests
-<span class="p">$ </span>python3 demo/hr_bot/breach_simulator.py --endpoint http://localhost:4319/v1/traces
-<span class="c"># open SigNoz at http://localhost:8080 and filter on agentward.violation=true</span></pre>
+<span class="p">$ </span>docker compose up --build
+<span class="c"># open http://localhost:16686, service agentward-hr-bot</span></pre>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <span>AgentWard &middot; Divyanshu Choudhury</span>
+    <span>Taintward &middot; open source, Apache-2.0 &middot; Divyanshu Choudhury</span>
     <span><a href="https://gitlab.com/divyanshuchoudhury51/agentward">gitlab</a></span>
   </div>
 </footer>
@@ -491,7 +640,7 @@ TOOLS[0].rules = ["redact"]; TOOLS[1].rules = ["redact"]; TOOLS[3].rules = ["red
   const STEPS = [
     ["Detect", "replaces: static field lists", "Presidio plus secret patterns scan every tool's input and output as it passes through, so new sensitive data introduced mid-chain is still caught."],
     ["Propagate", "replaces: AgentRaft's LLM-judged propagation", "A compact tag (<code>taint.id</code>, <code>taint.classes</code>, never the value) rides in OTel baggage to every downstream span. It survives even when an LLM rewrites the data beyond recognition."],
-    ["Decide", "replaces: the three-LLM voting committee", "A Rego policy in a sidecar collector decides per span: sensitive data to an external, llm or log sink is a violation. Admins edit the policy without rebuilding the SDK."],
+    ["Decide", "replaces: the three-LLM voting committee", "A Rego policy in the collector decides per span: sensitive data to an external, llm or log sink is a violation. Admins edit the policy without rebuilding the SDK."],
     ["Redact", "replaces: static field-name masking", "Context-aware: internal tools get a reversible token with the same shape as the original, anything leaving gets a one-way mask, before it is ever stored."],
     ["Record", "turns metrics into evidence", "A tamper-evident Merkle log plus SigNoz dashboards for lineage, blast radius and SLOs, usable as GDPR Art. 30 records."],
     ["Recover", "AgentRaft has no recovery step", "A fix suggester walks the agent's source code (AST) for unguarded sinks and proposes a one-line patch, prioritized by the dashboards."],

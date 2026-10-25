@@ -10,7 +10,7 @@ old FF3 setup that Phase 4 first shipped with (see
 | before | now | why |
 |---|---|---|
 | FF3 via the `ff3` package | FF1 in `sdk/ff1.py` (AES from `cryptography`) | NIST withdrew FF3 and FF3-1 (SP 800-38G Rev.1 draft, Feb 2025). FF1 is the FPE mode that is still approved. The `FPE` PyPI package did not build, so FF1 is implemented here (about 150 lines) and checked against all 9 official NIST FF1 sample vectors. |
-| in-process dict vault | pluggable vault (`sdk/vault.py`): `MemoryVault` or `SQLiteVault` | the dict was lost on restart and not shared between processes |
+| in-process dict vault | pluggable vault (`sdk/vault.py`): `MemoryVault`, `SQLiteVault`, `PostgresVault` or `RedisVault` | the dict was lost on restart and not shared between processes or hosts |
 | hardcoded demo key used silently | no built-in key unless you opt in | a public key in the code makes every token reversible by anyone |
 
 Token format is unchanged: same length, separators in the same place, digits
@@ -49,20 +49,65 @@ Configure with `AGENTWARD_VAULT`:
 | value | backend | notes |
 |---|---|---|
 | unset or `memory` | `MemoryVault` | default; lost on restart; one per process |
-| `sqlite:///var/lib/agentward/vault.db` | `SQLiteVault` | persistent; `sqlite://` + path, so three slashes means an absolute path |
+| `sqlite:///var/lib/agentward/vault.db` | `SQLiteVault` | persistent; one host; `sqlite://` + path, so three slashes means an absolute path |
+| `postgresql://user:pass@host:5432/db` | `PostgresVault` | persistent; shared by many replicas on many hosts; needs `pip install "psycopg[binary]"` |
+| `redis://host:6379/0` (`rediss://` for TLS) | `RedisVault` | shared by many replicas; native TTL; needs `pip install redis` |
 
-`SQLiteVault`:
+### Which one to use
 
-- Stores the original **encrypted with AES-256-GCM** (random nonce per row,
-  token used as associated data so a ciphertext cannot be copied to another
-  row). The plaintext value is never written to the file.
-- Needs `AGENTWARD_VAULT_KEY` (hex, 32/48/64 chars). It refuses to start
-  without one, and refuses a key equal to `AGENTWARD_FPE_KEY`. Keep the two
-  keys separate so losing one does not expose everything.
-- Safe for several processes on one host (WAL mode, busy timeout, short
-  transactions). Do not put the file on NFS or other network storage.
-- Supports a TTL per entry (`Redactor(ttl=seconds)`), `purge_expired()`,
-  `delete(token)` and `forget_subject(subject)`.
+- **One process, demo or tests:** `memory`.
+- **One host, a few processes:** `sqlite`. Nothing else to run.
+- **Several replicas (Kubernetes, several hosts):** `postgresql`. It is the
+  safest choice for data you must keep: it is durable, it has backups and
+  point in time recovery, and erasure is a plain `DELETE`.
+- **Several replicas with short lived tokens:** `redis`. Fast, and a TTL
+  is a native Redis expiry, so expired tokens go away by themselves. Turn
+  on persistence (`appendonly yes`), or a Redis restart loses every
+  mapping. Use a single Redis (a primary with replicas or Sentinel is
+  fine), not Redis Cluster.
+
+### What every persistent backend guarantees
+
+`SQLiteVault`, `PostgresVault` and `RedisVault` all work the same way:
+
+- The original is stored **encrypted with AES-256-GCM** (random nonce per
+  entry, token used as associated data so a ciphertext cannot be copied to
+  another token). The plaintext never leaves the process: the database or
+  Redis only ever sees ciphertext.
+- They need `AGENTWARD_VAULT_KEY` (hex, 32/48/64 chars). They refuse to
+  start without one, and refuse a key equal to `AGENTWARD_FPE_KEY`. Keep
+  the two keys separate so losing one does not expose everything. Every
+  replica must use the same vault key.
+- The subject is stored only as an HMAC-SHA256 blind index (see erasure
+  below).
+- They support a TTL per entry (`Redactor(ttl=seconds)`), `delete(token)`
+  and `forget_subject(subject)`. `purge_expired()` deletes expired rows in
+  SQLite and Postgres (expired rows are already ignored on read); Redis
+  does it by itself.
+
+Backend details:
+
+- `SQLiteVault`: safe for several processes on one host (WAL mode, busy
+  timeout, short transactions). Do not put the file on NFS or other
+  network storage.
+- `PostgresVault`: one table (default `agentward_vault_tokens`, created on
+  first start) with the token as primary key, the nonce, the ciphertext,
+  the key id, the subject index and the expiry. There is an index on the
+  subject index (for erasure) and a partial index on the expiry (for
+  purging). A write is one `INSERT ... ON CONFLICT DO UPDATE`, so many
+  writers at once never fail. Expiry uses the database clock, so replicas
+  with different clocks agree. Connections come from a small pool
+  (`pool_size=5`), with a 5 second connect timeout and a 5 second
+  statement timeout; a dropped connection is replaced and the call is
+  retried once.
+- `RedisVault`: one hash per token (`agentward:vault:t:<token>`) holding
+  the sealed value, the key id and the subject index, plus one set per
+  subject index (`agentward:vault:s:<index>`) listing its tokens. Writes
+  and erasure are Lua scripts, so each one is atomic. Connections come from
+  redis-py's pool with a 5 second socket timeout.
+
+If the database or Redis cannot be reached, the vault raises `VaultError`
+with the host name in the message (never the password).
 
 ### Erasure (GDPR "forget me")
 
@@ -92,7 +137,7 @@ redactor can use, or rotate it.
 | `AGENTWARD_FPE_KEY` | hex AES key for FF1, 32/48/64 hex chars (AES-128/192/256). Recommended: 64. |
 | `AGENTWARD_FPE_KEY_ID` | optional label (e.g. `2026-10`) stored next to each token in the vault. Default: a short hash of the key. |
 | `AGENTWARD_ALLOW_DEMO_KEY=1` | use the public demo key from the code. Demos only. |
-| `AGENTWARD_VAULT_KEY` | hex AES-GCM key for `SQLiteVault`. Must differ from the FPE key. |
+| `AGENTWARD_VAULT_KEY` | hex AES-GCM key for the SQLite, Postgres and Redis vaults. Must differ from the FPE key. |
 
 If `AGENTWARD_FPE_KEY` is unset and the demo key is not allowed, the Redactor
 generates a **random key once per process** and logs a loud warning. Things
@@ -127,16 +172,24 @@ and is not automated.
 - `sdk/ff1.py` matches the NIST vectors but has not had an external audit,
   and it is not constant time. Fine for this project; a regulated deployment
   should use a validated module (for example HashiCorp Vault Transform).
-- `SQLiteVault` is single host. Several hosts need a shared service (a
-  database or a managed tokenization service) behind the same `Vault` protocol.
+- `SQLiteVault` is single host. For several hosts use `PostgresVault` or
+  `RedisVault`, or a managed tokenization service behind the same `Vault`
+  protocol.
+- The vault key is the same on every replica and is not rotated
+  automatically. Anyone with the vault key and read access to the table
+  or Redis can decrypt every stored original.
 
 ## Code
 
 - `sdk/ff1.py`: FF1 (any radix 2..65536, AES-128/192/256, any tweak).
-- `sdk/vault.py`: `Vault` protocol, `MemoryVault`, `SQLiteVault`, `get_vault()`.
+- `sdk/vault.py`: `Vault` protocol, `MemoryVault`, `SQLiteVault`,
+  `PostgresVault`, `RedisVault`, `get_vault()`.
 - `sdk/redact.py`: `Redactor` (uses both), `redact_value` / `redact_text` /
   `redact_payload` / `get_redactor` (same signatures as before, plus an
   optional `subject=` keyword).
 - Tests: `tests/test_ff1.py` (NIST Samples 1 to 9, round trips, domain floor),
   `tests/test_vault.py` (persistence, encryption at rest, erasure, TTL,
-  multi-process writers, key handling, short values).
+  multi-process writers, key handling, short values),
+  `tests/test_vault_backends.py` (the same checks against a real Postgres 18
+  in docker and a real redis-server, including the raw table bytes on disk
+  and the raw Redis values).

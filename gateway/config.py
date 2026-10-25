@@ -88,6 +88,11 @@ class GatewayConfig:
         destination=DEST_EXTERNAL, jurisdiction="", mode=MODE_REDACT, redact_results=True,
     )
     service_name: str = "agentward-mcp-gateway"
+    # Where session taint lives: "memory" (one process) or "redis://..."
+    # (shared by several replicas). AGENTWARD_SESSION_STORE overrides it.
+    session_store: str = "memory"
+    # Seconds a session's taint is kept after its last use.
+    session_ttl: float = 24 * 3600.0
 
     def policy_for(self, tool: str, upstream: str = "") -> ToolPolicy:
         """Resolve a tool's policy. The first matching rule wins; fields it
@@ -205,11 +210,23 @@ def parse_config(data: dict[str, Any], base_dir: str | os.PathLike | None = None
             passthrough_args=_names(r.get("passthrough_args"), where),
         ))
 
+    store = str(data.get("session_store") or "memory").strip()
+    if not (store in ("memory", "memory://") or store.startswith(("redis://", "rediss://", "unix://"))):
+        raise ConfigError(f"session_store {store!r} must be 'memory' or a redis:// url")
+    try:
+        ttl = float(data.get("session_ttl") or 24 * 3600.0)
+    except (TypeError, ValueError):
+        raise ConfigError("session_ttl must be a number of seconds") from None
+    if ttl <= 0:
+        raise ConfigError("session_ttl must be positive")
+
     return GatewayConfig(
         upstreams=upstreams,
         rules=rules,
         default=default,
         service_name=str(data.get("service_name") or "agentward-mcp-gateway"),
+        session_store=store,
+        session_ttl=ttl,
     )
 
 

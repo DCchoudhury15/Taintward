@@ -11,6 +11,10 @@ Non-function tools (hosted tools such as web search, MCP servers, computer
 tools) are returned unchanged: they do not run in this process, so there is
 no argument to redact here. Their data still goes through the LLM request,
 which ``protect_openai`` covers.
+
+Placeholders: if the arguments still hold placeholders such as ``<SSN_1>``
+(the protected client normally restores them already), they are swapped for
+the real values from the run's map first, then the destination gate runs.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from agents import FunctionTool
 
 from sdk.instrumentation import GuardedCall
 from sdk.integrations import Ward, _resolve
+from sdk.integrations._payload import allow_masked_view, payload_redactor
 from sdk.integrations._payload import plain_view as _plain_view
 
 _PATCHED_MARK = "__agentward_patched__"
@@ -32,17 +37,24 @@ def _make_invoker(original, name: str, policy, ward: Ward):
     destination, jurisdiction = policy.destination, policy.jurisdiction
 
     async def on_invoke_tool(ctx, input: str):
+        pmap = ward.placeholder_map()
+        redact = payload_redactor(pmap)
         try:
             parsed = json.loads(input) if input else {}
         except (TypeError, ValueError):
             parsed = None
         if isinstance(parsed, dict):
+            if pmap is not None:
+                parsed = pmap.restore(parsed)
             call = GuardedCall(name, destination=destination, jurisdiction=jurisdiction,
                                tracer=ward.tracer, kwargs=parsed, attributes=_attrs(name),
-                               passthrough=policy.allow)
+                               passthrough=policy.allow, redact=redact,
+                               input_view=allow_masked_view(policy.allow, pmap))
         else:  # not a JSON object: redact the raw text
+            text = pmap.restore_text(input) if pmap is not None else input
             call = GuardedCall(name, destination=destination, jurisdiction=jurisdiction,
-                               tracer=ward.tracer, args=[input], attributes=_attrs(name))
+                               tracer=ward.tracer, args=[text], attributes=_attrs(name),
+                               redact=redact)
         with call:
             if isinstance(parsed, dict):
                 redacted = json.dumps(call.kwargs, ensure_ascii=False)
