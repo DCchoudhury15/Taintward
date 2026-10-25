@@ -3,13 +3,9 @@ package taintpolicy
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
-
-	"github.com/open-policy-agent/opa/rego"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -18,45 +14,68 @@ import (
 	"go.opentelemetry.io/collector/processor"
 )
 
-var _ processor.Traces = (*taintPolicyProcessor)(nil)
-
 //go:embed pii_egress.rego
 var embeddedPolicy string
 
-// policyAttrs read off each span to feed the Rego policy.
+// Attributes read off each span to feed the Rego policy.
 const (
 	attSensitive    = "agentward.sensitive"
 	attClasses      = "agentward.taint.classes"
 	attDestination  = "agentward.destination"
 	attJurisdiction = "agentward.jurisdiction"
 	attTool         = "gen_ai.tool.name"
+
+	// attArgs holds the tool call arguments. The SDK may store them as
+	// reversible format-preserving tokens, which look like PII to the
+	// regexes; the backstop leaves this one attribute alone ONLY when the
+	// span carries attArgsRedacted=true (bool).
+	attArgs         = "gen_ai.tool.call.arguments"
+	attArgsRedacted = "agentward.args_redacted"
 )
 
-// policyAttrs written by the collector (authoritative: Rego is the source of truth).
+// Attributes written by the collector (authoritative: Rego is the source of truth).
 const (
-	attPolicyRedact           = "agentward.policy.redacted"
-	attPolicyViolation        = "agentward.policy.violation"
-	attPolicyTransfer         = "agentward.policy.transfer_violation"
-	attPolicyViolations       = "agentward.policy.violations"
-	attPolicyReasons          = "agentward.policy.reasons"
-	attPolicyDecision         = "agentward.policy.decision_engine"
-	decisionEngine            = "rego"
+	attPolicyPrefix     = "agentward.policy."
+	attPolicyRedact     = "agentward.policy.redacted"
+	attPolicyViolation  = "agentward.policy.violation"
+	attPolicyTransfer   = "agentward.policy.transfer_violation"
+	attPolicyViolations = "agentward.policy.violations"
+	attPolicyReasons    = "agentward.policy.reasons"
+	attPolicyDecision   = "agentward.policy.decision_engine"
+	attPolicyError      = "agentward.policy.error"
+	attPolicyMasked     = "agentward.policy.masked_values"
+	decisionEngine      = "rego"
 )
+
+// ownedAttrs are the attributes only the collector may write.
+var ownedAttrs = map[string]struct{}{
+	attPolicyRedact: {}, attPolicyViolation: {}, attPolicyTransfer: {},
+	attPolicyViolations: {}, attPolicyReasons: {}, attPolicyDecision: {},
+	attPolicyError: {}, attPolicyMasked: {},
+}
 
 // taintPolicyProcessor is a traces processor that:
 //  1. reads agentward.* attrs off each span,
-//  2. evaluates the embedded Rego policy (compile-once / eval-many),
+//  2. evaluates the Rego policy (compile once, eval many, cached),
 //  3. writes collector-authoritative agentward.policy.* attrs, and
-//  4. redacts raw PII from span string attributes so SigNoz never stores it.
+//  4. runs the regex backstop over every string the span carries (attrs,
+//     nested values, name, status, events, links, resource and scope attrs)
+//     so the backend never stores a raw secret or PII pattern.
+//
+// It fails closed: a policy error or undefined decision still redacts and
+// records agentward.policy.error.
 type taintPolicyProcessor struct {
-	cfg      *Config
-	next     consumer.Traces
-	prepared rego.PreparedEvalQuery
+	cfg    *Config
+	next   consumer.Traces
+	policy *policy
 }
 
 var _ processor.Traces = (*taintPolicyProcessor)(nil)
 
 func newProcessor(cfg *Config, next consumer.Traces) (*taintPolicyProcessor, error) {
+	if cfg.DecisionCacheSize < 0 {
+		return nil, fmt.Errorf("taint_policy: decision_cache_size must be >= 0, got %d", cfg.DecisionCacheSize)
+	}
 	policySrc := embeddedPolicy
 	if cfg.PolicyPath != "" {
 		b, err := os.ReadFile(cfg.PolicyPath)
@@ -65,15 +84,11 @@ func newProcessor(cfg *Config, next consumer.Traces) (*taintPolicyProcessor, err
 		}
 		policySrc = string(b)
 	}
-	// Compile once at startup; eval many per span.
-	prepared, err := rego.New(
-		rego.Query("data.agentward.decision"),
-		rego.Module("pii_egress.rego", policySrc),
-	).PrepareForEval(context.Background())
+	pol, err := loadPolicy(policySrc, cfg.DecisionCacheSize)
 	if err != nil {
-		return nil, fmt.Errorf("taint_policy: compile rego: %w", err)
+		return nil, err
 	}
-	return &taintPolicyProcessor{cfg: cfg, next: next, prepared: prepared}, nil
+	return &taintPolicyProcessor{cfg: cfg, next: next, policy: pol}, nil
 }
 
 // Capabilities: mutates span data.
@@ -90,8 +105,10 @@ func (p *taintPolicyProcessor) Shutdown(context.Context) error              { re
 func (p *taintPolicyProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
+		maskMap(rs.Resource().Attributes(), "", 0)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			ss := rs.ScopeSpans().At(j)
+			maskMap(ss.Scope().Attributes(), "", 0)
 			for k := 0; k < ss.Spans().Len(); k++ {
 				p.processSpan(ctx, ss.Spans().At(k))
 			}
@@ -103,59 +120,80 @@ func (p *taintPolicyProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 func (p *taintPolicyProcessor) processSpan(ctx context.Context, span ptrace.Span) {
 	attrs := span.Attributes()
 
-	input := map[string]interface{}{
-		"sensitive":    getBool(attrs, attSensitive),
-		"classes":      getStr(attrs, attClasses),
-		"destination":  getStr(attrs, attDestination),
-		"jurisdiction": getStr(attrs, attJurisdiction),
-		"tool":         getStr(attrs, attTool),
+	// Normalize in Go as well as in the policy, so a custom policy that
+	// forgets lower() still sees "us", not "US".
+	in := policyInput{
+		sensitive:    truthy(attrs, attSensitive),
+		classes:      lowerStr(attrs, attClasses),
+		destination:  lowerStr(attrs, attDestination),
+		jurisdiction: lowerStr(attrs, attJurisdiction),
+		tool:         getStr(attrs, attTool),
+	}
+	d, err := p.policy.decide(ctx, in)
+
+	// Drop the attributes this processor owns if the producer already sent
+	// them: a fake "violation=false" must not survive a policy error. Other
+	// agentward.policy.* keys (the gateway writes agentward.policy.rules)
+	// are left alone.
+	if hasPrefixKey(attrs, attPolicyPrefix) {
+		attrs.RemoveIf(func(k string, _ pcommon.Value) bool {
+			_, owned := ownedAttrs[k]
+			return owned
+		})
 	}
 
-	results, err := p.prepared.Eval(ctx, rego.EvalInput(input))
+	masked := redactSpan(span)
+
 	if err != nil {
-		// Policy eval failure must never drop telemetry: record and skip.
-		span.Attributes().PutStr("agentward.policy.error", err.Error())
-		return
+		// Fail closed: the backstop above already ran on everything.
+		msg, _ := maskString(err.Error())
+		attrs.PutStr(attPolicyError, msg)
+		attrs.PutBool(attPolicyRedact, true)
+	} else {
+		attrs.PutBool(attPolicyRedact, d.redact)
+		attrs.PutBool(attPolicyViolation, d.anyViolation)
+		attrs.PutBool(attPolicyTransfer, d.anyTransfer)
+		attrs.PutStr(attPolicyViolations, d.violJSON)
+		attrs.PutStr(attPolicyReasons, d.reasons)
 	}
-	if len(results) == 0 || len(results[0].Expressions) == 0 {
-		return
-	}
-	decision, ok := results[0].Expressions[0].Value.(map[string]interface{})
-	if !ok {
-		return
-	}
-
-	redact, _ := decision["redact"].(bool)
-	violations, _ := decision["violations"].([]interface{})
-
-	var anyViolation, anyTransfer bool
-	var reasons []string
-	for _, v := range violations {
-		m, ok := v.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		anyViolation = true
-		rule, _ := m["rule"].(string)
-		reasons = append(reasons, rule)
-		if rule == "transfer" {
-			anyTransfer = true
-		}
-	}
-	violJSON, _ := json.Marshal(violations)
-
-	attrs.PutBool(attPolicyRedact, redact)
-	attrs.PutBool(attPolicyViolation, anyViolation)
-	attrs.PutBool(attPolicyTransfer, anyTransfer)
-	attrs.PutStr(attPolicyViolations, string(violJSON))
-	attrs.PutStr(attPolicyReasons, strings.Join(reasons, ","))
 	attrs.PutStr(attPolicyDecision, decisionEngine)
-
-	// Redact raw PII from span string attributes so the storage backend
-	// (SigNoz/ClickHouse) never persists the secret.
-	if redact {
-		redactSpan(attrs)
+	if masked > 0 {
+		attrs.PutInt(attPolicyMasked, int64(masked))
 	}
+}
+
+// redactSpan runs the backstop over every string on the span and returns
+// how many values it masked.
+func redactSpan(span ptrace.Span) int {
+	attrs := span.Attributes()
+	skip := ""
+	if argsMarked(attrs) {
+		skip = attArgs
+	}
+	n := maskMap(attrs, skip, 0)
+
+	if out, hit := maskString(span.Name()); hit {
+		span.SetName(out)
+		n++
+	}
+	if out, hit := maskString(span.Status().Message()); hit {
+		span.Status().SetMessage(out)
+		n++
+	}
+	evs := span.Events()
+	for i := 0; i < evs.Len(); i++ {
+		ev := evs.At(i)
+		if out, hit := maskString(ev.Name()); hit {
+			ev.SetName(out)
+			n++
+		}
+		n += maskMap(ev.Attributes(), "", 0)
+	}
+	links := span.Links()
+	for i := 0; i < links.Len(); i++ {
+		n += maskMap(links.At(i).Attributes(), "", 0)
+	}
+	return n
 }
 
 // --- attribute helpers ---
@@ -168,60 +206,48 @@ func getStr(m pcommon.Map, key string) string {
 	return v.Str()
 }
 
-func getBool(m pcommon.Map, key string) bool {
+// lowerStr returns the trimmed, lower-cased string attr. strings.ToLower
+// and TrimSpace return their input unchanged (no allocation) when there is
+// nothing to change.
+func lowerStr(m pcommon.Map, key string) string {
+	return strings.ToLower(strings.TrimSpace(getStr(m, key)))
+}
+
+// truthy accepts bool true, the strings "true" / "1" (any case, trimmed),
+// and a non-zero int. Producers other than the Python SDK often stringify
+// booleans; reading those as "not sensitive" would mask nothing.
+func truthy(m pcommon.Map, key string) bool {
 	v, ok := m.Get(key)
-	if !ok || v.Type() != pcommon.ValueTypeBool {
+	if !ok {
 		return false
 	}
-	return v.Bool()
-}
-
-// --- redaction (Go-side backstop; the SDK also masks, this is the gate) ---
-
-type pattern struct {
-	re   *regexp.Regexp
-	mask string
-}
-
-var patterns = []pattern{
-	{regexp.MustCompile(`AKIA[0-9A-Z]{16}`), "[SECRET]"},
-	{regexp.MustCompile(`gh[pousr]_[A-Za-z0-9]{36}`), "[SECRET]"},
-	{regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`), "[PII]"},
-	{regexp.MustCompile(`[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}`), "[PII]"},
-	{regexp.MustCompile(`\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b`), "[PII]"},
-}
-
-func maskPII(s string) (string, bool) {
-	changed := false
-	for _, p := range patterns {
-		if p.re.MatchString(s) {
-			s = p.re.ReplaceAllString(s, p.mask)
-			changed = true
-		}
+	switch v.Type() {
+	case pcommon.ValueTypeBool:
+		return v.Bool()
+	case pcommon.ValueTypeStr:
+		s := strings.TrimSpace(v.Str())
+		return s == "1" || strings.EqualFold(s, "true")
+	case pcommon.ValueTypeInt:
+		return v.Int() != 0
 	}
-	return s, changed
+	return false
 }
 
-func redactSpan(attrs pcommon.Map) {
-	type kv struct{ k, v string }
-	var pending []kv
-	attrs.Range(func(k string, v pcommon.Value) bool {
-		// The SDK egress gate already redacts gen_ai.tool.call.arguments
-		// (Phase 4: reversible FPE for internal, mask for egress). Re-redacting
-		// here would mask the format-preserving tokens (they match PII regexes)
-		// and destroy reversibility in observability. The collector stays the
-		// backstop for the result attr and any other residual string attrs.
-		if k == "gen_ai.tool.call.arguments" {
-			return true
-		}
-		if v.Type() == pcommon.ValueTypeStr {
-			if masked, changed := maskPII(v.Str()); changed {
-				pending = append(pending, kv{k, masked})
-			}
+// argsMarked is strict on purpose (bool true only): this marker turns
+// redaction OFF for one attribute, so anything unclear means "redact".
+func argsMarked(m pcommon.Map) bool {
+	v, ok := m.Get(attArgsRedacted)
+	return ok && v.Type() == pcommon.ValueTypeBool && v.Bool()
+}
+
+func hasPrefixKey(m pcommon.Map, prefix string) bool {
+	found := false
+	m.Range(func(k string, _ pcommon.Value) bool {
+		if strings.HasPrefix(k, prefix) {
+			found = true
+			return false
 		}
 		return true
 	})
-	for _, e := range pending {
-		attrs.PutStr(e.k, e.v)
-	}
+	return found
 }

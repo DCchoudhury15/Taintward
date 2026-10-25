@@ -17,7 +17,19 @@ import rego.v1
 #     "tool":         string, # gen_ai.tool.name
 #   }
 #
+# String fields are matched case-insensitively ("US" is the same as "us"):
+# the policy lower-cases them itself, and the processor also sends them
+# lower-cased.
+#
 # Output: data.agentward.decision = { "redact": bool, "violations": [...] }
+#
+# The processor checks at startup that this file is `package agentward` and
+# defines `decision` and `redact`, then probes it with two sample inputs. Keep
+# `default redact := false`: without it `decision` is undefined for spans
+# that are not sensitive, and no violation would be reported for them.
+# (violation, transfer_violation and deny are multi-value rules: they are
+# already the empty set when nothing matches, and Rego does not allow a
+# default on them.)
 
 # Sinks where raw sensitive data must not land (egress / leak surfaces).
 # internal and rag are handled by Phase 4 redaction, not by the violation gate.
@@ -31,27 +43,36 @@ non_adequate_jurisdictions := {"us"}
 
 # --- helpers ---
 
+norm(s) := lower(trim_space(s))
+
 has_class(classes, cls) if {
-	split(classes, ",")[_] == cls
+	norm(split(classes, ",")[_]) == cls
 }
+
+destination := norm(object.get(input, "destination", ""))
+
+jurisdiction := norm(object.get(input, "jurisdiction", ""))
 
 # --- rules ---
 
 # Rule 1: egress, sensitive data reaching an external / llm / log sink.
-violation contains {"rule": "pii_egress", "sink": input.destination} if {
+violation contains {"rule": "pii_egress", "sink": destination} if {
 	input.sensitive == true
-	input.destination in sensitive_sinks
+	destination in sensitive_sinks
 }
 
 # Rule 2: cross-border transfer, PII to a non-adequate jurisdiction.
 # Fires IN ADDITION to rule 1 when the sink also sits abroad.
-transfer_violation contains {"rule": "transfer", "jurisdiction": input.jurisdiction} if {
-	has_class(input.classes, "pii")
-	input.jurisdiction in non_adequate_jurisdictions
+transfer_violation contains {"rule": "transfer", "jurisdiction": jurisdiction} if {
+	has_class(object.get(input, "classes", ""), "pii")
+	jurisdiction in non_adequate_jurisdictions
 }
 
 # Always redact raw sensitive values from stored span attributes. SigNoz must
 # never store the secret, regardless of whether the sink is a violation.
+# (The processor's regex backstop also runs on every span, whatever this says.)
+default redact := false
+
 redact if {
 	input.sensitive == true
 }
