@@ -13,6 +13,12 @@ followed where the data actually travels (not a static field-name mask).
                             from what is stored)
     rag                  -> mask (embeddings are invertible, OWASP LLM08:2025)
 
+Placeholder mode (``placeholders=`` a ``sdk.placeholders.PlaceholderMap``):
+the ``llm`` destination gets a typed, numbered placeholder such as
+``<PERSON_1>`` instead of the mask, stable within the map, so the model can
+still tell values apart. Every other destination is unchanged, but values the
+map already knows are redacted even where the detector misses them.
+
 Implementation: FF1 format-preserving encryption (NIST SP 800-38G, see
 sdk/ff1.py) makes the token (same length, digits stay digits, separators kept
 in place). A pluggable vault (sdk/vault.py) maps token -> exact original so
@@ -40,7 +46,7 @@ import warnings
 from typing import Mapping
 
 from core.doe import Sensitivity
-from sdk.destinations import DEST_INTERNAL
+from sdk.destinations import DEST_INTERNAL, DEST_LLM
 from sdk.ff1 import FF1
 from sdk.vault import MemoryVault, Vault, get_vault
 
@@ -230,19 +236,25 @@ class Redactor:
         return _MASK_TOKEN.get(sensitivity, "[REDACTED]")
 
     def redact_text(self, text: str, detections, destination: str, *,
-                    subject: str | None = None) -> str:
+                    subject: str | None = None, placeholders=None) -> str:
         """Apply redaction to each detected span in text (right-to-left).
 
         Overlapping detections (e.g. AWS_ACCESS_KEY and GENERIC_API_KEY on the
         same region) are deduped to the longest per region so the output is
-        well-formed regardless of how many recognizers match.
+        well-formed regardless of how many recognizers match. For spans of the
+        same length a SECRET wins over PII, then the higher score.
+
+        ``placeholders`` (a PlaceholderMap): for the ``llm`` destination each
+        span becomes its stable placeholder (``<SSN_1>``) instead of a mask.
         """
         if not text:
             return text
         sens = [d for d in detections if d.is_sensitive]
         # Keep the longest detection at any point; drop spans overlapping a
         # longer, already-kept span.
-        sens.sort(key=lambda x: (x.start, -(x.end - x.start)))
+        sens.sort(key=lambda x: (x.start, -(x.end - x.start),
+                                 x.sensitivity != Sensitivity.SECRET,
+                                 -float(getattr(x, "score", 0.0) or 0.0)))
         kept: list = []
         for d in sens:
             if kept and d.start < kept[-1].end:
@@ -251,8 +263,12 @@ class Redactor:
         out = text
         for d in sorted(kept, key=lambda x: x.start, reverse=True):
             original = text[d.start:d.end]
-            redacted = self.redact_value(original, d.sensitivity, destination,
-                                         subject=subject)
+            if placeholders is not None and destination == DEST_LLM:
+                redacted = placeholders.placeholder_for(
+                    original, getattr(d, "entity_type", None), d.sensitivity)
+            else:
+                redacted = self.redact_value(original, d.sensitivity, destination,
+                                             subject=subject)
             out = out[:d.start] + redacted + out[d.end:]
         return out
 
@@ -304,28 +320,37 @@ def redact_value(value, sensitivity, destination, *, subject=None) -> str:
     return get_redactor().redact_value(value, sensitivity, destination, subject=subject)
 
 
-def redact_text(text, detections, destination, *, subject=None) -> str:
-    return get_redactor().redact_text(text, detections, destination, subject=subject)
+def redact_text(text, detections, destination, *, subject=None, placeholders=None) -> str:
+    return get_redactor().redact_text(text, detections, destination, subject=subject,
+                                      placeholders=placeholders)
 
 
 def redact_payload(value, destination: str, redactor: "Redactor | None" = None, *,
-                   subject: str | None = None):
+                   subject: str | None = None, placeholders=None):
     """Recursively redact sensitive scalar values in a structured payload
     (dict / list / scalar) for the given destination. Non-sensitive values and
     structure are preserved. Used by the SDK egress gate on tool input args.
+
+    ``placeholders`` (a ``sdk.placeholders.PlaceholderMap``, optional): the
+    ``llm`` destination gets stable placeholders instead of masks, and for
+    every destination the values the map already knows are redacted even
+    where the detector does not find them.
     """
     r = redactor or get_redactor()
     if isinstance(value, str):
         from sdk.detect import detect_text
         ds = detect_text(value)
+        if placeholders is not None:
+            ds = list(ds) + list(placeholders.find_known(value))
         if any(d.is_sensitive for d in ds):
-            return r.redact_text(value, ds, destination, subject=subject)
+            return r.redact_text(value, ds, destination, subject=subject,
+                                 placeholders=placeholders)
         return value
+    kw = {"subject": subject, "placeholders": placeholders}
     if isinstance(value, Mapping):
-        return {k: redact_payload(v, destination, r, subject=subject)
-                for k, v in value.items()}
+        return {k: redact_payload(v, destination, r, **kw) for k, v in value.items()}
     if isinstance(value, list):
-        return [redact_payload(v, destination, r, subject=subject) for v in value]
+        return [redact_payload(v, destination, r, **kw) for v in value]
     if isinstance(value, tuple):
-        return tuple(redact_payload(v, destination, r, subject=subject) for v in value)
+        return tuple(redact_payload(v, destination, r, **kw) for v in value)
     return value

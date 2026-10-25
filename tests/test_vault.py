@@ -166,7 +166,10 @@ class TestGetVault(_TmpDir):
 
     def test_bad_spec(self):
         with self.assertRaises(ValueError):
-            get_vault("redis://x")
+            get_vault("mongodb://x")
+        with self.assertRaises(ValueError) as cm:
+            get_vault("mysql://user:hunter2@db/x")
+        self.assertNotIn("hunter2", str(cm.exception))  # password never echoed
 
 
 class TestMemoryVault(unittest.TestCase):

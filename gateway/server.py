@@ -7,7 +7,9 @@ Per ``tools/call`` the gateway:
 2. detects sensitive data in the arguments (``sdk.detect``),
 3. merges that with the session taint (once any earlier argument or result
    in this session was sensitive, every later call is tainted; this is the
-   session-level analogue of the SDK's baggage chain taint),
+   session-level analogue of the SDK's baggage chain taint). The taint is
+   kept in a session store (``gateway.session_store``) keyed by the MCP
+   session id, so several replicas can share it,
 4. evaluates the policy (``gateway.policy``, the Rego rules in Python),
 5. mode ``block`` with a violation: returns an MCP error, nothing is sent
    upstream; mode ``redact`` / ``block``: redacts the arguments for the
@@ -23,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, AsyncIterator
@@ -45,6 +48,12 @@ from gateway.config import (
     UpstreamConfig,
 )
 from gateway.policy import PolicyInput, evaluate
+from gateway.session_store import (
+    SessionStore,
+    SessionStoreError,
+    make_session_store,
+    new_session_id,
+)
 from sdk import taint as tnt
 from sdk.destinations import DEST_LLM
 from sdk.detect import detect_mapping, detect_text, mask_value, taint_for
@@ -56,6 +65,9 @@ logger = logging.getLogger("agentward.gateway")
 # JSON-RPC error code returned when a call is blocked (implementation-defined
 # server error range -32000..-32099).
 BLOCKED_ERROR_CODE = -32001
+
+# HTTP header that carries the MCP session id (lower case, as in ASGI).
+MCP_SESSION_HEADER = "mcp-session-id"
 
 # Span attribute keys. The ones shared with the SDK are imported above; these
 # are gateway specific.
@@ -131,14 +143,34 @@ class _Route:
 
 
 class GatewaySession:
-    """Per-connection state: the upstream clients, the tool routing table and
-    the session taint."""
+    """State for one server lifespan: the upstream clients and the tool
+    routing table.
+
+    Over stdio (and in process) a lifespan is one client connection, so
+    calls without an MCP session id use ``default_session_id``. Over HTTP the
+    lifespan lasts as long as the process and is shared by every HTTP
+    session; each call then passes its Mcp-Session-Id. The taint itself is
+    always in the gateway's session store.
+    """
 
     def __init__(self, gateway: "Gateway"):
         self.gateway = gateway
         self.clients: dict[str, Client] = {}
         self.routes: dict[str, _Route] = {}
-        self.taint: tnt.TaintLabel = tnt.TaintLabel.of(set())
+        self.default_session_id = new_session_id()
+
+    async def taint(self, session_id: str | None = None) -> tnt.TaintLabel:
+        """The current taint of a session (the default one when None)."""
+        return await self.gateway.store.get(session_id or self.default_session_id)
+
+    async def _merge_taint(self, sid: str, label: tnt.TaintLabel) -> tnt.TaintLabel:
+        try:
+            return await self.gateway.store.merge(sid, label)
+        except SessionStoreError as exc:
+            # Fail closed: without the session taint the policy cannot decide.
+            logger.error("session store error: %s", exc)
+            raise MCPError(types.INTERNAL_ERROR,
+                           "AgentWard gateway: session store unavailable, call refused") from None
 
     # --- upstreams ---
 
@@ -184,7 +216,13 @@ class GatewaySession:
 
     # --- tools/call ---
 
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> types.CallToolResult:
+    async def call_tool(self, name: str, arguments: dict[str, Any],
+                        session_id: str | None = None) -> types.CallToolResult:
+        gw = self.gateway
+        if session_id is None:
+            if gw.require_session_id:
+                raise MCPError(types.INVALID_REQUEST, "missing Mcp-Session-Id")
+            session_id = self.default_session_id
         route = self.routes.get(name)
         if route is None:
             await self.refresh_tools()
@@ -192,7 +230,6 @@ class GatewaySession:
         if route is None:
             raise MCPError(types.INVALID_PARAMS, f"Unknown tool: {name}")
 
-        gw = self.gateway
         policy: ToolPolicy = gw.config.policy_for(name, route.upstream)
 
         # Arguments listed in passthrough_args skip scanning and redaction.
@@ -202,9 +239,10 @@ class GatewaySession:
         # Field-level taint on the arguments, merged with the session taint.
         in_dets = await anyio.to_thread.run_sync(detect_mapping, scanned)
         args_label = taint_for(in_dets)
-        merged_in = self.taint.merge(args_label)
-        # The agent's context now holds whatever it sent, so the session keeps it.
-        self.taint = self.taint.merge(args_label)
+        # The agent's context now holds whatever it sent, so the session
+        # keeps it. The store merge is atomic and returns the whole session
+        # taint, including classes other replicas added.
+        merged_in = await self._merge_taint(session_id, args_label)
 
         pre = evaluate(PolicyInput(
             sensitive=merged_in.is_tainted,
@@ -280,8 +318,8 @@ class GatewaySession:
                     out_dets,
                     source_span_id=format(span.get_span_context().span_id, "016x"),
                 )
-                merged_out = merged_in.merge(out_label)
-                self.taint = self.taint.merge(out_label)
+                stored = await self._merge_taint(session_id, out_label)
+                merged_out = merged_in.merge(out_label).merge(stored)
                 if merged_out.is_tainted:
                     span.set_attributes(merged_out.to_span_attrs())
 
@@ -326,24 +364,45 @@ class GatewaySession:
             )
 
 
+def _http_session_id(ctx) -> str | None:
+    """The Mcp-Session-Id of the HTTP request behind ``ctx``, if any. Over
+    stdio and in process there is no HTTP request and this is None."""
+    request = getattr(ctx, "request", None)
+    headers = getattr(request, "headers", None)
+    if headers is None:
+        return None
+    return headers.get(MCP_SESSION_HEADER) or None
+
+
 class Gateway:
     """Build a proxy MCP :class:`~mcp.server.Server` for a config.
 
-    ``tracer`` defaults to the global ``agentward.gateway`` tracer. Each
-    client connection gets its own :class:`GatewaySession` (own upstream
-    connections and own session taint).
+    ``tracer`` defaults to the global ``agentward.gateway`` tracer. Over
+    stdio each client connection gets its own :class:`GatewaySession` (own
+    upstream connections). Session taint lives in ``session_store``
+    (default: built from ``config.session_store``, or the
+    ``AGENTWARD_SESSION_STORE`` env var when set).
     """
 
     def __init__(self, config: GatewayConfig, tracer: trace.Tracer | None = None,
-                 *, warm_detector: bool = True):
+                 *, warm_detector: bool = True, session_store: SessionStore | None = None,
+                 require_session_id: bool = False):
         self.config = config
         self.tracer = tracer or trace.get_tracer("agentward.gateway")
         self.warm_detector = warm_detector
+        if session_store is None:
+            spec = os.environ.get("AGENTWARD_SESSION_STORE") or config.session_store
+            session_store = make_session_store(spec, ttl=config.session_ttl)
+        self.store: SessionStore = session_store
+        # HTTP mode: every call must name its MCP session (no shared default).
+        self.require_session_id = require_session_id
 
     @asynccontextmanager
     async def _lifespan(self, _server: Server) -> AsyncIterator[GatewaySession]:
         session = GatewaySession(self)
         async with AsyncExitStack() as stack:
+            await self.store.open()
+            stack.push_async_callback(self.store.close)
             if self.warm_detector:
                 # Presidio loads spaCy on first use; do it before the first call.
                 await anyio.to_thread.run_sync(detect_text, "warm up")
@@ -357,7 +416,8 @@ class Gateway:
 
         async def on_call_tool(ctx, params: types.CallToolRequestParams) -> types.CallToolResult:
             session: GatewaySession = ctx.lifespan_context
-            return await session.call_tool(params.name, dict(params.arguments or {}))
+            return await session.call_tool(params.name, dict(params.arguments or {}),
+                                           session_id=_http_session_id(ctx))
 
         return Server(
             "agentward-gateway",
