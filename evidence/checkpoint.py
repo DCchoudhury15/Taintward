@@ -7,6 +7,9 @@ chain. With the public key a verifier can check that:
 
 * every checkpoint was signed by the key holder and not edited,
 * no checkpoint in the middle of the chain was removed,
+* each checkpoint extends the one before it: for every shard that grew, an
+  RFC 9162 consistency proof shows the old root is the root of the first
+  ``old size`` records of the new tree (history was not rewritten),
 * every shard named in a checkpoint still exists (a deleted shard is caught),
 * the first ``size`` records of each shard still give the signed root (a
   rewritten, reordered or truncated shard is caught),
@@ -15,15 +18,22 @@ chain. With the public key a verifier can check that:
 
 File format (``<dir>/_checkpoints/0000000001.json``)::
 
-    {"body": {"version": 1, "seq": 1, "time": "...", "time_ns": ...,
+    {"body": {"version": 2, "seq": 1, "time": "...", "time_ns": ...,
               "prev": "<sha256 hex of previous body, or 64 zeros>",
               "key_id": "<first 16 hex of sha256(public key)>",
               "total_records": N,
               "shards": [{"tenant": "...", "day": "YYYY-MM-DD",
-                          "size": n, "root": "<hex>"}, ...]},
+                          "size": n, "root": "<hex>",
+                          "prev_size": m, "consistency": ["<hex>", ...]},
+                         ...]},
      "signature": "<Ed25519 signature hex>"}
 
-The signature covers ``DOMAIN || canonical_json(body)``.
+The signature covers ``DOMAIN || canonical_json(body)``, so it covers every
+shard's size (the tree size) and root. ``prev_size`` and ``consistency`` are
+present only for a shard that grew since the previous checkpoint: the proof
+that the tree of ``size`` records extends the tree of ``prev_size`` records.
+Version 1 checkpoints (no proofs) are still accepted; for them the verifier
+builds the consistency proof from the shard file.
 
 Keys never live in code. The private key comes from a file
 (``--private-key`` or ``$AGENTWARD_EVIDENCE_KEY_FILE``) or the environment
@@ -50,8 +60,20 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
-from evidence.merkle import InclusionProof, MerkleLog, verify_inclusion
-from evidence.shards import ShardedLog, _locked
+from evidence.locking import fsync_dir
+from evidence.locking import locked as _locked
+from evidence.merkle import (
+    InclusionProof,
+    LogCorruptError,
+    MerkleLog,
+    TornTailError,
+    _hash_leaf,
+    verify_audit_path,
+    verify_consistency,
+)
+from evidence.shards import ShardedLog
+
+CHECKPOINT_VERSION = 2
 
 DOMAIN = b"agentward-evidence-checkpoint-v1\n"
 ZERO_HASH = "0" * 64
@@ -179,6 +201,35 @@ def load_checkpoint(path: str | os.PathLike) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _shard_entries(log: ShardedLog, prev_body: dict | None, prev_seq: int) -> list[dict]:
+    """Size and root of every shard, plus a consistency proof from the
+    previous checkpoint for each shard that grew. Refuses to sign over a
+    shard that no longer extends the previous checkpoint."""
+    prev = {(s["tenant"], s["day"]): s for s in (prev_body or {}).get("shards", [])}
+    on_disk = set(log.list_shards())
+    for k in prev:
+        if k not in on_disk:
+            raise ValueError(f"shard {k[0]}/{k[1]} from checkpoint {prev_seq} is missing; "
+                             f"not signing a checkpoint without it")
+    entries = []
+    for tenant, day in sorted(on_disk):
+        shard = log.shard(tenant, day)
+        size, root = len(shard), shard.root().hex()
+        entry = {"tenant": tenant, "day": day, "size": size, "root": root}
+        p = prev.get((tenant, day))
+        if p is not None:
+            m = int(p["size"])
+            if size < m or shard.prefix_root(m).hex() != p["root"]:
+                raise ValueError(f"shard {tenant}/{day} no longer matches checkpoint "
+                                 f"{prev_seq} (records were changed or removed); "
+                                 f"not signing over it")
+            if m < size:
+                entry["prev_size"] = m
+                entry["consistency"] = [h.hex() for h in shard.consistency_proof(m, size)]
+        entries.append(entry)
+    return entries
+
+
 def write_checkpoint(log: ShardedLog, key: Ed25519PrivateKey, *,
                      now_ns: int | None = None) -> Path:
     """Sign and write the next checkpoint for ``log``; return its path."""
@@ -186,29 +237,35 @@ def write_checkpoint(log: ShardedLog, key: Ed25519PrivateKey, *,
     cp_dir.mkdir(parents=True, exist_ok=True)
     with _locked(cp_dir / ".lock"):
         existing = list_checkpoints(cp_dir)
+        prev_body = None
         if existing:
             last_seq, last_path = existing[-1]
-            prev = body_hash(load_checkpoint(last_path)["body"])
+            prev_body = load_checkpoint(last_path)["body"]
+            prev = body_hash(prev_body)
         else:
             last_seq, prev = 0, ZERO_HASH
-        heads = log.heads()
+        shards = _shard_entries(log, prev_body, last_seq)
         now_ns = time.time_ns() if now_ns is None else int(now_ns)
         body = {
-            "version": 1,
+            "version": CHECKPOINT_VERSION,
             "seq": last_seq + 1,
             "time_ns": now_ns,
             "time": datetime.fromtimestamp(now_ns / 1e9, tz=timezone.utc)
                             .strftime("%Y-%m-%dT%H:%M:%SZ"),
             "prev": prev,
             "key_id": key_id(key.public_key()),
-            "total_records": sum(h.size for h in heads),
-            "shards": [h.to_dict() for h in heads],
+            "total_records": sum(e["size"] for e in shards),
+            "shards": shards,
         }
         doc = {"body": body, "signature": sign_body(body, key)}
         path = cp_dir / f"{body['seq']:010d}.json"
         tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        with tmp.open("w", encoding="utf-8") as f:
+            f.write(json.dumps(doc, indent=1, sort_keys=True) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp, path)
+        fsync_dir(cp_dir)
     return path
 
 
@@ -249,6 +306,57 @@ class VerifyResult:
         }
 
 
+def _open_shard(path: Path) -> MerkleLog:
+    """A fresh read of a shard file (never a cached copy)."""
+    return MerkleLog(path)
+
+
+def _check_extends(log: ShardedLog, prev_body: dict, body: dict, res: VerifyResult,
+                   label: str) -> None:
+    """Every shard of ``prev_body`` is in ``body`` and ``body`` provably
+    extends it (RFC 9162 consistency proof)."""
+    now = {(s["tenant"], s["day"]): s for s in body.get("shards", [])}
+    for s in prev_body.get("shards", []):
+        k = (s["tenant"], s["day"])
+        name = f"{k[0]}/{k[1]}"
+        if k not in now:
+            res.error(f"{label}: shard {name} from the previous checkpoint is gone")
+            continue
+        cur = now[k]
+        try:
+            m, n = int(s["size"]), int(cur["size"])
+            old_root, new_root = bytes.fromhex(s["root"]), bytes.fromhex(cur["root"])
+        except (KeyError, TypeError, ValueError):
+            res.error(f"{label}: shard {name} has a malformed entry")
+            continue
+        if n < m:
+            res.error(f"{label}: shard {name} shrank since the previous checkpoint")
+            continue
+        if n == m:
+            if old_root != new_root:
+                res.error(f"{label}: shard {name} has the same size as in the previous "
+                          f"checkpoint but a different root (history was rewritten)")
+            continue
+        if cur.get("prev_size") == m and "consistency" in cur:
+            try:
+                proof = [bytes.fromhex(h) for h in cur["consistency"]]
+            except (TypeError, ValueError):
+                proof = []
+            where = "signed consistency proof"
+        else:  # version 1 checkpoint, or a checkpoint in between is missing
+            try:
+                shard = _open_shard(log.shard_path(*k))
+            except (OSError, ValueError):
+                continue  # missing or unreadable shards are reported elsewhere
+            if len(shard) < n:
+                continue  # reported by the shard check
+            proof = shard.consistency_proof(m, n)
+            where = "consistency proof built from the shard file"
+        if not verify_consistency(m, n, old_root, new_root, proof):
+            res.error(f"{label}: shard {name} does not extend the previous checkpoint "
+                      f"({where} fails): records signed earlier were changed")
+
+
 def _check_shards_against(log: ShardedLog, body: dict, res: VerifyResult, label: str) -> None:
     for sh in body.get("shards", []):
         tenant, day, size, root = sh["tenant"], sh["day"], int(sh["size"]), sh["root"]
@@ -258,8 +366,11 @@ def _check_shards_against(log: ShardedLog, body: dict, res: VerifyResult, label:
             res.error(f"{label}: shard {name} is named in the checkpoint but is missing (deleted)")
             continue
         try:
-            shard = MerkleLog(path)
-        except (ValueError, json.JSONDecodeError) as e:
+            shard = _open_shard(path)
+        except TornTailError as e:
+            res.error(f"{label}: shard {name} cannot be read: {e}")
+            continue
+        except (LogCorruptError, ValueError) as e:
             res.error(f"{label}: shard {name} cannot be read ({e})")
             continue
         if len(shard) < size:
@@ -319,14 +430,14 @@ def verify_log(root: str | os.PathLike, pub: Ed25519PublicKey, *, deep: bool = F
             res.error(f"{label}: file name and seq field disagree ({body.get('seq')})")
         if not gap and body.get("prev") != prev_hash:
             res.error(f"{label}: previous-checkpoint hash does not match (chain broken)")
+        try:
+            total = sum(int(s["size"]) for s in body.get("shards", []))
+        except (KeyError, TypeError, ValueError):
+            total = None
+        if total != body.get("total_records"):
+            res.error(f"{label}: total_records does not match the shard sizes")
         if prev_body is not None:
-            now = {(s["tenant"], s["day"]): int(s["size"]) for s in body.get("shards", [])}
-            for s in prev_body.get("shards", []):
-                k = (s["tenant"], s["day"])
-                if k not in now:
-                    res.error(f"{label}: shard {k[0]}/{k[1]} from the previous checkpoint is gone")
-                elif now[k] < int(s["size"]):
-                    res.error(f"{label}: shard {k[0]}/{k[1]} shrank since the previous checkpoint")
+            _check_extends(log, prev_body, body, res, label)
         h = body_hash(body)
         hashes.add(h)
         prev_hash, prev_body = h, body
@@ -347,7 +458,12 @@ def verify_log(root: str | os.PathLike, pub: Ed25519PublicKey, *, deep: bool = F
         _check_shards_against(log, body, res, f"checkpoint {body.get('seq')}")
     signed = {(s["tenant"], s["day"]): int(s["size"]) for s in head.get("shards", [])}
     for tenant, day in log.list_shards():
-        n = len(log.shard(tenant, day))
+        try:
+            n = len(log.shard(tenant, day))
+        except ValueError as e:
+            if (tenant, day) not in signed:  # signed shards were reported above
+                res.error(f"shard {tenant}/{day} cannot be read: {e}")
+            continue
         k = (tenant, day)
         if k not in signed:
             res.warnings.append(f"shard {tenant}/{day} ({n} records) is not covered by a "
@@ -384,32 +500,51 @@ def prove_record(root: str | os.PathLike, tenant: str, day: str, index: int,
     size = int(entry["size"])
     if not 0 <= index < size:
         raise IndexError(f"index {index} is not covered by the checkpoint (size {size})")
+    if len(shard) < size or shard.prefix_root(size).hex() != entry["root"]:
+        raise ValueError(f"shard {tenant}/{day} no longer matches checkpoint "
+                         f"{cp['body']['seq']}; run verify-checkpoints")
     proof = shard.inclusion_proof(index, size=size)
     return {
+        "version": 2,
         "tenant": tenant, "day": day, "leaf_index": index, "tree_size": size,
         "record": shard.record(index),
-        "proof": json.loads(proof.to_json()),
+        "proof": proof.to_dict(),
         "checkpoint": cp,
     }
 
 
 def verify_record_proof(bundle: dict, pub: Ed25519PublicKey) -> tuple[bool, str]:
-    """Check a bundle from :func:`prove_record` with only the public key."""
-    from evidence.merkle import _hash_leaf
+    """Check a bundle from :func:`prove_record` with only the public key.
 
-    cp = bundle["checkpoint"]
-    if not verify_signature(cp, pub):
-        return False, "checkpoint signature is not valid for this public key"
-    entry = next((s for s in cp["body"]["shards"]
-                  if s["tenant"] == bundle["tenant"] and s["day"] == bundle["day"]), None)
-    if entry is None:
-        return False, "the shard is not in the checkpoint"
-    if int(entry["size"]) != int(bundle["tree_size"]):
-        return False, "tree size does not match the checkpoint"
-    proof = InclusionProof.from_json(json.dumps(bundle["proof"]))
-    if _hash_leaf(bundle["record"]) != proof.leaf_hash:
-        return False, "the record does not match the proof's leaf hash"
-    if not verify_inclusion(proof.leaf_hash, proof, bytes.fromhex(entry["root"])):
-        return False, "inclusion proof does not lead to the signed root"
-    return True, (f"record is leaf {bundle['leaf_index']} of {bundle['tenant']}/{bundle['day']} "
+    The leaf position and tree size come from the bundle and the signed
+    checkpoint, and the audit path is checked against both (RFC 9162), so a
+    proof cannot be moved to another index or another tree size. Version 1
+    bundles (proof without ``tree_size``) are still accepted.
+    """
+    try:
+        cp = bundle["checkpoint"]
+        if not verify_signature(cp, pub):
+            return False, "checkpoint signature is not valid for this public key"
+        entry = next((s for s in cp["body"]["shards"]
+                      if s["tenant"] == bundle["tenant"] and s["day"] == bundle["day"]), None)
+        if entry is None:
+            return False, "the shard is not in the checkpoint"
+        size = int(entry["size"])
+        index = int(bundle["leaf_index"])
+        if int(bundle["tree_size"]) != size:
+            return False, "tree size does not match the checkpoint"
+        proof = InclusionProof.from_dict(bundle["proof"])
+        if proof.leaf_index != index:
+            return False, "the proof is for a different leaf index"
+        if proof.tree_size is not None and proof.tree_size != size:
+            return False, "the proof is for a different tree size"
+        leaf = _hash_leaf(bundle["record"])
+        if leaf != proof.leaf_hash:
+            return False, "the record does not match the proof's leaf hash"
+        if not verify_audit_path(leaf, index, size, proof.siblings,
+                                 bytes.fromhex(entry["root"])):
+            return False, "inclusion proof does not lead to the signed root"
+    except (KeyError, TypeError, ValueError, AttributeError) as e:
+        return False, f"the proof file is malformed ({e})"
+    return True, (f"record is leaf {index} of {size} in {bundle['tenant']}/{bundle['day']} "
                   f"in signed checkpoint {cp['body']['seq']}")

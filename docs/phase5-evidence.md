@@ -87,3 +87,53 @@ root and invalidates prior proofs.
   in `tests/test_merkle.py`.
 
 Usage and the verification steps for a third party: [`evidence-report.md`](evidence-report.md).
+
+## Update: stronger proofs and crash safety
+
+A security review of the log found five problems. All are fixed, with tests
+in `tests/test_merkle.py` and `tests/test_checkpoints.py`.
+
+- **Proofs now bind the position.** Before, the verifier took the left/right
+  order of each step from the proof itself, so a proof for leaf 1 with
+  `leaf_index` changed to 3 still passed. Now the order is worked out from
+  `leaf_index` and `tree_size` (RFC 9162 section 2.1.3.2), so checking a
+  proof needs the leaf, its index, the tree size, the path and the root.
+  The tree shape did not change (it already matched RFC 6962, and the tests
+  check the RFC test vectors), so old roots and checkpoints stay valid.
+- **Consistency proofs.** `MerkleLog.consistency_proof(old_size)` and
+  `verify_consistency(...)` (RFC 9162 section 2.1.4) show that a bigger tree
+  starts with an older tree, unchanged, using O(log n) hashes. Each new
+  checkpoint carries this proof for every shard that grew, and
+  verification checks it. So a key holder who rewrites a record and signs a
+  fresh checkpoint over the new files is still caught: the new checkpoint
+  does not extend the old one. The writer also refuses to sign over a shard
+  that no longer matches the previous checkpoint.
+- **Append is atomic.** The record is turned into canonical JSON and hashed
+  before anything changes. A record that cannot be stored (a set, NaN, not
+  a dict) leaves the log as it was. The log keeps its own copy, so changing
+  the dict later has no effect. A failed write is cut back off the file.
+- **Crash safety.** Writers take an exclusive file lock, reload the file if
+  another process added to it, write one line and fsync it. Readers take a
+  shared lock. A broken last line (a crash during a write) is not dropped
+  quietly: loading stops with a clear error, and `agentward-evidence repair`
+  moves that line to `<file>.corrupt` and says what it moved. A broken line
+  anywhere else is always a hard failure, because only a change to the file
+  can cause it. Lines must be in canonical JSON form, so the bytes on disk
+  are exactly the bytes that were hashed.
+- **No duplicates in the single-file log.** `record` skips violations whose
+  trace id and span id are already in the log, the same as the sharded log,
+  so recording overlapping time windows does not add copies.
+
+Format changes:
+
+- Inclusion proof JSON is now version 2: it has `version` and `tree_size`.
+  `directions` is still written so older tools can read new proofs, but it
+  is ignored when verifying. Version 1 proofs (no `tree_size`) still load;
+  the tree size then comes from the checkpoint, or from the log file for
+  the CLI `verify` command.
+- Checkpoint body is now version 2: a shard that grew has `prev_size` and
+  `consistency` (hex hashes). Version 1 checkpoints still verify; for them
+  the consistency proof is built from the shard file.
+- New CLI options: `root --size N`, `prove I --size N`, `verify --root HEX`,
+  `consistency --old-size M [--old-root HEX]` and `repair` (single file, or
+  every shard with `--evidence-dir`).

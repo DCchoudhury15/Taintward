@@ -14,11 +14,14 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from evidence.checkpoint import (
     ENV_KEY,
+    body_hash,
     keygen,
     list_checkpoints,
+    load_checkpoint,
     load_private_key,
     load_public_key,
     prove_record,
+    sign_body,
     verify_log,
     verify_record_proof,
 )
@@ -165,8 +168,12 @@ class TestVerify(Base):
         p = self.dir / "acme" / "2026-10-24.logl"
         p.unlink()
         evil = Ed25519PrivateKey.generate()
-        self.log.checkpoint(evil)
-        self.assertFalse(verify_log(self.dir, self.pub).ok)
+        with self.assertRaises(ValueError):  # the tool refuses to sign over it
+            self.log.checkpoint(evil)
+        _forge_next(self.log, evil)          # so the attacker signs one by hand
+        res = verify_log(self.dir, self.pub)
+        self.assertFalse(res.ok)
+        self.assertTrue(any("signature is not valid" in e for e in res.errors))
 
     def test_deleted_middle_checkpoint_detected(self):
         self.log.checkpoint(self.key)
@@ -208,6 +215,202 @@ class TestProofs(Base):
         with self.assertRaises(IndexError):
             prove_record(self.dir, "acme", "2026-10-24", 5)
 
+
+
+def _resign(path: Path, body: dict, key) -> None:
+    path.write_text(json.dumps({"body": body, "signature": sign_body(body, key)}))
+
+
+def _forge_next(log: ShardedLog, key, *, strip_proofs: bool = True) -> Path:
+    """What a key holder who rewrote a shard could sign by hand: a correctly
+    chained checkpoint over the shards as they are now."""
+    cps = list_checkpoints(log.checkpoint_dir)
+    seq, last = cps[-1]
+    prev = load_checkpoint(last)["body"]
+    heads = log.heads()
+    body = dict(prev, seq=seq + 1, prev=body_hash(prev), version=1 if strip_proofs else 2,
+                shards=[h.to_dict() for h in heads], total_records=sum(h.size for h in heads))
+    path = log.checkpoint_dir / f"{seq + 1:010d}.json"
+    _resign(path, body, key)
+    return path
+
+
+class TestConsistency(Base):
+    def _rewrite_first_record(self):
+        p = self.dir / "acme" / "2026-10-24.logl"
+        lines = p.read_text().splitlines()
+        r = json.loads(lines[0])
+        r["destination"] = "internal"
+        lines[0] = json.dumps(r, sort_keys=True, separators=(",", ":"))
+        p.write_text("\n".join(lines) + "\n")
+        return p
+
+    def test_checkpoint_carries_signed_consistency_proof(self):
+        for i in range(5, 9):
+            self.log.append(rec(i), tenant="acme")
+        self.log.checkpoint(self.key)
+        body = load_checkpoint(list_checkpoints(self.log.checkpoint_dir)[-1][1])["body"]
+        self.assertEqual(body["version"], 2)
+        grown = [s for s in body["shards"] if "consistency" in s]
+        self.assertEqual([(s["tenant"], s["day"], s["prev_size"], s["size"]) for s in grown],
+                         [("acme", "2026-10-24", 5, 9)])
+        res = verify_log(self.dir, self.pub, deep=True)
+        self.assertTrue(res.ok, res.errors)
+
+    def test_writer_refuses_to_sign_over_rewritten_shard(self):
+        self._rewrite_first_record()
+        with self.assertRaises(ValueError) as cm:
+            self.log.checkpoint(self.key)
+        self.assertIn("no longer matches", str(cm.exception))
+
+    def test_writer_refuses_when_shard_deleted(self):
+        (self.dir / "acme" / "2026-10-25.logl").unlink()
+        with self.assertRaises(ValueError):
+            self.log.checkpoint(self.key)
+
+    def test_key_holder_rewriting_history_is_caught(self):
+        """The operator rewrites a record and signs a new, correctly chained
+        checkpoint with the real key. The newest checkpoint matches the
+        files, but it does not extend the older checkpoint."""
+        self._rewrite_first_record()
+        self.log.append(rec(5), tenant="acme")  # grow so sizes alone look fine
+        _forge_next(self.log, self.key)
+        res = verify_log(self.dir, self.pub)  # not deep: only the chain shows it
+        self.assertFalse(res.ok)
+        self.assertTrue(any("does not extend" in e and "acme/2026-10-24" in e
+                            for e in res.errors), res.errors)
+
+    def test_forged_consistency_proof_is_caught(self):
+        self._rewrite_first_record()
+        self.log.append(rec(5), tenant="acme")
+        path = _forge_next(self.log, self.key, strip_proofs=False)
+        body = load_checkpoint(path)["body"]
+        for s in body["shards"]:
+            if (s["tenant"], s["day"]) == ("acme", "2026-10-24"):
+                s["prev_size"], s["consistency"] = 5, ["00" * 32, "11" * 32, "22" * 32]
+        _resign(path, body, self.key)
+        res = verify_log(self.dir, self.pub)
+        self.assertFalse(res.ok)
+        self.assertTrue(any("signed consistency proof fails" in e for e in res.errors))
+
+    def test_same_size_different_root_is_caught(self):
+        self._rewrite_first_record()
+        _forge_next(self.log, self.key)
+        res = verify_log(self.dir, self.pub)
+        self.assertFalse(res.ok)
+        self.assertTrue(any("same size" in e for e in res.errors), res.errors)
+
+    def test_version1_checkpoints_still_verify(self):
+        for i in range(5, 8):
+            self.log.append(rec(i), tenant="acme")
+        self.log.checkpoint(self.key)
+        for _, path in list_checkpoints(self.log.checkpoint_dir):
+            body = load_checkpoint(path)["body"]
+            body["version"] = 1
+            for s in body["shards"]:
+                s.pop("prev_size", None)
+                s.pop("consistency", None)
+            _resign(path, body, self.key)
+        prev = None
+        for _, path in list_checkpoints(self.log.checkpoint_dir):  # re-chain
+            body = load_checkpoint(path)["body"]
+            if prev is not None:
+                body["prev"] = body_hash(prev)
+                _resign(path, body, self.key)
+            prev = body
+        res = verify_log(self.dir, self.pub, deep=True)
+        self.assertTrue(res.ok, res.errors)
+        # and the file based consistency check still catches a rewrite
+        self._rewrite_first_record()
+        self.assertFalse(verify_log(self.dir, self.pub).ok)
+
+    def test_total_records_must_match(self):
+        _, path = list_checkpoints(self.log.checkpoint_dir)[-1]
+        body = load_checkpoint(path)["body"]
+        body["total_records"] += 1
+        _resign(path, body, self.key)
+        res = verify_log(self.dir, self.pub)
+        self.assertFalse(res.ok)
+        self.assertTrue(any("total_records" in e for e in res.errors))
+
+
+class TestProofBinding(Base):
+    def test_moved_leaf_index_rejected(self):
+        bundle = prove_record(self.dir, "acme", "2026-10-24", 1)
+        for change in ({"leaf_index": 3}, {"tree_size": 4}, {"tree_size": 6}):
+            bad = json.loads(json.dumps(bundle))
+            bad.update(change)
+            self.assertFalse(verify_record_proof(bad, self.pub)[0], change)
+        bad = json.loads(json.dumps(bundle))
+        bad["proof"]["leaf_index"] = 3
+        bad["leaf_index"] = 3
+        self.assertFalse(verify_record_proof(bad, self.pub)[0])
+        bad = json.loads(json.dumps(bundle))
+        bad["proof"]["siblings"][0] = "00" * 32
+        self.assertFalse(verify_record_proof(bad, self.pub)[0])
+
+    def test_every_index_proves_and_no_other(self):
+        for i in range(5):
+            bundle = prove_record(self.dir, "acme", "2026-10-24", i)
+            self.assertTrue(verify_record_proof(bundle, self.pub)[0])
+            for j in range(5):
+                if j != i:
+                    bad = json.loads(json.dumps(bundle))
+                    bad["leaf_index"] = bad["proof"]["leaf_index"] = j
+                    self.assertFalse(verify_record_proof(bad, self.pub)[0], (i, j))
+
+    def test_version1_bundle_still_verifies(self):
+        bundle = prove_record(self.dir, "acme", "2026-10-24", 2)
+        bundle.pop("version")
+        for k in ("version", "tree_size"):
+            bundle["proof"].pop(k)
+        self.assertTrue(verify_record_proof(bundle, self.pub)[0])
+
+    def test_malformed_bundle_is_rejected_not_crashing(self):
+        bundle = prove_record(self.dir, "acme", "2026-10-24", 2)
+        bundle["proof"]["siblings"] = ["zz"]
+        ok, msg = verify_record_proof(bundle, self.pub)
+        self.assertFalse(ok)
+        self.assertIn("malformed", msg)
+
+    def test_prove_refuses_rewritten_shard(self):
+        p = self.dir / "acme" / "2026-10-24.logl"
+        lines = p.read_text().splitlines()
+        lines[0], lines[1] = lines[1], lines[0]
+        p.write_text("\n".join(lines) + "\n")
+        with self.assertRaises(ValueError):
+            prove_record(self.dir, "acme", "2026-10-24", 3)
+
+
+class TestCrashRepair(Base):
+    def test_torn_shard_reported_and_repaired(self):
+        p = self.dir / "acme" / "2026-10-24.logl"
+        with p.open("ab") as f:
+            f.write(b'{"trace_id":"half')
+        res = verify_log(self.dir, self.pub)
+        self.assertFalse(res.ok)
+        self.assertTrue(any("repair" in e for e in res.errors), res.errors)
+        with self.assertRaises(ValueError):
+            ShardedLog(self.dir).append(rec(9), tenant="acme")
+        import contextlib
+        import io
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(log_main(["repair", "--evidence-dir", str(self.dir)]), 0)
+        self.assertIn("acme", out.getvalue())
+        self.assertTrue(Path(str(p) + ".corrupt").exists())
+        self.assertEqual(self.log.list_shards()[0], ("acme", "2026-10-24"))
+        res = verify_log(self.dir, self.pub, deep=True)
+        self.assertTrue(res.ok, res.errors)
+
+    def test_broken_middle_line_in_shard_not_repaired(self):
+        p = self.dir / "acme" / "2026-10-24.logl"
+        lines = p.read_text().splitlines()
+        lines[1] = lines[1][:10]
+        p.write_text("\n".join(lines) + "\n")
+        with self.assertRaises(ValueError):
+            ShardedLog(self.dir).repair()
+        self.assertFalse(verify_log(self.dir, self.pub).ok)
 
 class TestKeys(unittest.TestCase):
     def test_keygen_refuses_overwrite_and_sets_mode(self):

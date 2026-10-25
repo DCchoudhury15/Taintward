@@ -47,7 +47,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from evidence.merkle import MerkleLog, violation_record
+from evidence.merkle import LogCorruptError, MerkleLog, violation_record
 from evidence.spans import ClickHouseSource, JaegerSource, OtlpFileSource, Span
 
 REPORT_VERSION = 1
@@ -248,6 +248,26 @@ def _evidence_section(violations: list[Span], *, evidence_dir: str | None,
                       start_ns: int = 0, end_ns: int = 0) -> dict | None:
     if not evidence_dir and not log_file:
         return None
+    try:
+        return _evidence_section_inner(violations, evidence_dir=evidence_dir,
+                                       log_file=log_file, public_key=public_key,
+                                       start_ns=start_ns, end_ns=end_ns)
+    except LogCorruptError as e:
+        # a broken log file must show up in the report, not stop it
+        return {
+            "kind": "sharded" if evidence_dir else "single_file",
+            "path": str(evidence_dir or log_file), "records": None, "root": None,
+            "violations_in_window": len(violations), "violations_found_in_log": None,
+            "violations_covered_by_checkpoint": None, "checkpoint": None,
+            "verification": {"ok": False, "errors": [str(e)], "warnings": [],
+                             "shards_checked": 0},
+            "shards": [],
+        }
+
+
+def _evidence_section_inner(violations: list[Span], *, evidence_dir: str | None,
+                            log_file: str | None, public_key: str | None,
+                            start_ns: int, end_ns: int) -> dict:
     wanted = {(s.trace_id, s.span_id) for s in violations}
     if log_file:
         log = MerkleLog(log_file)
@@ -839,6 +859,8 @@ def render_html(data: dict) -> str:
                       else "<span class='bad'>FAILED</span>")
             rows.append(["Verification when this report was made",
                          _Raw(f"{status} ({ver['shards_checked']} shard(s) checked)")])
+        if ev["kind"] == "single_file" and ev.get("records") is not None:
+            rows.append(["Tree size for this root", _n(ev["records"])])
         w(_table(["Item", "Value"], rows))
         if ver is not None and ver["errors"]:
             w("<ul>" + "".join(f"<li class='bad'>{_e(x)}</li>" for x in ver["errors"]) + "</ul>")
@@ -857,9 +879,13 @@ def render_html(data: dict) -> str:
               "--day &lt;YYYY-MM-DD&gt; --index &lt;i&gt; &gt; proof.json\n"
               "agentward-evidence verify-proof proof.json --public-key evidence.pub</pre>")
         else:
-            w("<pre>agentward-evidence --log-file &lt;file&gt; root   "
-              "# must print the root above\nagentward-evidence --log-file &lt;file&gt; "
-              "prove &lt;index&gt;</pre>")
+            size = ev["records"] if ev.get("records") is not None else "&lt;n&gt;"
+            w("<pre>agentward-evidence --log-file &lt;file&gt; root --size "
+              f"{size}   # must print the root above\n"
+              f"agentward-evidence --log-file &lt;file&gt; prove &lt;index&gt; --size {size}"
+              "\n\n# later: show the log still starts with these records, unchanged\n"
+              f"agentward-evidence --log-file &lt;file&gt; consistency --old-size {size} "
+              "--old-root &lt;root above&gt;</pre>")
         w("<p class='explain'>Ask the operator for the public key through a separate "
           "channel, not together with this report.</p>")
 

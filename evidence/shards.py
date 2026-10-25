@@ -14,27 +14,23 @@ or rewritten shard is still detected.
 Each shard is a normal :class:`evidence.merkle.MerkleLog` file, so every
 existing tool (``agentward-evidence --log-file <shard> root``) works on it.
 
-Writers in several processes are safe: each append takes an exclusive file
-lock on the tenant directory and reloads the shard if another process
-changed it since the last read.
+Writers in several processes are safe: each append takes an exclusive lock
+on the shard file, reloads the shard if another process changed it since the
+last read, and fsyncs the new line (see :class:`evidence.merkle.MerkleLog`).
 """
 
 from __future__ import annotations
 
 import os
 import re
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator
 
-from evidence.merkle import MerkleLog
+from evidence.locking import locked as _locked
+from evidence.merkle import MerkleLog, repair_log
 
-try:  # POSIX only; on other systems appends are single-process safe only
-    import fcntl
-except ImportError:  # pragma: no cover
-    fcntl = None  # type: ignore[assignment]
+__all__ = ["ShardedLog", "ShardHead", "_locked", "check_day", "check_tenant", "utc_day"]
 
 SHARD_SUFFIX = ".logl"
 CHECKPOINT_DIRNAME = "_checkpoints"
@@ -77,19 +73,6 @@ class ShardHead:
         return {"tenant": self.tenant, "day": self.day, "size": self.size, "root": self.root}
 
 
-@contextmanager
-def _locked(lock_path: Path) -> Iterator[None]:
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    with lock_path.open("a") as fh:
-        if fcntl is not None:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            if fcntl is not None:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
-
-
 class ShardedLog:
     """Merkle evidence log split by tenant and UTC day.
 
@@ -102,7 +85,7 @@ class ShardedLog:
         self.root = Path(root)
         self.signing_key = signing_key
         self.checkpoint_every = int(checkpoint_every)
-        self._cache: dict[tuple[str, str], tuple[MerkleLog, int, set]] = {}
+        self._cache: dict[tuple[str, str], tuple[MerkleLog, int]] = {}
         self._since_checkpoint = 0
 
     # --- paths ---
@@ -132,19 +115,17 @@ class ShardedLog:
 
     def shard(self, tenant: str, day: str) -> MerkleLog:
         """The shard's MerkleLog, reloaded if the file changed on disk."""
-        return self._load(tenant, day)[0]
+        return self._load(tenant, day)
 
-    def _load(self, tenant: str, day: str) -> tuple[MerkleLog, int, set]:
+    def _load(self, tenant: str, day: str) -> MerkleLog:
         path = self.shard_path(tenant, day)
         size = path.stat().st_size if path.exists() else 0
         cached = self._cache.get((tenant, day))
         if cached is not None and cached[1] == size:
-            return cached
+            return cached[0]
         log = MerkleLog(path)
-        keys = {_key(r) for r in log.records()}
-        entry = (log, size, keys)
-        self._cache[(tenant, day)] = entry
-        return entry
+        self._cache[(tenant, day)] = (log, log.disk_size)
+        return log
 
     def heads(self) -> list[ShardHead]:
         return [self.head(t, d) for t, d in self.list_shards()]
@@ -181,15 +162,11 @@ class ShardedLog:
             ts = record.get("timestamp_ns")
             day = utc_day(int(ts) if ts is not None else None)
         check_day(day)
-        with _locked(self.root / tenant / ".lock"):
-            log, _, keys = self._load(tenant, day)
-            key = _key(record)
-            if unique and key != (None, None) and key in keys:
-                return None
-            idx = log.append(record)
-            keys.add(key)
-            path = self.shard_path(tenant, day)
-            self._cache[(tenant, day)] = (log, path.stat().st_size, keys)
+        log = self._load(tenant, day)
+        idx = log.append(record, unique=unique)  # locks the file, reloads if needed
+        self._cache[(tenant, day)] = (log, log.disk_size)
+        if idx is None:
+            return None
         self._since_checkpoint += 1
         if (self.checkpoint_every > 0 and self.signing_key is not None
                 and self._since_checkpoint >= self.checkpoint_every):
@@ -207,6 +184,13 @@ class ShardedLog:
         self._since_checkpoint = 0
         return path
 
-
-def _key(record: dict) -> tuple:
-    return (record.get("trace_id"), record.get("span_id"))
+    def repair(self) -> list[dict]:
+        """Move a broken last line (left by a crash) out of every shard.
+        See :func:`evidence.merkle.repair_log`."""
+        self._cache.clear()
+        out = []
+        for t, d in self.list_shards():
+            done = repair_log(self.shard_path(t, d))
+            if done is not None:
+                out.append(dict(done, tenant=t, day=d))
+        return out

@@ -150,9 +150,10 @@ evidence-log/
 
 Each shard is a normal Merkle log file (the same format as before), so
 `agentward-evidence --log-file evidence-log/acme/2026-10-24.logl root` still
-works on it. Several processes can append at once: each append takes a file
-lock on the tenant folder. Recording the same window twice does not add
-duplicates (records are matched by trace id and span id).
+works on it. Several processes can append at once: each append locks the
+shard file, writes one full line and fsyncs it. Recording the same window
+twice does not add duplicates (records are matched by trace id and span id).
+This is true for the single-file log too.
 
 ```bash
 agentward-evidence record --source jaeger --service agentward-hr-bot \
@@ -164,9 +165,12 @@ agentward-evidence record --source jaeger --service agentward-hr-bot \
 
 ### Signed checkpoints
 
-A checkpoint lists every shard with its size and Merkle root, the time, and
-the hash of the previous checkpoint, signed with Ed25519. Make a key pair
-once:
+A checkpoint lists every shard with its size (the tree size) and Merkle
+root, the time, and the hash of the previous checkpoint, signed with
+Ed25519. For each shard that grew since the previous checkpoint it also
+holds a consistency proof: a few hashes that show the new tree starts with
+the old tree, unchanged. The tool refuses to write a checkpoint if a shard
+no longer matches the previous one. Make a key pair once:
 
 ```bash
 agentward-evidence keygen --private-key evidence.key --public-key evidence.pub
@@ -204,6 +208,8 @@ agentward-evidence verify-checkpoints --evidence-dir evidence-log \
 | a checkpoint edited, or signed with another key | signature check with the pinned public key |
 | a checkpoint in the middle deleted | gap in the sequence numbers and the hash chain |
 | the newest checkpoints deleted | `--expect-head` with a hash kept elsewhere (see below) |
+| old records rewritten and a new checkpoint signed with the real key | the consistency proof between the two checkpoints fails |
+| a broken line in a shard | the shard cannot be read (see "After a crash") |
 
 Records appended after the newest checkpoint are reported as warnings, not
 errors: they are simply not covered yet. `--deep` checks the shards against
@@ -219,8 +225,41 @@ agentward-evidence prove-shard --evidence-dir evidence-log --tenant acme \
 agentward-evidence verify-proof proof.json --public-key evidence.pub
 ```
 
-`proof.json` holds the record, its Merkle audit path and the signed
-checkpoint. Verification needs only that file and the public key.
+`proof.json` holds the record, its index, the tree size, its Merkle audit
+path and the signed checkpoint. Verification needs only that file and the
+public key. The tree size must equal the size signed in the checkpoint, and
+the left/right order of each hash in the path is worked out from the index
+and the tree size (RFC 9162), so a proof cannot be reused for another
+position. Proof files made by older versions (no `tree_size` inside the
+proof) still verify.
+
+### Single-file log
+
+For the single-file log, give the tree size with the root, because a root
+belongs to one size:
+
+```bash
+agentward-evidence --log-file violations.logl root --size 120
+agentward-evidence --log-file violations.logl prove 7 --size 120 > proof.json
+agentward-evidence --log-file violations.logl verify "$(cat proof.json)" --root <root>
+# later, when the log has grown: does it still start with those 120 records?
+agentward-evidence --log-file violations.logl consistency --old-size 120 --old-root <root>
+```
+
+### After a crash
+
+If a writer dies in the middle of a write, the last line of a log file can
+be incomplete. The tools do not skip it silently: reading the file stops
+with an error that names the line. Run:
+
+```bash
+agentward-evidence --log-file violations.logl repair
+agentward-evidence repair --evidence-dir evidence-log      # every shard
+```
+
+This moves the broken last line to `<file>.corrupt`, keeps every complete
+record and prints what it moved. A broken line that is not the last one is
+never repaired: a crash cannot cause it, so it means the file was changed.
 
 ## How a third party verifies a report
 
@@ -230,7 +269,8 @@ checkpoint. Verification needs only that file and the public key.
    for chosen violations from section 10).
 3. Run `agentward-evidence verify-checkpoints --evidence-dir <dir>
    --public-key evidence.pub --expect-head <checkpoint hash from section 8>`.
-   It must print `"ok": true`.
+   It must print `"ok": true`. This also checks that every checkpoint
+   extends the one before it.
 4. Check that the shard roots and counts in section 8 match
    `agentward-evidence shards --evidence-dir <dir>`.
 5. For any violation, ask for a proof and run `verify-proof`.

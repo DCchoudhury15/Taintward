@@ -10,8 +10,14 @@ Examples:
     # prove leaf 0 is in the log (inclusion proof + verify)
     python3 evidence/log.py prove 0
 
-    # verify a previously-printed proof against the current root
-    python3 evidence/log.py verify '{"leaf_index":0,"leaf_hash":"...","siblings":[...],"directions":[...]}'
+    # verify a previously-printed proof (the output of `prove`)
+    python3 evidence/log.py verify "$(python3 evidence/log.py prove 0)"
+
+    # prove that the log still starts with the first 10 records, unchanged
+    python3 evidence/log.py consistency --old-size 10 --old-root <hex>
+
+    # after a crash: move a broken last line to violations.logl.corrupt
+    python3 evidence/log.py repair
 
 The log file defaults to ./violations.logl (or $AGENTWARD_EVIDENCE_LOG) (one JSON record per line,
 append-only).
@@ -47,7 +53,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from evidence.merkle import InclusionProof, MerkleLog, verify_inclusion
+from evidence.merkle import (
+    PROOF_VERSION,
+    InclusionProof,
+    MerkleLog,
+    _hash_leaf,
+    repair_log,
+    verify_consistency,
+    verify_inclusion,
+)
 from evidence.recorder import record_violations
 
 # Current directory by default, never inside the installed package.
@@ -95,9 +109,9 @@ def _record_from_source(args) -> int:
             print(f"checkpoint: {log.checkpoint(key)}")
         return 0
     single = _open(Path(args.log_file))
-    for s in spans:
-        single.append(span_violation_record(s))
-    print(f"recorded {len(spans)} violation(s); log now has {len(single)} leaf/leaves")
+    added = sum(1 for s in spans if single.append(span_violation_record(s), unique=True) is not None)
+    print(f"recorded {added} new violation(s) ({len(spans) - added} already in the log); "
+          f"log now has {len(single)} leaf/leaves")
     print(f"root: {single.root().hex()}")
     return 0
 
@@ -125,12 +139,27 @@ def _parser() -> argparse.ArgumentParser:
                        help="sign a checkpoint after recording (needs a private key)")
     p_rec.add_argument("--private-key", default=None)
 
-    sub.add_parser("root", help="print the current Merkle root (hex)")
+    p_root = sub.add_parser("root", help="print the current Merkle root (hex)")
+    p_root.add_argument("--size", type=int, default=None,
+                        help="root of the first SIZE records instead of all of them")
     p_prove = sub.add_parser("prove", help="print + verify the inclusion proof for a leaf")
     p_prove.add_argument("index", type=int)
-    p_ver = sub.add_parser("verify", help="verify a proof JSON against the current root")
+    p_prove.add_argument("--size", type=int, default=None,
+                         help="prove against the tree of the first SIZE records")
+    p_ver = sub.add_parser("verify", help="verify a proof JSON (the output of prove)")
     p_ver.add_argument("proof_json")
+    p_ver.add_argument("--root", default=None,
+                       help="root (hex) to check against, for example one from a report; "
+                            "default: the root of this log file at the proof's tree size")
+    p_con = sub.add_parser("consistency",
+                           help="prove the log extends an older version of itself")
+    p_con.add_argument("--old-size", type=int, required=True)
+    p_con.add_argument("--old-root", default=None,
+                       help="root (hex) the old version had; checked when given")
     sub.add_parser("count", help="number of leaves in the log")
+    p_rep = sub.add_parser("repair",
+                           help="move a broken last line (left by a crash) to <file>.corrupt")
+    _dir_arg(p_rep, required=False)
 
     p_kg = sub.add_parser("keygen", help="create an Ed25519 key pair for checkpoints")
     p_kg.add_argument("--private-key", required=True)
@@ -213,9 +242,95 @@ def _sharded(args) -> int | None:
         ok, msg = verify_record_proof(bundle, load_public_key(args.public_key))
         print(json.dumps({"verified": ok, "detail": msg}, indent=2))
         return 0 if ok else 2
+    if args.cmd == "repair":
+        if args.evidence_dir:
+            from evidence.shards import ShardedLog
+
+            done = ShardedLog(args.evidence_dir).repair()
+        else:
+            one = repair_log(args.log_file)
+            done = [one] if one else []
+        for d in done:
+            print(f"moved a broken last line ({d['removed_bytes']} bytes, line {d['line']}: "
+                  f"{d['reason']}) from {d['path']} to {d['corrupt_file']}; "
+                  f"{d['records_kept']} record(s) kept")
+        if not done:
+            print("nothing to repair")
+        return 0
     if args.cmd == "record" and (args.source != "clickhouse" or args.evidence_dir):
         return _record_from_source(args)
     return None
+
+
+def _single(args) -> int:
+    """Commands on the single-file log."""
+    log = _open(Path(args.log_file))
+
+    if args.cmd == "record":
+        service = args.service[0] if args.service else "agentward-hr-bot"
+        n = record_violations(log, service=service, since_minutes=args.since_mins)
+        print(f"recorded {n} new violation(s); log now has {len(log)} leaf/leaves")
+        print(f"root: {log.root().hex()}")
+    elif args.cmd == "root":
+        print((log.root() if args.size is None else log.prefix_root(args.size)).hex())
+    elif args.cmd == "count":
+        print(len(log))
+    elif args.cmd == "prove":
+        size = len(log) if args.size is None else args.size
+        if not 0 <= size <= len(log):
+            print(f"size {size} out of range (log has {len(log)} leaves)", file=sys.stderr)
+            return 1
+        if not 0 <= args.index < size:
+            print(f"index {args.index} out of range (tree has {size} leaves)", file=sys.stderr)
+            return 1
+        proof = log.inclusion_proof(args.index, size=size)
+        root = log.prefix_root(size)
+        ok = verify_inclusion(proof.leaf_hash, proof, root, tree_size=size)
+        print(json.dumps({
+            "version": PROOF_VERSION,
+            "leaf_index": proof.leaf_index,
+            "tree_size": size,
+            "leaf_record": log.record(args.index),
+            "leaf_hash": proof.leaf_hash.hex(),
+            "siblings": [s.hex() for s in proof.siblings],
+            "directions": proof.directions,  # for older readers; not used to verify
+            "root": root.hex(),
+            "verified": ok,
+        }, indent=2))
+        return 0 if ok else 2
+    elif args.cmd == "verify":
+        data = json.loads(args.proof_json)
+        proof = InclusionProof.from_dict(data)
+        # a version 1 proof has no tree size: it was made against the whole log
+        size = proof.tree_size if proof.tree_size is not None else len(log)
+        if args.root:
+            root = bytes.fromhex(args.root)
+        elif size <= len(log):
+            root = log.prefix_root(size)
+        else:
+            root = b""
+        ok = verify_inclusion(proof.leaf_hash, proof, root, tree_size=size)
+        if ok and "leaf_record" in data:
+            ok = _hash_leaf(data["leaf_record"]) == proof.leaf_hash
+        print(json.dumps({"verified": ok, "leaf_index": proof.leaf_index,
+                          "tree_size": size, "root": root.hex()}, indent=2))
+        return 0 if ok else 2
+    elif args.cmd == "consistency":
+        m = args.old_size
+        if not 0 <= m <= len(log):
+            print(f"old size {m} out of range (log has {len(log)} leaves)", file=sys.stderr)
+            return 1
+        proof = log.consistency_proof(m)
+        old_root = bytes.fromhex(args.old_root) if args.old_root else log.prefix_root(m)
+        ok = verify_consistency(m, len(log), old_root, log.root(), proof)
+        print(json.dumps({
+            "old_size": m, "old_root": old_root.hex(),
+            "new_size": len(log), "new_root": log.root().hex(),
+            "proof": [h.hex() for h in proof],
+            "verified": ok,
+        }, indent=2))
+        return 0 if ok else 2
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -227,42 +342,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if rc is not None:
         return rc
-
-    log = _open(Path(args.log_file))
-
-    if args.cmd == "record":
-        service = args.service[0] if args.service else "agentward-hr-bot"
-        n = record_violations(log, service=service, since_minutes=args.since_mins)
-        print(f"recorded {n} violation(s); log now has {len(log)} leaf/leaves")
-        print(f"root: {log.root().hex()}")
-    elif args.cmd == "root":
-        print(log.root().hex())
-    elif args.cmd == "count":
-        print(len(log))
-    elif args.cmd == "prove":
-        if not 0 <= args.index < len(log):
-            print(f"index {args.index} out of range (log has {len(log)} leaves)", file=sys.stderr)
-            return 1
-        proof = log.inclusion_proof(args.index)
-        root = log.root()
-        ok = verify_inclusion(proof.leaf_hash, proof, root)
-        print(json.dumps({
-            "leaf_index": proof.leaf_index,
-            "leaf_record": log.record(args.index),
-            "leaf_hash": proof.leaf_hash.hex(),
-            "siblings": [s.hex() for s in proof.siblings],
-            # needed by `verify`: without it a printed proof could not be checked
-            "directions": proof.directions,
-            "root": root.hex(),
-            "verified": ok,
-        }, indent=2))
-        return 0 if ok else 2
-    elif args.cmd == "verify":
-        proof = InclusionProof.from_json(args.proof_json)
-        ok = verify_inclusion(proof.leaf_hash, proof, log.root())
-        print(json.dumps({"verified": ok, "root": log.root().hex()}, indent=2))
-        return 0 if ok else 2
-    return 0
+    try:
+        return _single(args)
+    except (ValueError, OSError, IndexError, KeyError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

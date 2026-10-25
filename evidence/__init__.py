@@ -1,6 +1,8 @@
 """AgentWard evidence layer: tamper-evident Merkle log of violations.
 
-* ``merkle``: the Merkle log itself (one file).
+* ``merkle``: the Merkle log itself (one file), RFC 9162 inclusion and
+  consistency proofs, crash repair.
+* ``locking``: file locks and fsync helpers.
 * ``shards``: the log split per tenant and per UTC day.
 * ``checkpoint``: Ed25519 signed checkpoints over the shards.
 * ``recorder``: record collector violations from SigNoz.
