@@ -43,8 +43,10 @@ import contextvars
 import hashlib
 import hmac
 import json
+import logging
 import re
 import threading
+import unicodedata
 from typing import Any, Iterator, Mapping
 
 from taintward.core.doe import Sensitivity
@@ -53,6 +55,48 @@ from taintward.core.doe import Sensitivity
 PLACEHOLDER_RE = re.compile(
     r"(?:<|&lt;)\s*([A-Za-z][A-Za-z0-9_]*?)_(\d{1,6})\s*(?:>|&gt;)"
 )
+
+# Tolerant restore: forms real models write instead of <PERSON_1>. Measured
+# with bench/placeholders (see docs/placeholders-eval.md). Three shapes:
+#
+#   bracketed  [PERSON_1] {PERSON_1} {{PERSON_1}} (PERSON_1) <Person 1>
+#              <PERSON-1> \<PERSON\_1\> «PERSON_1» ＜PERSON_1＞ 【PERSON_1】
+#   bare       PERSON_1, Person_1, PERSON\_1 (markdown escaped)
+#   spaced     Person 1, PERSON 1, Person-1 (only when unambiguous, see
+#              PlaceholderMap._spaced_ok)
+#
+# A form is restored only when it names a placeholder that is in this run's
+# map, so text like "[Step 1]" or "Table 2" is never touched.
+# Any letters, also full-width and CJK: models translate labels ("<名前_1>").
+_WORD = r"[^\W\d_][^\W_]*"
+_SEP = r"(?:\\?[_＿]|[ \-])"
+_OPEN = r"\\?(?:<|&lt;|\{\{|\[\[|\[|\{|\(|«|‹|〈|《|＜|【|「|『)"
+_CLOSE = r"\\?(?:>|&gt;|\}\}|\]\]|\]|\}|\)|»|›|〉|》|＞|】|」|』)"
+_TOLERANT_RE = re.compile(
+    r"(?P<exact>(?:<|&lt;)\s*(?P<elabel>[A-Za-z][A-Za-z0-9_]*?)_(?P<enum>\d{1,6})\s*(?:>|&gt;))"
+    rf"|(?P<open>{_OPEN})[ \t]*(?P<blabel>{_WORD}(?:{_SEP}{_WORD})*?){_SEP}?"
+    rf"(?P<bnum>\d{{1,6}})[ \t]*{_CLOSE}"
+    rf"|(?<![\w\\])(?P<ulabel>{_WORD}(?:\\?[_＿]{_WORD})*?)\\?[_＿](?P<unum>\d{{1,6}})(?!\w)"
+    rf"|(?<![\w\\])(?P<slabel>[A-Za-z]+)[ \-](?P<snum>\d{{1,3}})(?![\w])(?![.,]\d)"
+)
+# <PERSON> with no number: the model dropped the number (never restored).
+_NUMBERLESS_RE = re.compile(r"(?:<|&lt;|\[)\s*([A-Za-z][A-Za-z_]*)\s*(?:>|&gt;|\])")
+
+# Other names models use for a label, mostly from translating the
+# placeholder. Used only for the bracketed and bare forms, and only when the
+# alias is not itself a label in the map.
+_ALIASES = {
+    "NAME": "PERSON", "PERSONA": "PERSON", "PERSONNE": "PERSON", "PERSONE": "PERSON",
+    "PERSOON": "PERSON", "NOMBRE": "PERSON", "NOM": "PERSON",
+    "MAIL": "EMAIL", "E_MAIL": "EMAIL", "CORREO": "EMAIL", "COURRIEL": "EMAIL",
+    "TELEFONO": "PHONE", "TELEFON": "PHONE", "TELEPHONE": "PHONE", "TEL": "PHONE",
+    "SOZIALVERSICHERUNGSNUMMER": "SSN",
+    "TARJETA": "CARD", "CARTE": "CARD", "KARTE": "CARD", "CREDIT_CARD": "CARD",
+    # Japanese / Chinese
+    "名前": "PERSON", "氏名": "PERSON", "姓名": "PERSON", "名字": "PERSON", "人物": "PERSON",
+    "メールアドレス": "EMAIL", "メール": "EMAIL", "电子邮件": "EMAIL", "邮箱": "EMAIL",
+    "電話番号": "PHONE", "电话": "PHONE", "电话号码": "PHONE",
+}
 
 # Detector entity type -> short placeholder label.
 _LABELS = {
@@ -77,6 +121,10 @@ _LABELS = {
     "IN_AADHAAR": "AADHAAR",
     "IN_PAN": "PAN",
 }
+
+# Labels that look like Taintward placeholders even when this map does not
+# have them: an unknown <PHONE_1> is worth a warning, an unknown [Step 1] is not.
+_VOCAB = frozenset(set(_LABELS.values()) | set(_ALIASES) | {"SECRET", "PII"})
 
 _LABEL_SAFE = re.compile(r"[^A-Z0-9]+")
 
@@ -141,7 +189,8 @@ class PlaceholderMap:
     """
 
     def __init__(self, *, vault: Any = None, conversation_id: str | None = None,
-                 ttl: float | None = None, index_key: bytes | None = None) -> None:
+                 ttl: float | None = None, index_key: bytes | None = None,
+                 tolerant: bool = True) -> None:
         if vault is not None and not conversation_id:
             raise ValueError("a vault-backed PlaceholderMap needs a conversation_id")
         self._lock = threading.RLock()
@@ -150,6 +199,7 @@ class PlaceholderMap:
         self._counts: dict[str, int] = {}
         self._known_re: re.Pattern | None = None
         self._vault = vault
+        self.tolerant = tolerant
         self.conversation_id = conversation_id
         self.ttl = ttl
         if vault is not None:
@@ -276,22 +326,153 @@ class PlaceholderMap:
         they are. A string that is a JSON object or array (tool call
         arguments) is restored inside the parsed JSON, so a real value with a
         quote or backslash stays valid JSON."""
-        if not isinstance(text, str) or not PLACEHOLDER_RE.search(text):
+        if not isinstance(text, str) or not text:
             return text
-        stripped = text.strip()
-        if stripped[:1] in ("{", "["):
+        # JSON first: tool call arguments from some servers (Ollama) escape
+        # "<" as <, so the raw string has no "<PERSON_1>" in it.
+        if text.lstrip()[:1] in ("{", "[") and ("\\u003c" in text or self._might_have(text)):
             try:
                 parsed = json.loads(text)
             except ValueError:
                 parsed = None
             if isinstance(parsed, (dict, list)):
-                return json.dumps(self.restore(parsed), ensure_ascii=False)
+                restored = self.restore(parsed)
+                if restored == parsed:
+                    return text  # nothing to restore: keep the original string
+                return json.dumps(restored, ensure_ascii=False)
+        if not self._might_have(text):
+            return text
 
-        def sub(m: re.Match) -> str:
-            entry = self._entry(_canonical(m))
-            return entry.value if entry else m.group(0)
+        if not self.tolerant:
+            def sub(m: re.Match) -> str:
+                entry = self._entry(_canonical(m))
+                return entry.value if entry else m.group(0)
 
-        return PLACEHOLDER_RE.sub(sub, text)
+            return PLACEHOLDER_RE.sub(sub, text)
+
+        spaced = self._spaced_ok(text)
+        return _TOLERANT_RE.sub(lambda m: self._classify(m, spaced)[0] or m.group(0), text)
+
+    def _might_have(self, text: str) -> bool:
+        pattern = _TOLERANT_RE if self.tolerant else PLACEHOLDER_RE
+        return pattern.search(text) is not None
+
+    # --- tolerant restore --------------------------------------------------
+
+    def _labels(self) -> set[str]:
+        with self._lock:
+            return {p[1:-1].rsplit("_", 1)[0] for p in self._by_placeholder}
+
+    def _resolve(self, label: str, num: str, *, alias: bool) -> _Entry | None:
+        try:
+            n = int(num)
+        except ValueError:
+            return None
+        entry = self._entry(f"<{label}_{n}>")
+        if entry is None and alias and label in _ALIASES and label not in self._labels():
+            entry = self._entry(f"<{_ALIASES[label]}_{n}>")
+        return entry
+
+    def _spaced_ok(self, text: str) -> dict[str, bool]:
+        """Per label: may "Person 1" style forms be restored in this text?
+
+        Only when the model never wrote that label as a real placeholder in
+        the same text (then "Person 1" is more likely a list number) and every
+        "Person N" it wrote is a placeholder of this map."""
+        seen: dict[str, bool] = {}
+        proper: set[str] = set()
+        for m in _TOLERANT_RE.finditer(text):
+            if m.group("slabel"):
+                label = m.group("slabel").upper()
+                known = self._entry(f"<{label}_{int(m.group('snum'))}>") is not None
+                seen[label] = seen.get(label, True) and known
+            else:
+                raw = m.group("elabel") or m.group("blabel") or m.group("ulabel")
+                proper.add(_norm_label(raw))
+        return {k: ok and k not in proper for k, ok in seen.items()}
+
+    def _classify(self, m: re.Match, spaced: dict[str, bool]) -> tuple[str | None, str]:
+        """(real value or None, kind) for one match of _TOLERANT_RE.
+
+        kind: exact, repaired (a rewritten form that was restored), lost (a
+        known placeholder in a form that is not safe to restore), unknown (a
+        placeholder that is not in the map), or ignore (ordinary text)."""
+        if m.group("exact"):
+            label, num = m.group("elabel").upper(), m.group("enum")
+            entry = self._entry(f"<{label}_{int(num)}>")
+            if entry is not None:
+                return entry.value, "exact"
+            entry = self._resolve(_norm_label(label), num, alias=True)
+            if entry is not None:
+                return entry.value, "repaired"
+            return None, self._unknown_kind(_norm_label(label))
+        if m.group("blabel"):
+            label = _norm_label(m.group("blabel"))
+            entry = self._resolve(label, m.group("bnum"), alias=True)
+            if entry is not None:
+                return entry.value, "repaired"
+            return None, self._unknown_kind(label)
+        if m.group("ulabel"):
+            raw = m.group("ulabel").replace("\\", "")
+            label = _norm_label(raw)
+            entry = self._resolve(label, m.group("unum"), alias=True)
+            letters = re.sub(r"[^A-Za-z]", "", raw)
+            if letters.isupper() or raw.replace("_", " ").istitle():
+                if entry is not None:
+                    return entry.value, "repaired"
+                return None, self._unknown_kind(label)
+            # person_1: could be a variable name in code; never restored.
+            return None, "lost" if entry is not None else "ignore"
+        raw = m.group("slabel")
+        label = raw.upper()
+        if not (raw.isupper() or raw.istitle()):
+            return None, "ignore"
+        entry = self._entry(f"<{label}_{int(m.group('snum'))}>")
+        if entry is None:
+            return None, "ignore"  # "Step 1", "Person 3" in a numbered list
+        if spaced.get(label):
+            return entry.value, "repaired"
+        return None, "lost"
+
+    def _unknown_kind(self, label: str) -> str:
+        if label in self._labels() or label in _VOCAB:
+            return "unknown"
+        return "ignore"
+
+    def diagnose(self, text: str) -> dict[str, list[str]]:
+        """What restoring ``text`` (a model answer, before restore) will do.
+
+        Returns lists of placeholder forms (never values):
+
+        * ``repaired``: rewritten forms that tolerant restore fixes,
+          for example ``[PERSON_1]`` or ``Person 1``.
+        * ``lost``: forms that point at a known placeholder but are not safe
+          to restore (``<PERSON>`` with no number, ``person_1`` in lower case,
+          ``Person 1`` next to a real ``<PERSON_2>``). The caller gets this
+          text as the model wrote it.
+        * ``unknown``: placeholders that are not in the map, for example an
+          invented ``<PERSON_3>``.
+        """
+        out: dict[str, list[str]] = {"repaired": [], "lost": [], "unknown": []}
+        if not isinstance(text, str) or not text:
+            return out
+        if not self.tolerant:
+            for m in PLACEHOLDER_RE.finditer(text):
+                if self._entry(_canonical(m)) is None:
+                    label = _norm_label(m.group(1))
+                    if self._unknown_kind(label) == "unknown":
+                        out["unknown"].append(m.group(0))
+        else:
+            spaced = self._spaced_ok(text)
+            for m in _TOLERANT_RE.finditer(text):
+                _, kind = self._classify(m, spaced)
+                if kind in out:
+                    out[kind].append(m.group(0).strip())
+        labels = self._labels()
+        for m in _NUMBERLESS_RE.finditer(text):
+            if _norm_label(m.group(1)) in labels:
+                out["lost"].append(m.group(0))
+        return out
 
     def restore(self, value: Any) -> Any:
         """Restore placeholders in a str / dict / list / tuple (a new object)."""
@@ -378,6 +559,12 @@ def _canonical(m: re.Match) -> str:
     return f"<{m.group(1).upper()}_{int(m.group(2))}>"
 
 
+def _norm_label(raw: str) -> str:
+    """'Aws key', 'AWS\\_KEY', full-width 'ＰＥＲＳＯＮ' -> 'AWS_KEY' / 'PERSON'."""
+    label = unicodedata.normalize("NFKC", raw).upper()
+    return re.sub(r"[\s\-\\_]+", "_", label).strip("_")
+
+
 # ---------------------------------------------------------------------------
 # Run scope
 # ---------------------------------------------------------------------------
@@ -431,7 +618,121 @@ def restore(value: Any, pmap: PlaceholderMap | None = None) -> Any:
     return pmap.restore(value) if pmap is not None else value
 
 
+# ---------------------------------------------------------------------------
+# Helping the model, and checking its answer
+# ---------------------------------------------------------------------------
+
+log = logging.getLogger("taintward.sdk")
+
+# Short on purpose: it is added to every request that has placeholders.
+INSTRUCTION = (
+    "Some values in this conversation were replaced by placeholders: {names}. "
+    "Each one stands for a real value the user already gave, so it is not a blank "
+    "to fill in and it is safe to repeat. Copy each placeholder exactly as written, "
+    "with the angle brackets, wherever you need that value: in text, lists, JSON, "
+    "code and tool call arguments. Keep placeholders unchanged when you translate. "
+    "Do not invent new placeholders and do not ask for the real values."
+)
+_INSTRUCTION_MAX = 20  # placeholders named in the instruction
+
+
+class PlaceholderRestoreError(RuntimeError):
+    """Strict mode: the model's answer has placeholders that could not be
+    restored. ``lost`` and ``unknown`` hold the placeholder forms (never
+    values)."""
+
+    def __init__(self, lost: list[str], unknown: list[str]):
+        self.lost, self.unknown = lost, unknown
+        super().__init__(
+            "model answer has placeholders that could not be restored: "
+            + ", ".join((lost + unknown)[:10]))
+
+
+def placeholders_in(value: Any) -> list[str]:
+    """Canonical placeholders found in a request payload, in order of first
+    appearance (exact forms only: this is what Taintward itself wrote)."""
+    out: dict[str, None] = {}
+
+    def walk(v: Any, depth: int = 0) -> None:
+        if depth > 64:
+            return
+        if isinstance(v, str):
+            for m in PLACEHOLDER_RE.finditer(v):
+                out.setdefault(_canonical(m), None)
+        elif isinstance(v, Mapping):
+            for x in v.values():
+                walk(x, depth + 1)
+        elif isinstance(v, (list, tuple)):
+            for x in v:
+                walk(x, depth + 1)
+        else:
+            content = getattr(v, "content", None)  # LangChain messages
+            if content is not None:
+                walk(content, depth + 1)
+            for name in ("tool_calls", "additional_kwargs"):
+                if getattr(v, name, None):
+                    walk(getattr(v, name), depth + 1)
+
+    walk(value)
+    return list(out)
+
+
+def instruction_for(names: list[str]) -> str:
+    """The system line that asks the model to copy ``names`` exactly."""
+    shown = names[:_INSTRUCTION_MAX]
+    text = ", ".join(shown) + (", ..." if len(names) > len(shown) else "")
+    return INSTRUCTION.format(names=text)
+
+
+def _strings(value: Any, depth: int = 0) -> Iterator[str]:
+    if depth > 64:
+        return
+    if isinstance(value, str):
+        if "\\u003c" in value and value.lstrip()[:1] in ("{", "["):
+            try:  # JSON tool arguments with an escaped "<" (Ollama)
+                yield from _strings(json.loads(value), depth + 1)
+                return
+            except ValueError:
+                pass
+        yield value
+    elif isinstance(value, Mapping):
+        for v in value.values():
+            yield from _strings(v, depth + 1)
+    elif isinstance(value, (list, tuple)):
+        for v in value:
+            yield from _strings(v, depth + 1)
+
+
+def check_output(pmap: PlaceholderMap, raw_output: Any, *, span: Any = None,
+                 strict: bool = False) -> dict[str, list[str]]:
+    """Check a model answer (the placeholder version, before restore).
+
+    Records ``taintward.placeholders.repaired`` / ``.lost`` / ``.unknown``
+    on ``span`` (placeholder forms only, never values), logs a warning when
+    something could not be restored, and raises ``PlaceholderRestoreError``
+    in strict mode."""
+    found: dict[str, list[str]] = {"repaired": [], "lost": [], "unknown": []}
+    for s in _strings(raw_output):
+        for k, v in pmap.diagnose(s).items():
+            found[k].extend(v)
+    if span is not None:
+        for k, v in found.items():
+            if v:
+                try:
+                    span.set_attribute(f"taintward.placeholders.{k}", list(dict.fromkeys(v))[:20])
+                except Exception:  # pragma: no cover - a span that is already ended
+                    pass
+    if found["lost"] or found["unknown"]:
+        log.warning("taintward: model answer has placeholders that could not be restored "
+                    "(lost: %s; unknown: %s)", found["lost"][:5], found["unknown"][:5])
+        if strict:
+            raise PlaceholderRestoreError(found["lost"], found["unknown"])
+    return found
+
+
 __all__ = [
     "PLACEHOLDER_RE", "PlaceholderMap", "KnownSpan", "label_for",
     "current", "activate", "deactivate", "scope", "restore",
+    "INSTRUCTION", "PlaceholderRestoreError", "placeholders_in", "instruction_for",
+    "check_output",
 ]

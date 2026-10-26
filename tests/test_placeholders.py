@@ -331,9 +331,12 @@ class TestOpenAIPlaceholders:
             r2 = client.chat.completions.create(model="gpt-test", messages=history)
         second = json.dumps(bodies[1])
         _no_raw(second, RAW + ("Bob Stone",))
-        assert bodies[1]["messages"][0]["content"] == "I am <PERSON_1>, ssn <SSN_1>."
-        assert bodies[1]["messages"][1]["content"] == "Hello <PERSON_1>."
-        assert "<PERSON_2>" in bodies[1]["messages"][2]["content"]
+        msgs = bodies[1]["messages"]
+        # Taintward adds one system line first (placeholder_instruction=True).
+        assert msgs[0]["role"] == "system" and "Copy each placeholder exactly" in msgs[0]["content"]
+        assert msgs[1]["content"] == "I am <PERSON_1>, ssn <SSN_1>."
+        assert msgs[2]["content"] == "Hello <PERSON_1>."
+        assert "<PERSON_2>" in msgs[3]["content"]
         assert r2.choices[0].message.content == f"{NAME} and Bob Stone both have forms."
 
     def test_runs_do_not_share_maps(self, ward):

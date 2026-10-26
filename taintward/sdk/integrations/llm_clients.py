@@ -32,10 +32,11 @@ from __future__ import annotations
 
 import functools
 import inspect
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from opentelemetry import trace
 
+from taintward.sdk import placeholders as ph
 from taintward.sdk.destinations import DEST_LLM
 from taintward.sdk.instrumentation import GuardedCall
 from taintward.sdk.integrations import Ward, _resolve
@@ -107,6 +108,40 @@ def _guard_request(provider: str, system: str, fields: tuple[str, ...],
     )
 
 
+def with_instruction(provider: str, content: dict, pmap, ward: Ward) -> dict:
+    """The redacted request fields plus one system line that asks the model to
+    copy the placeholders exactly (``ward.placeholder_instruction``). Returns
+    ``content`` itself when nothing is added (no placeholders, or turned off)."""
+    if pmap is None or not len(pmap) or not getattr(ward, "placeholder_instruction", True):
+        return content
+    names = ph.placeholders_in(content)
+    if not names:
+        return content
+    line = ph.instruction_for(names)
+    if provider == "openai.chat":
+        msgs = list(content.get("messages") or [])
+        first = msgs[0] if msgs else None
+        if (isinstance(first, Mapping) and first.get("role") in ("system", "developer")
+                and isinstance(first.get("content"), str)):
+            msgs[0] = {**first, "content": f"{first['content']}\n\n{line}"}
+        else:
+            msgs.insert(0, {"role": "system", "content": line})
+        return {**content, "messages": msgs}
+    if provider == "openai.responses":
+        prev = content.get("instructions")
+        return {**content, "instructions": f"{prev}\n\n{line}" if prev else line}
+    if provider == "anthropic":
+        prev = content.get("system")
+        if isinstance(prev, str) and prev:
+            new: Any = f"{prev}\n\n{line}"
+        elif isinstance(prev, list):
+            new = [*prev, {"type": "text", "text": line}]
+        else:
+            new = line
+        return {**content, "system": new}
+    return content
+
+
 def _wrap_create(original: Callable, provider: str, system: str,
                  fields: tuple[str, ...], ward: Ward) -> Callable:
     is_async = inspect.iscoroutinefunction(inspect.unwrap(original))
@@ -115,18 +150,27 @@ def _wrap_create(original: Callable, provider: str, system: str,
         if kwargs.get("stream"):
             return resp  # streamed output is not inspected; the request still was
         # Record first: the span keeps the placeholder version of the answer.
-        call.record_result(resp, view=_output_view(provider, resp))
+        view = _output_view(provider, resp)
+        call.record_result(resp, view=view)
         _usage_attrs(call.span, resp)
         if pmap is not None and len(pmap):
+            ph.check_output(pmap, view, span=call.span,
+                            strict=getattr(ward, "placeholder_strict", False))
             resp = pmap.restore_inplace(resp)
         return resp
+
+    def request(call: GuardedCall, pmap) -> dict:
+        send = with_instruction(provider, call.kwargs, pmap, ward)
+        if send is not call.kwargs:
+            call.span.set_attribute("taintward.placeholders.instruction", True)
+        return send
 
     if is_async:
         @functools.wraps(original)
         async def acreate(*args, **kwargs):
             pmap = ward.llm_placeholder_map()
             with _guard_request(provider, system, fields, kwargs, ward, pmap) as call:
-                resp = await original(*args, **{**kwargs, **call.kwargs})
+                resp = await original(*args, **{**kwargs, **request(call, pmap)})
                 resp = finish(call, kwargs, resp, pmap)
             return resp
         setattr(acreate, _PATCHED_MARK, True)
@@ -136,7 +180,7 @@ def _wrap_create(original: Callable, provider: str, system: str,
     def create(*args, **kwargs):
         pmap = ward.llm_placeholder_map()
         with _guard_request(provider, system, fields, kwargs, ward, pmap) as call:
-            resp = original(*args, **{**kwargs, **call.kwargs})
+            resp = original(*args, **{**kwargs, **request(call, pmap)})
             resp = finish(call, kwargs, resp, pmap)
         return resp
     setattr(create, _PATCHED_MARK, True)

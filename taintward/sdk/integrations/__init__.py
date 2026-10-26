@@ -110,6 +110,8 @@ class Ward:
         placeholders: bool = True,
         placeholder_vault: Any = None,
         placeholder_ttl: float | None = None,
+        placeholder_instruction: bool = True,
+        placeholder_strict: bool = False,
     ) -> None:
         self.default = ToolPolicy(default_destination, default_jurisdiction)
         self.policies: dict[str, ToolPolicy] = {
@@ -120,6 +122,11 @@ class Ward:
         self.placeholders = placeholders
         self.placeholder_vault = placeholder_vault
         self.placeholder_ttl = placeholder_ttl
+        # Tell the model to copy placeholders exactly (a short system line).
+        self.placeholder_instruction = placeholder_instruction
+        # Raise PlaceholderRestoreError when a model answer has placeholders
+        # that could not be restored (default: warn and record on the span).
+        self.placeholder_strict = placeholder_strict
 
     def policy_for(self, tool_name: str) -> ToolPolicy:
         return self.policies.get(tool_name, self.default)
@@ -136,7 +143,9 @@ class Ward:
                  llm_jurisdiction=self.llm_jurisdiction, tracer=self.tracer,
                  placeholders=self.placeholders,
                  placeholder_vault=self.placeholder_vault,
-                 placeholder_ttl=self.placeholder_ttl)
+                 placeholder_ttl=self.placeholder_ttl,
+                 placeholder_instruction=self.placeholder_instruction,
+                 placeholder_strict=self.placeholder_strict)
         w.policies = {**self.policies, **{k: _to_policy(v) for k, v in mapping.items()}}
         return w
 
@@ -225,6 +234,8 @@ def init(
     placeholders: bool = True,
     placeholder_vault: Any = None,
     placeholder_ttl: float | None = None,
+    placeholder_instruction: bool = True,
+    placeholder_strict: bool = False,
 ) -> Ward:
     """Configure Taintward once per process and return the global ``Ward``.
 
@@ -244,6 +255,12 @@ def init(
     * ``placeholder_vault`` / ``placeholder_ttl``: optional ``taintward.sdk.vault``
       backend (and entry lifetime) for placeholders of long-lived
       conversations, used by ``run(conversation_id=...)``.
+    * ``placeholder_instruction`` (default True): add one short system line
+      asking the model to copy placeholders exactly. False sends the request
+      as it is.
+    * ``placeholder_strict`` (default False): raise
+      ``placeholders.PlaceholderRestoreError`` when the model's answer has
+      placeholders that could not be restored, instead of a warning.
     """
     global _GLOBAL
     if tracer is None:
@@ -259,6 +276,8 @@ def init(
         placeholders=placeholders,
         placeholder_vault=placeholder_vault,
         placeholder_ttl=placeholder_ttl,
+        placeholder_instruction=placeholder_instruction,
+        placeholder_strict=placeholder_strict,
     )
     return _GLOBAL
 

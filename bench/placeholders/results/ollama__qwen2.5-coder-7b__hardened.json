@@ -1,0 +1,2288 @@
+{
+ "provider": "ollama",
+ "model": "qwen2.5-coder:7b",
+ "mode": "hardened",
+ "summary": {
+  "tasks": 47,
+  "restore_ok": 33,
+  "survival_ok": 43,
+  "placeholders_needed": 92,
+  "placeholders_survived": 86,
+  "placeholders_exact": 86,
+  "rewritten": 2,
+  "dropped": 4,
+  "wrong_restore": 0,
+  "mixups": 0,
+  "leftover_tasks": 1,
+  "tool_tasks": 9,
+  "tool_called": 0,
+  "tool_args_ok": 0,
+  "leak_known": 0,
+  "detector_miss": 4,
+  "errors": 0,
+  "failed_flagged": "0/14",
+  "by_category": {
+   "email": "4/8",
+   "summary": "6/6",
+   "json": "6/6",
+   "tool": "0/8",
+   "multi": "3/5",
+   "translate": "6/6",
+   "list": "4/4",
+   "code": "4/4"
+  }
+ },
+ "results": [
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 0,
+   "exact": 0,
+   "rewritten": [],
+   "dropped": [
+    {
+     "placeholder": "<PERSON_1>",
+     "form": null
+    },
+    {
+     "placeholder": "<EMAIL_1>",
+     "form": null
+    }
+   ],
+   "survival_ok": false,
+   "restore_ok": false,
+   "problems": [
+    "missing <PERSON_1>",
+    "missing <EMAIL_1>"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "email-refund",
+   "category": "email",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 51.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "**Subject:** Your Refund Has Been Approved\n\nDear [Full Name],\n\nWe hope this message finds you well.\n\nWe wanted to inform you that your refund request has been approved. You will receive your funds within the next 7-10 business days.\n\nIf you have any questions or need further assistance, please don't hesitate to contact us.\n\nThank you for choosing our service.\n\nBest regards,\n\n[Your Name]  \n[Your Position]  \n[Company Name]  \n[Contact Information]",
+     "tool_calls": [],
+     "raw_content": "**Subject:** Your Refund Has Been Approved\n\nDear [Full Name],\n\nWe hope this message finds you well.\n\nWe wanted to inform you that your refund request has been approved. You will receive your funds within the next 7-10 business days.\n\nIf you have any questions or need further assistance, please don't hesitate to contact us.\n\nThank you for choosing our service.\n\nBest regards,\n\n[Your Name]  \n[Your Position]  \n[Company Name]  \n[Contact Information]",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "maria.garcia@example.com": "<EMAIL_1>",
+    "Maria Garcia": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Write a short email to <PERSON_1> (<EMAIL_1>) telling her that her refund was approved. Start with 'Dear' and her full name, and put her email address on a 'To:' line at the top.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "missing raw value"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "email-missing-form",
+   "category": "email",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 40.4,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Subject: Missing Tax Form\n\nDear [Full Name],\n\nI hope this message finds you well.\n\nWe noticed that your tax form for the current year is missing from our records. To assist you further, we need to verify your identity. Please include your Social Security Number (412-73-1955) in your response so we can locate and process your file correctly.\n\nIf you have any questions or require additional information, please do not hesitate to contact us.\n\nThank you for your cooperation.\n\nBest regards,\n[Your Name]",
+     "tool_calls": [],
+     "raw_content": "Subject: Missing Tax Form\n\nDear [Full Name],\n\nI hope this message finds you well.\n\nWe noticed that your tax form for the current year is missing from our records. To assist you further, we need to verify your identity. Please include your Social Security Number (<SSN_1>) in your response so we can locate and process your file correctly.\n\nIf you have any questions or require additional information, please do not hesitate to contact us.\n\nThank you for your cooperation.\n\nBest regards,\n[Your Name]",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "412-73-1955": "<SSN_1>",
+    "Remind Wei Chen": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"<PERSON_1> that his tax form is missing. His SSN is <SSN_1>; mention the SSN in the letter so he knows which file it is. Address him by full name.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [
+    {
+     "placeholder": "<PERSON_2>",
+     "form": null
+    }
+   ],
+   "survival_ok": false,
+   "restore_ok": false,
+   "problems": [
+    "missing <PERSON_2>"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "letter-landlord",
+   "category": "email",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 79.3,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "[Your Full Name]  \n[Your Address]  \n[City, State, ZIP Code]  \n[Email Address]  \n[Phone Number]  \n[Date]\n\nSofia Rossi  \nLandlord  \n[Landlord’s Address]  \n[City, State, ZIP Code]\n\nDear Sofia Rossi,\n\nI hope this letter finds you well. I am writing to bring to your attention an urgent matter regarding the heating system in my apartment located at [Your Apartment Address].\n\nSince [Date of Issue], I have been experiencing persistent issues with the heating system. Despite multiple attempts to resolve the problem on my own, it has not improved. The current temperature inside my apartment is significantly lower than what is comfortable and safe for living.\n\nI understand that you may be busy with other responsibilities, but I kindly request your immediate attention to this matter. A malfunctioning heating system can pose a serious risk to the health and safety of all residents in the building.\n\nPlease let me know if there are any steps I can take to assist you or if you require further information from my side. I am available at your earliest convenience to discuss this issue in person or by phone.\n\nThank you for your prompt attention to this matter. I look forward to your response and hope that we can resolve this issue as soon as possible.\n\nSincerely,\n\n[Your Full Name]",
+     "tool_calls": [],
+     "raw_content": "[Your Full Name]  \n[Your Address]  \n[City, State, ZIP Code]  \n[Email Address]  \n[Phone Number]  \n[Date]\n\n<PERSON_1>  \nLandlord  \n[Landlord’s Address]  \n[City, State, ZIP Code]\n\nDear <PERSON_1>,\n\nI hope this letter finds you well. I am writing to bring to your attention an urgent matter regarding the heating system in my apartment located at [Your Apartment Address].\n\nSince [Date of Issue], I have been experiencing persistent issues with the heating system. Despite multiple attempts to resolve the problem on my own, it has not improved. The current temperature inside my apartment is significantly lower than what is comfortable and safe for living.\n\nI understand that you may be busy with other responsibilities, but I kindly request your immediate attention to this matter. A malfunctioning heating system can pose a serious risk to the health and safety of all residents in the building.\n\nPlease let me know if there are any steps I can take to assist you or if you require further information from my side. I am available at your earliest convenience to discuss this issue in person or by phone.\n\nThank you for your prompt attention to this matter. I look forward to your response and hope that we can resolve this issue as soon as possible.\n\nSincerely,\n\n[Your Full Name]",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Sofia Rossi": "<PERSON_1>",
+    "Lukas Becker": "<PERSON_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_2>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Draft a formal letter from <PERSON_2> to his landlord <PERSON_1> asking to fix the heating. Sign it with the sender's full name and put the landlord's full name in the greeting.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "email-callback",
+   "category": "email",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 23.3,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "We appreciate your patience, Aisha Okafor. Please call us back at +1 646 555 0199 when you have a moment. Thank you!",
+     "tool_calls": [],
+     "raw_content": "We appreciate your patience, <PERSON_1>. Please call us back at <PHONE_1> when you have a moment. Thank you!",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "+1 646 555 0199": "<PHONE_1>",
+    "Aisha Okafor": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <PHONE_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Write a two sentence note asking <PERSON_1> to call us back. Include her phone number <PHONE_1> so the agent can dial it.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "email-card-blocked",
+   "category": "email",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 24.8,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Dear Daniel Kim, \n\nWe regret to inform you that your card 4111 1111 1111 1111 has been blocked due to a recent fraud alert. Please verify this with your records.\n\nBest regards,  \n[Your Name]  \nCustomer Support Team",
+     "tool_calls": [],
+     "raw_content": "Dear <PERSON_1>, \n\nWe regret to inform you that your card <CARD_1> has been blocked due to a recent fraud alert. Please verify this with your records.\n\nBest regards,  \n[Your Name]  \nCustomer Support Team",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "4111 1111 1111 1111": "<CARD_1>",
+    "Daniel Kim": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <CARD_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Tell <PERSON_1> that the card <CARD_1> was blocked after a fraud alert. Repeat the card number so he can check it. Use his full name.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 4,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [
+    {
+     "placeholder": "<PERSON_2>",
+     "form": "Person 2"
+    },
+    {
+     "placeholder": "<PERSON_1>",
+     "form": "Person 1"
+    }
+   ],
+   "dropped": [],
+   "survival_ok": false,
+   "restore_ok": false,
+   "problems": [
+    "missing <PERSON_2>",
+    "missing <PERSON_1>",
+    "leftover placeholders ['Person 1', 'Person 2']"
+   ],
+   "leftovers": [
+    "Person 2",
+    "Person 1",
+    "Person 2",
+    "Person 2",
+    "Person 2",
+    "Person 2"
+   ],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "email-intro",
+   "category": "email",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 69.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Subject: Introducing [Name of Person 2]\n\nDear [Name of Person 1],\n\nI hope this message finds you well.\n\nMy name is [Your Name], and I am writing to introduce you to [Name of Person 2], who will be joining our team soon. [Name of Person 2] has been with us for the past few months, and we are thrilled to have her on board.\n\n[Name of Person 2] brings a wealth of experience and expertise to our organization. She is an accomplished professional with a proven track record in [relevant field or area]. Her skills and knowledge will be a valuable asset to our team, and we are confident that she will make significant contributions to our projects and initiatives.\n\nPlease feel free to reach out to [Name of Person 2] at priya.sharma@example.com if you have any questions or would like to learn more about her background and experience. We look forward to working with her and contributing to the success of our organization.\n\nThank you for your time and consideration.\n\nBest regards,\n\n[Your Name]\ndaniel.kim@example.net",
+     "tool_calls": [],
+     "raw_content": "Subject: Introducing [Name of Person 2]\n\nDear [Name of Person 1],\n\nI hope this message finds you well.\n\nMy name is [Your Name], and I am writing to introduce you to [Name of Person 2], who will be joining our team soon. [Name of Person 2] has been with us for the past few months, and we are thrilled to have her on board.\n\n[Name of Person 2] brings a wealth of experience and expertise to our organization. She is an accomplished professional with a proven track record in [relevant field or area]. Her skills and knowledge will be a valuable asset to our team, and we are confident that she will make significant contributions to our projects and initiatives.\n\nPlease feel free to reach out to [Name of Person 2] at <EMAIL_2> if you have any questions or would like to learn more about her background and experience. We look forward to working with her and contributing to the success of our organization.\n\nThank you for your time and consideration.\n\nBest regards,\n\n[Your Name]\n<EMAIL_1>",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "daniel.kim@example.net": "<EMAIL_1>",
+    "Daniel Kim": "<PERSON_1>",
+    "priya.sharma@example.com": "<EMAIL_2>",
+    "Priya Sharma": "<PERSON_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_2>, <EMAIL_2>, <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Write an email introducing <PERSON_2> (<EMAIL_2>) to <PERSON_1> (<EMAIL_1>). Mention both names and both email addresses.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "email-iban",
+   "category": "email",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 45.2,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Subject: Urgent Payment Reminder\n\nDear Fatima Haddad,\n\nI hope this message finds you well.\n\nWe are writing to remind you that your recent invoice is still pending payment. To ensure a smooth and timely process, please make sure to transfer the amount of [Invoice Amount] to the following IBAN:\n\nDE89370400440532013000\n\nPlease note that the payment must be made by [Deadline Date] to avoid any delays in processing.\n\nIf you have any questions or require further assistance, please do not hesitate to contact us at [Your Contact Information].\n\nThank you for your prompt attention to this matter.\n\nBest regards,\n\n[Your Name]\n[Your Position]\n[Your Company]",
+     "tool_calls": [],
+     "raw_content": "Subject: Urgent Payment Reminder\n\nDear <PERSON_1>,\n\nI hope this message finds you well.\n\nWe are writing to remind you that your recent invoice is still pending payment. To ensure a smooth and timely process, please make sure to transfer the amount of [Invoice Amount] to the following IBAN:\n\n<IBAN_1>\n\nPlease note that the payment must be made by [Deadline Date] to avoid any delays in processing.\n\nIf you have any questions or require further assistance, please do not hesitate to contact us at [Your Contact Information].\n\nThank you for your prompt attention to this matter.\n\nBest regards,\n\n[Your Name]\n[Your Position]\n[Your Company]",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "DE89370400440532013000": "<IBAN_1>",
+    "Fatima Haddad": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <IBAN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Write a payment reminder to <PERSON_1>. The invoice must be paid to IBAN <IBAN_1>. Include the IBAN exactly.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "email-reply-thread",
+   "category": "email",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 49.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Subject: Re: Order Issue\n\nDear Sofia Rossi,\n\nThank you for reaching out to us regarding your recent order. We sincerely apologize for the inconvenience caused by the broken item.\n\nTo address your concern, we will dispatch a new replacement immediately and ensure it reaches you as soon as possible. Please be assured that we take such issues very seriously and are committed to providing you with the highest level of service.\n\nIf you have any further questions or need assistance, please do not hesitate to contact us.\n\nThank you once again for your understanding.\n\nBest regards,\n[Your Full Name]  \n[Your Position]  \n[Company Name]",
+     "tool_calls": [],
+     "raw_content": "Subject: Re: Order Issue\n\nDear <PERSON_1>,\n\nThank you for reaching out to us regarding your recent order. We sincerely apologize for the inconvenience caused by the broken item.\n\nTo address your concern, we will dispatch a new replacement immediately and ensure it reaches you as soon as possible. Please be assured that we take such issues very seriously and are committed to providing you with the highest level of service.\n\nIf you have any further questions or need assistance, please do not hesitate to contact us.\n\nThank you once again for your understanding.\n\nBest regards,\n[Your Full Name]  \n[Your Position]  \n[Company Name]",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Sofia Rossi": "<PERSON_1>",
+    "sofia.rossi@example.org": "<EMAIL_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <EMAIL_1>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Here is an email I got:\\n\\nFrom: <EMAIL_1>\\nHi, this is <PERSON_1>. My order arrived broken. Can you send a new one?\\n\\nWrite my reply. Greet her by her full name.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "summary-ticket",
+   "category": "summary",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 21.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Maria Garcia reported being charged twice for their March invoice and is requesting a refund of one charge.",
+     "tool_calls": [],
+     "raw_content": "<PERSON_1> reported being charged twice for their March invoice and is requesting a refund of one charge.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "maria.garcia@example.com": "<EMAIL_1>",
+    "Maria Garcia": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Summarize this ticket in two sentences, naming the customer:\\n\\nCustomer: <PERSON_1>\\nEmail: <EMAIL_1>\\nIssue: charged twice for the March invoice, wants one charge refunded.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "summary-hr",
+   "category": "summary",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 22.4,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Lukas Becker (SSN: 701-18-4420) will join the Berlin team on May 1.",
+     "tool_calls": [],
+     "raw_content": "<PERSON_1> (SSN: <SSN_1>) will join the <LOCATION_1> team on May 1.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Berlin": "<LOCATION_1>",
+    "701-18-4420": "<SSN_1>",
+    "Lukas Becker": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <SSN_1>, <LOCATION_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Summarize this HR note in one line and keep the employee name and SSN:\\nEmployee <PERSON_1>, SSN <SSN_1>, moves to the <LOCATION_1> team on May 1.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 1,
+   "needed": 3,
+   "survived": 3,
+   "exact": 3,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "summary-call-log",
+   "category": "summary",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 26.0,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "- **Caller:** Wei Chen\n  - **Number:** +1 212 555 0178\n\n- **Caller:** Aisha Okafor\n  - **Number:** +1 646 555 0199",
+     "tool_calls": [],
+     "raw_content": "- **Caller:** <PERSON_1>\n  - **Number:** <PHONE_2>\n\n- **Caller:** Aisha Okafor\n  - **Number:** <PHONE_1>",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "+1 646 555 0199": "<PHONE_1>",
+    "+1 212 555 0178": "<PHONE_2>",
+    "Wei Chen": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <PHONE_2>, <PHONE_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Call log:\\n09:10 <PERSON_1> called from <PHONE_2> about a late delivery.\\n09:40 Aisha Okafor called from <PHONE_1> to cancel her plan.\\n\\nWrite one bullet per call with the caller's name and number.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "summary-incident",
+   "category": "summary",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 30.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "The AWS access key AKIAEXAMPLEEXAMPLEE5 was discovered in a public repository by Priya Sharma. This exposure poses a significant security risk, as it could be used to gain unauthorized access to associated AWS resources. Immediate action is required to revoke this key and investigate the source of its inclusion in the public repo.",
+     "tool_calls": [],
+     "raw_content": "The AWS access key <AWS_KEY_1> was discovered in a public repository by <PERSON_1>. This exposure poses a significant security risk, as it could be used to gain unauthorized access to associated AWS resources. Immediate action is required to revoke this key and investigate the source of its inclusion in the public repo.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Priya Sharma": "<PERSON_1>",
+    "AKIAEXAMPLEEXAMPLEE5": "<AWS_KEY_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <AWS_KEY_1>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Incident: the access key <AWS_KEY_1> was found in a public repo by <PERSON_1>. Write a three line incident summary that names the key and who found it.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "summary-medical",
+   "category": "summary",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 47.0,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Subject: Follow-Up on Missed Appointments\n\nDear [Clinic Manager's Name],\n\nI hope this message finds you well.\n\nWe are writing to bring to your attention that Fatima Haddad (phone +1 312 555 0183) has missed two appointments in recent weeks. We understand that unforeseen circumstances may arise, but we kindly request your assistance in reaching out to them as soon as possible to ensure they receive the necessary care and support.\n\nPlease let us know if there is anything specific you need from our side or if there are any steps we can take to help facilitate their attendance at future appointments.\n\nThank you for your understanding and prompt attention to this matter.\n\nBest regards,  \n[Your Name]",
+     "tool_calls": [],
+     "raw_content": "Subject: Follow-Up on Missed Appointments\n\nDear [Clinic Manager's Name],\n\nI hope this message finds you well.\n\nWe are writing to bring to your attention that <PERSON_1> (phone <PHONE_1>) has missed two appointments in recent weeks. We understand that unforeseen circumstances may arise, but we kindly request your assistance in reaching out to them as soon as possible to ensure they receive the necessary care and support.\n\nPlease let us know if there is anything specific you need from our side or if there are any steps we can take to help facilitate their attendance at future appointments.\n\nThank you for your understanding and prompt attention to this matter.\n\nBest regards,  \n[Your Name]",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "+1 312 555 0183": "<PHONE_1>",
+    "Fatima Haddad": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <PHONE_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Patient <PERSON_1> (phone <PHONE_1>) missed two appointments. Write a short note for the clinic manager with the patient's name and phone.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "summary-payment",
+   "category": "summary",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 21.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "The payment made by Daniel Kim using card 5555 5555 5555 4444 for an amount of 89.00 USD was declined.",
+     "tool_calls": [],
+     "raw_content": "The payment made by <PERSON_1> using card <CARD_1> for an amount of 89.00 USD was declined.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "5555 5555 5555 4444": "<CARD_1>",
+    "Daniel Kim": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <CARD_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Payment record: payer <PERSON_1>, card <CARD_1>, amount 89.00 USD, status declined. Rewrite it as one plain sentence that keeps the payer and the card.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "json-contact",
+   "category": "json",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 25.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "```json\n{\n  \"name\": \"Sofia Rossi\",\n  \"email\": \"sofia.rossi@example.org\",\n  \"phone\": \"+1 617 555 0145\"\n}\n```",
+     "tool_calls": [],
+     "raw_content": "```json\n{\n  \"name\": \"<PERSON_1>\",\n  \"email\": \"<EMAIL_1>\",\n  \"phone\": \"+1 <UK_NHS_1>\"\n}\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "617 555 0145": "<UK_NHS_1>",
+    "sofia.rossi@example.org": "<EMAIL_1>",
+    "Sofia Rossi": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>, <UK_NHS_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Extract the contact as JSON with keys name, email, phone. Reply with JSON only.\\n\\nHi, I'm <PERSON_1>, reach me at <EMAIL_1> or +1 <UK_NHS_1>.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "json-ssn",
+   "category": "json",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 11.3,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "```json\n{\n  \"employee\": \"Lukas Becker - SSN\",\n  \"ssn\": \"701-18-4420\"\n}\n```",
+     "tool_calls": [],
+     "raw_content": "```json\n{\n  \"employee\": \"<PERSON_1>\",\n  \"ssn\": \"<SSN_1>\"\n}\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "701-18-4420": "<SSN_1>",
+    "Lukas Becker - SSN": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Return JSON with keys employee and ssn for this line, JSON only: '<PERSON_1> <SSN_1> - joined 2021'.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 4,
+   "survived": 4,
+   "exact": 4,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "json-two-people",
+   "category": "json",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 17.2,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "```json\n[\n    {\n        \"name\": \"Wei Chen\",\n        \"email\": \"<wei.chen@example.org>\"\n    },\n    {\n        \"name\": \"Priya Sharma\",\n        \"email\": \"<priya.sharma@example.com>\"\n    }\n]\n```",
+     "tool_calls": [],
+     "raw_content": "```json\n[\n    {\n        \"name\": \"<PERSON_2>\",\n        \"email\": \"<<EMAIL_2>>\"\n    },\n    {\n        \"name\": \"<PERSON_1>\",\n        \"email\": \"<<EMAIL_1>>\"\n    }\n]\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "priya.sharma@example.com": "<EMAIL_1>",
+    "Priya Sharma": "<PERSON_1>",
+    "wei.chen@example.org": "<EMAIL_2>",
+    "Wei Chen": "<PERSON_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_2>, <EMAIL_2>, <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Turn this into a JSON list of objects with keys name and email, JSON only:\\n<PERSON_2> <<EMAIL_2>>\\n<PERSON_1> <<EMAIL_1>>\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 3,
+   "survived": 3,
+   "exact": 3,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "json-payment",
+   "category": "json",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 23.4,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "```json\n{\n  \"payer\": \"Fatima Haddad\",\n  \"card\": \"4111 1111 1111 1111\",\n  \"iban\": \"DE89370400440532013000\"\n}\n```",
+     "tool_calls": [],
+     "raw_content": "```json\n{\n  \"payer\": \"<PERSON_1>\",\n  \"card\": \"<CARD_1>\",\n  \"iban\": \"<IBAN_1>\"\n}\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "DE89370400440532013000": "<IBAN_1>",
+    "4111 1111 1111 1111": "<CARD_1>",
+    "Fatima Haddad": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <CARD_1>, <IBAN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Extract JSON with keys payer, card, iban from: '<PERSON_1> paid with card <CARD_1>, refund to <IBAN_1>'. JSON only.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 3,
+   "survived": 3,
+   "exact": 3,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "json-nested",
+   "category": "json",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 25.4,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "```json\n{\n  \"customer\": {\n    \"name\": \"Aisha Okafor\",\n    \"ssn\": \"233-41-6702\"\n  },\n  \"agent\": \"Daniel Kim\"\n}\n```",
+     "tool_calls": [],
+     "raw_content": "```json\n{\n  \"customer\": {\n    \"name\": \"<PERSON_1>\",\n    \"ssn\": \"<SSN_1>\"\n  },\n  \"agent\": \"<PERSON_2>\"\n}\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "233-41-6702": "<SSN_1>",
+    "Aisha Okafor": "<PERSON_1>",
+    "Daniel Kim": "<PERSON_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_2>, <PERSON_1>, <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Make JSON {\\\"customer\\\": {\\\"name\\\": ..., \\\"ssn\\\": ...}, \\\"agent\\\": ...} from: agent <PERSON_2> helped customer <PERSON_1> (SSN <SSN_1>). JSON only.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "json-secret",
+   "category": "json",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 20.8,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "```json\n{\n  \"key_id\": \"AKIAEXAMPLEEXAMPLEE3\",\n  \"owner\": \"maria.garcia@example.com\"\n}\n```",
+     "tool_calls": [],
+     "raw_content": "```json\n{\n  \"key_id\": \"<AWS_KEY_1>\",\n  \"owner\": \"<EMAIL_1>\"\n}\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "maria.garcia@example.com": "<EMAIL_1>",
+    "AKIAEXAMPLEEXAMPLEE3": "<AWS_KEY_1>",
+    "Config": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <AWS_KEY_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"<PERSON_1> line: aws_access_key_id = <AWS_KEY_1>, owner = <EMAIL_1>. Return it as JSON with keys key_id and owner. JSON only.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "tool send_email not called",
+    "tool send_email not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "tool-send-email",
+   "category": "tool",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 31.9,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\"name\": \"send_email\", \"arguments\": {\"to\": \"maria.garcia@example.com\", \"subject\": \"Your Parcel is on Its Way!\", \"body\": \"Hello, Email Maria Garcia. Your parcel is expected to ship tomorrow.\"}}",
+     "tool_calls": [],
+     "raw_content": "{\n  \"name\": \"send_email\",\n  \"arguments\": {\n    \"to\": \"<EMAIL_1>\",\n    \"subject\": \"Your Parcel is on Its Way!\",\n    \"body\": \"Hello, <PERSON_1>. Your parcel is expected to ship tomorrow.\"\n  }\n}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "maria.garcia@example.com": "<EMAIL_1>",
+    "Email Maria Garcia": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"<PERSON_1> at <EMAIL_1> that her parcel ships tomorrow. Use the send_email tool.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"send_email\",\"description\":\"Send an email.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"to\":{\"type\":\"string\",\"description\":\"recipient email address\"},\"subject\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"}},\"required\":[\"to\",\"subject\",\"body\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "missing raw value",
+    "tool lookup_customer not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "tool-lookup-ssn",
+   "category": "tool",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 34.3,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\"name\": \"lookup_customer\", \"arguments\": {\"ssn\": \"412-73-1955\"}}",
+     "tool_calls": [],
+     "raw_content": "{\n  \"name\": \"lookup_customer\",\n  \"arguments\": {\n    \"ssn\": \"<SSN_1>\"\n  }\n}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "412-73-1955": "<SSN_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Look up the customer with SSN <SSN_1> and tell me their name and plan.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lookup_customer\",\"description\":\"Look up a customer record by social security number.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"ssn\":{\"type\":\"string\",\"description\":\"the SSN, like 123-45-6789\"}},\"required\":[\"ssn\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "tool lookup_customer not called",
+    "tool send_email not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "tool-lookup-then-email",
+   "category": "tool",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 23.7,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\"name\": \"lookup_customer\", \"arguments\": {\"ssn\": \"233-41-6702\"}}",
+     "tool_calls": [],
+     "raw_content": "{\n  \"name\": \"lookup_customer\",\n  \"arguments\": {\n    \"ssn\": \"<SSN_1>\"\n  }\n}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "233-41-6702": "<SSN_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Find the customer with SSN <SSN_1> using lookup_customer, then email them with send_email that their balance is settled. Use the email from the record.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lookup_customer\",\"description\":\"Look up a customer record by social security number.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"ssn\":{\"type\":\"string\",\"description\":\"the SSN, like 123-45-6789\"}},\"required\":[\"ssn\"]}}},{\"type\":\"function\",\"function\":{\"name\":\"send_email\",\"description\":\"Send an email.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"to\":{\"type\":\"string\",\"description\":\"recipient email address\"},\"subject\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"}},\"required\":[\"to\",\"subject\",\"body\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "tool schedule_call not called",
+    "tool schedule_call not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "tool-schedule",
+   "category": "tool",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 29.8,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\"name\": \"schedule_call\", \"arguments\": {\"name\": \"Lukas Becker\", \"phone\": \"+1 303 555 0111\", \"time\": \"3pm Friday\"}}",
+     "tool_calls": [],
+     "raw_content": "{\n  \"name\": \"schedule_call\",\n  \"arguments\": {\n    \"name\": \"<PERSON_1>\",\n    \"phone\": \"<PHONE_1>\",\n    \"time\": \"3pm Friday\"\n  }\n}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "+1 303 555 0111": "<PHONE_1>",
+    "Lukas Becker": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <PHONE_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Schedule a call with <PERSON_1> at <PHONE_1> for 3pm Friday.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"schedule_call\",\"description\":\"Schedule a phone call with a person.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"phone\":{\"type\":\"string\"},\"time\":{\"type\":\"string\"}},\"required\":[\"name\",\"phone\",\"time\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "tool create_ticket not called",
+    "tool create_ticket not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "tool-ticket",
+   "category": "tool",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 25.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\"name\": \"create_ticket\", \"arguments\": {\"customer_name\": \"Sofia Rossi\", \"customer_email\": \"sofia.rossi@example.org\", \"summary\": \"Cannot log in since yesterday\"}}",
+     "tool_calls": [],
+     "raw_content": "{\n  \"name\": \"create_ticket\",\n  \"arguments\": {\n    \"customer_name\": \"<PERSON_1>\",\n    \"customer_email\": \"<EMAIL_1>\",\n    \"summary\": \"Cannot log in since yesterday\"\n  }\n}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "sofia.rossi@example.org": "<EMAIL_1>",
+    "Sofia Rossi": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Open a ticket: <PERSON_1> (<EMAIL_1>) cannot log in since yesterday.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"create_ticket\",\"description\":\"Create a support ticket for a customer.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"customer_name\":{\"type\":\"string\"},\"customer_email\":{\"type\":\"string\"},\"summary\":{\"type\":\"string\"}},\"required\":[\"customer_name\",\"customer_email\",\"summary\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "tool rotate_key not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "tool-rotate-key",
+   "category": "tool",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 32.9,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\"name\": \"rotate_key\", \"arguments\": {\"access_key_id\": \"AKIAEXAMPLEEXAMPLEE5\"}}",
+     "tool_calls": [],
+     "raw_content": "{\n  \"name\": \"rotate_key\",\n  \"arguments\": {\n    \"access_key_id\": \"<AWS_KEY_1>\"\n  }\n}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "AKIAEXAMPLEEXAMPLEE5": "<AWS_KEY_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <AWS_KEY_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"This key leaked in a log: <AWS_KEY_1>. Disable it now.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"rotate_key\",\"description\":\"Disable a leaked cloud access key.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"access_key_id\":{\"type\":\"string\"}},\"required\":[\"access_key_id\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "tool send_email not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "tool-pick-person",
+   "category": "tool",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 48.0,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\"name\": \"send_email\", \"arguments\": {\"to\": \"priya.sharma@example.com\", \"subject\": \"Invoice for Your Order\", \"body\": \"Dear Priya Sharma, please find your invoice at the following link: https://example.com/inv/77.\"}}",
+     "tool_calls": [],
+     "raw_content": "{\"name\": \"send_email\", \"arguments\": {\"to\": \"<EMAIL_1>\", \"subject\": \"Invoice for Your Order\", \"body\": \"Dear <PERSON_1>, please find your invoice at the following link: https://example.com/inv/77.\"}}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Priya Sharma": "<PERSON_1>",
+    "priya.sharma@example.com": "<EMAIL_1>",
+    "wei.chen@example.org": "<EMAIL_2>",
+    "Wei Chen": "<PERSON_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_2>, <EMAIL_2>, <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"We have two customers: <PERSON_2> (<EMAIL_2>) and <PERSON_1> (<EMAIL_1>). Only <PERSON_1> asked for the invoice. Email the invoice link https://example.com/inv/77 to the right one.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"send_email\",\"description\":\"Send an email.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"to\":{\"type\":\"string\",\"description\":\"recipient email address\"},\"subject\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"}},\"required\":[\"to\",\"subject\",\"body\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "missing raw value",
+    "tool lookup_customer not called",
+    "tool lookup_customer not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "tool-lookup-two",
+   "category": "tool",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 43.0,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\n  \"name\": \"lookup_customer\",\n  \"arguments\": {\n    \"ssn\": \"412-73-1955\"\n  }\n}\n\n{\n  \"name\": \"lookup_customer\",\n  \"arguments\": {\n    \"ssn\": \"527-84-3316\"\n  }\n}",
+     "tool_calls": [],
+     "raw_content": "{\n  \"name\": \"lookup_customer\",\n  \"arguments\": {\n    \"ssn\": \"<SSN_2>\"\n  }\n}\n\n{\n  \"name\": \"lookup_customer\",\n  \"arguments\": {\n    \"ssn\": \"<SSN_1>\"\n  }\n}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "527-84-3316": "<SSN_1>",
+    "412-73-1955": "<SSN_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <SSN_2>, <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Look up both customers, SSN <SSN_2> and SSN <SSN_1>, and tell me which one has the higher balance, by name.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lookup_customer\",\"description\":\"Look up a customer record by social security number.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"ssn\":{\"type\":\"string\",\"description\":\"the SSN, like 123-45-6789\"}},\"required\":[\"ssn\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [
+    {
+     "placeholder": "<EMAIL_1>",
+     "form": null
+    }
+   ],
+   "survival_ok": false,
+   "restore_ok": false,
+   "problems": [
+    "missing <EMAIL_1>"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "multi-remember-name",
+   "category": "multi",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 36.5,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Hello, Daniel Kim! How can I assist you today?",
+     "tool_calls": [],
+     "raw_content": "Hello, <PERSON_1>! How can I assist you today?",
+     "raw_tool_calls": []
+    },
+    {
+     "turn": 1,
+     "content": "Sure, I can help with that. Could you please provide your current shipping address and the new office address so I can update it for you?",
+     "tool_calls": [],
+     "raw_content": "Sure, I can help with that. Could you please provide your current shipping address and the new office address so I can update it for you?",
+     "raw_tool_calls": []
+    },
+    {
+     "turn": 2,
+     "content": "Subject: Confirmation of Address Change\n\nDear Daniel Kim,\n\nThank you for reaching out to us regarding your address change request. We have successfully updated your delivery address to the office.\n\nIf you have any further questions or need assistance, please don't hesitate to contact us.\n\nBest regards,\n[Your Company Name]",
+     "tool_calls": [],
+     "raw_content": "Subject: Confirmation of Address Change\n\nDear <PERSON_1>,\n\nThank you for reaching out to us regarding your address change request. We have successfully updated your delivery address to the office.\n\nIf you have any further questions or need assistance, please don't hesitate to contact us.\n\nBest regards,\n[Your Company Name]",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "daniel.kim@example.net": "<EMAIL_1>",
+    "Daniel Kim": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Hi, my name is <PERSON_1> and my email is <EMAIL_1>.\"}],\"max_tokens\":400,\"temperature\":0.0}",
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Hi, my name is <PERSON_1> and my email is <EMAIL_1>.\"},{\"role\":\"assistant\",\"content\":\"Hello, <PERSON_1>! How can I assist you today?\"},{\"role\":\"user\",\"content\":\"I want to change my delivery address to the office.\"}],\"max_tokens\":400,\"temperature\":0.0}",
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Hi, my name is <PERSON_1> and my email is <EMAIL_1>.\"},{\"role\":\"assistant\",\"content\":\"Hello, <PERSON_1>! How can I assist you today?\"},{\"role\":\"user\",\"content\":\"I want to change my delivery address to the office.\"},{\"role\":\"assistant\",\"content\":\"Sure, I can help with that. Could you please provide your current shipping address and the new office address so I can update it for you?\"},{\"role\":\"user\",\"content\":\"Write the confirmation email for me. Put my email on a 'To:' line and greet me by my full name.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "multi-two-people",
+   "category": "multi",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 13.7,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Got it! Your manager is Sofia Rossi and your colleague is Lukas Becker. How can I assist you further?",
+     "tool_calls": [],
+     "raw_content": "Got it! Your manager is <PERSON_2> and your colleague is <PERSON_1>. How can I assist you further?",
+     "raw_tool_calls": []
+    },
+    {
+     "turn": 1,
+     "content": "Your manager is Sofia Rossi.",
+     "tool_calls": [],
+     "raw_content": "Your manager is <PERSON_2>.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Lukas Becker": "<PERSON_1>",
+    "Sofia Rossi": "<PERSON_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_2>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"My manager is <PERSON_2> and my colleague is <PERSON_1>.\"}],\"max_tokens\":400,\"temperature\":0.0}",
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_2>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"My manager is <PERSON_2> and my colleague is <PERSON_1>.\"},{\"role\":\"assistant\",\"content\":\"Got it! Your manager is <PERSON_2> and your colleague is <PERSON_1>. How can I assist you further?\"},{\"role\":\"user\",\"content\":\"Who is my manager? Answer with the full name only.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "multi-ssn-later",
+   "category": "multi",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 25.8,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Thank you for letting me know that you're filing a claim. If you have any specific questions or need assistance with the process, feel free to let me know!",
+     "tool_calls": [],
+     "raw_content": "Thank you for letting me know that you're filing a claim. If you have any specific questions or need assistance with the process, feel free to let me know!",
+     "raw_tool_calls": []
+    },
+    {
+     "turn": 1,
+     "content": "You gave me your Social Security Number, which is 612-30-5518.",
+     "tool_calls": [],
+     "raw_content": "You gave me your Social Security Number, which is <SSN_1>.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "612-30-5518": "<SSN_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"I'm filing a claim. My SSN is <SSN_1>.\"}],\"max_tokens\":400,\"temperature\":0.0}",
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"I'm filing a claim. My SSN is <SSN_1>.\"},{\"role\":\"assistant\",\"content\":\"Thank you for letting me know that you're filing a claim. If you have any specific questions or need assistance with the process, feel free to let me know!\"},{\"role\":\"user\",\"content\":\"Thanks. What SSN did I give you? Repeat it exactly.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "multi-correct",
+   "category": "multi",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 36.8,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Sure, I'll send the report to wei.chen@example.org for you. Please let me know if there's anything else I can assist with!",
+     "tool_calls": [],
+     "raw_content": "Sure, I'll send the report to <EMAIL_1> for you. Please let me know if there's anything else I can assist with!",
+     "raw_tool_calls": []
+    },
+    {
+     "turn": 1,
+     "content": "aisha.okafor@example.net",
+     "tool_calls": [],
+     "raw_content": "<EMAIL_2>",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "wei.chen@example.org": "<EMAIL_1>",
+    "aisha.okafor@example.net": "<EMAIL_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Send the report to <EMAIL_1>.\"}],\"max_tokens\":400,\"temperature\":0.0}",
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <EMAIL_1>, <EMAIL_2>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Send the report to <EMAIL_1>.\"},{\"role\":\"assistant\",\"content\":\"Sure, I'll send the report to <EMAIL_1> for you. Please let me know if there's anything else I can assist with!\"},{\"role\":\"user\",\"content\":\"Sorry, wrong address. Use <EMAIL_2> instead. Which address will you use? Reply with the address only.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": false,
+   "problems": [
+    "tool send_email not called"
+   ],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": false,
+   "tool_args_ok": false,
+   "tool_args_exact": false,
+   "id": "multi-tool",
+   "category": "multi",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 53.4,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "{\"name\": \"send_email\", \"arguments\": {\"to\": \"maria.garcia@example.com\", \"subject\": \"Thank you for your inquiry\", \"body\": \"Dear Maria Garcia, thank you for reaching out to us. We appreciate your business.\"}}",
+     "tool_calls": [],
+     "raw_content": "{\n  \"name\": \"send_email\",\n  \"arguments\": {\n    \"to\": \"<EMAIL_1>\",\n    \"subject\": \"Thank you for your inquiry\",\n    \"body\": \"Dear <PERSON_1>, thank you for reaching out to us. We appreciate your business.\"\n  }\n}",
+     "raw_tool_calls": []
+    },
+    {
+     "turn": 1,
+     "content": "{\"name\": \"send_email\", \"arguments\": {\"to\": \"maria.garcia@example.com\", \"subject\": \"Ticket Resolved\", \"body\": \"Dear Maria Garcia, we are pleased to inform you that your ticket has been successfully resolved.\"}}",
+     "tool_calls": [],
+     "raw_content": "{\"name\": \"send_email\", \"arguments\": {\"to\": \"<EMAIL_1>\", \"subject\": \"Ticket Resolved\", \"body\": \"Dear <PERSON_1>, we are pleased to inform you that your ticket has been successfully resolved.\"}}",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "maria.garcia@example.com": "<EMAIL_1>",
+    "Maria Garcia": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Customer <PERSON_1> wrote in, her email is <EMAIL_1>.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"send_email\",\"description\":\"Send an email.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"to\":{\"type\":\"string\",\"description\":\"recipient email address\"},\"subject\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"}},\"required\":[\"to\",\"subject\",\"body\"]}}}]}",
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant for a customer support team. Be brief.\\n\\nSome values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Customer <PERSON_1> wrote in, her email is <EMAIL_1>.\"},{\"role\":\"assistant\",\"content\":\"{\\\"name\\\": \\\"send_email\\\", \\\"arguments\\\": {\\\"to\\\": \\\"<EMAIL_1>\\\", \\\"subject\\\": \\\"Thank you for your inquiry\\\", \\\"body\\\": \\\"Dear <PERSON_1>, thank you for reaching out to us. We appreciate your business.\\\"}}\"},{\"role\":\"user\",\"content\":\"Please email her with send_email that her ticket is resolved.\"}],\"max_tokens\":400,\"temperature\":0.0,\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"send_email\",\"description\":\"Send an email.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"to\":{\"type\":\"string\",\"description\":\"recipient email address\"},\"subject\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"}},\"required\":[\"to\",\"subject\",\"body\"]}}}]}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "translate-es",
+   "category": "translate",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 8.5,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Por favor, llama a Aisha Okafor en +1 646 555 0199 antes de viernes.",
+     "tool_calls": [],
+     "raw_content": "Por favor, llama a <PERSON_1> en <PHONE_1> antes de viernes.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "+1 646 555 0199": "<PHONE_1>",
+    "Aisha Okafor": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <PHONE_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Translate to Spanish: 'Please call <PERSON_1> at <PHONE_1> before Friday.'\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 1,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "translate-fr",
+   "category": "translate",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 7.7,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Bonjour Lukas Becker, votre nouveau mot de passe a été envoyé à lukas.becker@example.com.",
+     "tool_calls": [],
+     "raw_content": "Bonjour Lukas Becker, votre nouveau mot de passe a été envoyé à <EMAIL_1>.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "lukas.becker@example.com": "<EMAIL_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Translate to French: 'Dear Lukas Becker, your new password was sent to <EMAIL_1>.'\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "translate-de",
+   "category": "translate",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 7.7,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "'Maria Garcia und Wei Chen werden der Besprechung beitreten.'",
+     "tool_calls": [],
+     "raw_content": "'<PERSON_2> und <PERSON_1> werden der Besprechung beitreten.'",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Wei Chen": "<PERSON_1>",
+    "Maria Garcia": "<PERSON_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_2>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Translate into German: '<PERSON_2> and <PERSON_1> will join the meeting.'\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "translate-hi",
+   "category": "translate",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 28.1,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "आपका अंतर्राष्ट्रीय सांस्कृतिक नंबर (455-61-2093) पुष्टि की गई है, Daniel Kim.",
+     "tool_calls": [],
+     "raw_content": "आपका अंतर्राष्ट्रीय सांस्कृतिक नंबर (<SSN_1>) पुष्टि की गई है, <PERSON_1>.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Daniel Kim": "<PERSON_1>",
+    "455-61-2093": "<SSN_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <SSN_1>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Translate to Hindi: 'Your SSN <SSN_1> was verified, <PERSON_1>.'\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "translate-ja",
+   "category": "translate",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 7.6,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "契約をPriya Sharma(priya.sharma@example.com)に送ってください。",
+     "tool_calls": [],
+     "raw_content": "契約を<PERSON_1>(<EMAIL_1>)に送ってください。",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "priya.sharma@example.com": "<EMAIL_1>",
+    "Priya Sharma": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Translate to Japanese: 'Please send the contract to <PERSON_1> (<EMAIL_1>).'\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "translate-zh",
+   "category": "translate",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 6.8,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Fatima Haddad 使用信用卡 5555 5555 5555 4444 进行支付。",
+     "tool_calls": [],
+     "raw_content": "<PERSON_1> 使用信用卡 <CARD_1> 进行支付。",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "5555 5555 5555 4444": "<CARD_1>",
+    "Fatima Haddad": "<PERSON_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_1>, <CARD_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Translate to Chinese: '<PERSON_1> paid with card <CARD_1>.'\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 6,
+   "survived": 6,
+   "exact": 6,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "list-roster",
+   "category": "list",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 25.4,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "- Maria Garcia - maria.garcia@example.com\n- Wei Chen - wei.chen@example.org\n- Aisha Okafor - aisha.okafor@example.net",
+     "tool_calls": [],
+     "raw_content": "- <PERSON_3> - <EMAIL_3>\n- <PERSON_2> - <EMAIL_2>\n- <PERSON_1> - <EMAIL_1>",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "aisha.okafor@example.net": "<EMAIL_1>",
+    "Aisha Okafor": "<PERSON_1>",
+    "wei.chen@example.org": "<EMAIL_2>",
+    "Wei Chen": "<PERSON_2>",
+    "maria.garcia@example.com": "<EMAIL_3>",
+    "Maria Garcia": "<PERSON_3>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_3>, <EMAIL_3>, <PERSON_2>, <EMAIL_2>, <PERSON_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Team: <PERSON_3> (<EMAIL_3>), <PERSON_2> (<EMAIL_2>), <PERSON_1> (<EMAIL_1>). Make a bullet list, one person per line, 'name - email'.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 4,
+   "survived": 4,
+   "exact": 4,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "list-sort",
+   "category": "list",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 23.0,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Sure! Here are the people sorted by their last names:\n\n1. Fatima Haddad\n2. Lukas Becker\n3. Daniel Kim\n4. Sofia Rossi",
+     "tool_calls": [],
+     "raw_content": "Sure! Here are the people sorted by their last names:\n\n1. <PERSON_1>\n2. <PERSON_2>\n3. <PERSON_3>\n4. <PERSON_4>",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Fatima Haddad": "<PERSON_1>",
+    "Lukas Becker": "<PERSON_2>",
+    "Daniel Kim": "<PERSON_3>",
+    "Sofia Rossi": "<PERSON_4>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_4>, <PERSON_3>, <PERSON_2>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Sort these people by last name, one per line: <PERSON_4>, <PERSON_3>, <PERSON_2>, <PERSON_1>.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 2,
+   "needed": 4,
+   "survived": 4,
+   "exact": 4,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "list-table",
+   "category": "list",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 32.6,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Sure, here is the markdown table you requested:\n\n```markdown\n| Name | SSN       |\n|------------|-----------|\n| Priya Sharma | 612-30-5518   |\n| Lukas Becker | 701-18-4420 |\n| Wei Chen     | 412-73-1955   |\n```",
+     "tool_calls": [],
+     "raw_content": "Sure, here is the markdown table you requested:\n\n```markdown\n| <PERSON_2> | SSN       |\n|------------|-----------|\n| <PERSON_1> | <SSN_3>   |\n| Lukas Becker | <SSN_2> |\n| Wei Chen     | <SSN_1>   |\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "412-73-1955": "<SSN_1>",
+    "701-18-4420": "<SSN_2>",
+    "612-30-5518": "<SSN_3>",
+    "Priya Sharma": "<PERSON_1>",
+    "Name": "<PERSON_2>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_2>, <PERSON_1>, <SSN_3>, <SSN_2>, <SSN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Make a markdown table with columns <PERSON_2> and SSN:\\n<PERSON_1> <SSN_3>\\nLukas Becker <SSN_2>\\nWei Chen <SSN_1>\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "list-filter",
+   "category": "list",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 16.7,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Maria Garcia\nSofia Rossi",
+     "tool_calls": [],
+     "raw_content": "<PERSON_3>\n<PERSON_1>",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "Sofia Rossi": "<PERSON_1>",
+    "Daniel Kim": "<PERSON_2>",
+    "Maria Garcia": "<PERSON_3>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <PERSON_3>, <PERSON_2>, <PERSON_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Customers: <PERSON_3> (plan pro), <PERSON_2> (plan basic), <PERSON_1> (plan pro). List only the names on the pro plan, one per line.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "code-boto3",
+   "category": "code",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 29.4,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Here is a Python snippet that creates a boto3 S3 client with an access key ID:\n\n```python\nimport boto3\n\n# Create a boto3 S3 client using the provided AWS access key ID\ns3_client = boto3.client(\n    's3',\n    aws_access_key_id='AKIAEXAMPLEEXAMPLEE5'\n)\n\n# Now you can use s3_client to interact with your S3 bucket\n```\n\nMake sure to replace `AKIAEXAMPLEEXAMPLEE5` with your actual AWS access key ID.",
+     "tool_calls": [],
+     "raw_content": "Here is a Python snippet that creates a boto3 S3 client with an access key ID:\n\n```python\nimport boto3\n\n# Create a boto3 S3 client using the provided AWS access key ID\ns3_client = boto3.client(\n    's3',\n    aws_access_key_id='<AWS_KEY_1>'\n)\n\n# Now you can use s3_client to interact with your S3 bucket\n```\n\nMake sure to replace `<AWS_KEY_1>` with your actual AWS access key ID.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "AKIAEXAMPLEEXAMPLEE5": "<AWS_KEY_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <AWS_KEY_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Write a Python snippet that creates a boto3 S3 client with access key id <AWS_KEY_1>. Put the key id in the code as a string literal.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "code-github",
+   "category": "code",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 18.9,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "```sh\ncurl -H \"Authorization: token ghp_EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE6\" https://api.github.com/user/repos\n```",
+     "tool_calls": [],
+     "raw_content": "```sh\ncurl -H \"Authorization: token <GITHUB_TOKEN_1>\" https://api.github.com/user/repos\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "ghp_EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE6": "<GITHUB_TOKEN_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <GITHUB_TOKEN_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Write a curl command that lists my GitHub repos using the token <GITHUB_TOKEN_1>. Put the token in the Authorization header.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 1,
+   "survived": 1,
+   "exact": 1,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "code-env",
+   "category": "code",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 31.7,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "Certainly! Below is an example of what your `.env` file should look like:\n\n```\nAWS_ACCESS_KEY_ID=AKIAEXAMPLEEXAMPLEE3\nEMAIL=ADMIN_EMAIL=priya.sharma@example.com\n```\n\nYou can copy this text into a new file named `.env` in the root directory of your project. Make sure to replace `AKIAEXAMPLEEXAMPLEE3` and `ADMIN_EMAIL=priya.sharma@example.com` with the actual values you have.",
+     "tool_calls": [],
+     "raw_content": "Certainly! Below is an example of what your `.env` file should look like:\n\n```\nAWS_ACCESS_KEY_ID=<AWS_KEY_1>\nEMAIL=<EMAIL_1>\n```\n\nYou can copy this text into a new file named `.env` in the root directory of your project. Make sure to replace `<AWS_KEY_1>` and `<EMAIL_1>` with the actual values you have.",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "ADMIN_EMAIL=priya.sharma@example.com": "<EMAIL_1>",
+    "AKIAEXAMPLEEXAMPLEE3": "<AWS_KEY_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <AWS_KEY_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Make a .env file with AWS_ACCESS_KEY_ID=<AWS_KEY_1> and <EMAIL_1>.\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  },
+  {
+   "leak_known": 0,
+   "detector_miss": 0,
+   "needed": 2,
+   "survived": 2,
+   "exact": 2,
+   "rewritten": [],
+   "dropped": [],
+   "survival_ok": true,
+   "restore_ok": true,
+   "problems": [],
+   "leftovers": [],
+   "wrong_restore": [],
+   "mixups": [],
+   "tool_called": null,
+   "tool_args_ok": null,
+   "tool_args_exact": null,
+   "id": "code-fix",
+   "category": "code",
+   "mode": "hardened",
+   "error": null,
+   "seconds": 18.8,
+   "calls": [
+    {
+     "turn": 0,
+     "content": "The issue in the code is that there is a missing comma between the string 'owner is' and the variable `owner`. Here is the corrected version of the code:\n\n```python\nkey = 'AKIAEXAMPLEEXAMPLEE5'\nowner = 'lukas.becker@example.com'\nprint('owner is', owner)\n```",
+     "tool_calls": [],
+     "raw_content": "The issue in the code is that there is a missing comma between the string 'owner is' and the variable `owner`. Here is the corrected version of the code:\n\n```python\nkey = '<AWS_KEY_1>'\nowner = '<EMAIL_1>'\nprint('owner is', owner)\n```",
+     "raw_tool_calls": []
+    }
+   ],
+   "flags": {
+    "lost": [],
+    "unknown": [],
+    "repaired": []
+   },
+   "known": {
+    "lukas.becker@example.com": "<EMAIL_1>",
+    "AKIAEXAMPLEEXAMPLEE5": "<AWS_KEY_1>"
+   },
+   "requests": [
+    "{\"model\":\"qwen2.5-coder:7b\",\"messages\":[{\"role\":\"system\",\"content\":\"Some values in this conversation were replaced by placeholders: <AWS_KEY_1>, <EMAIL_1>. Each one stands for a real value the user already gave, so it is not a blank to fill in and it is safe to repeat. Copy each placeholder exactly as written, with the angle brackets, wherever you need that value: in text, lists, JSON, code and tool call arguments. Keep placeholders unchanged when you translate. Do not invent new placeholders and do not ask for the real values.\"},{\"role\":\"user\",\"content\":\"Fix the bug in this code and return the full fixed code:\\n\\nkey = '<AWS_KEY_1>'\\nowner = '<EMAIL_1>'\\nprint('owner is' owner)\\n\"}],\"max_tokens\":400,\"temperature\":0.0}"
+   ],
+   "instruction_sent": true
+  }
+ ]
+}

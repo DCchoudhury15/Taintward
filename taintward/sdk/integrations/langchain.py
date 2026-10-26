@@ -33,11 +33,12 @@ import contextvars
 from typing import Any, ClassVar, Iterable, Mapping
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.prompt_values import ChatPromptValue
 from langchain_core.tools import BaseTool
 from opentelemetry import trace
 
+from taintward.sdk import placeholders as ph
 from taintward.sdk.destinations import DEST_LLM
 from taintward.sdk.instrumentation import GuardedCall
 from taintward.sdk.integrations import ToolPolicy, Ward, _resolve
@@ -272,6 +273,38 @@ def _llm_call(model: BaseChatModel, messages: list[BaseMessage], ward: Ward,
     )
 
 
+def with_instruction(messages: list[BaseMessage], pmap, ward: Ward) -> list[BaseMessage]:
+    """The redacted messages plus one system line that asks the model to copy
+    the placeholders exactly (``ward.placeholder_instruction``)."""
+    if pmap is None or not len(pmap) or not getattr(ward, "placeholder_instruction", True):
+        return messages
+    names = ph.placeholders_in(messages)
+    if not names:
+        return messages
+    line = ph.instruction_for(names)
+    first = messages[0] if messages else None
+    if isinstance(first, SystemMessage) and isinstance(first.content, str):
+        return [first.model_copy(update={"content": f"{first.content}\n\n{line}"}),
+                *messages[1:]]
+    return [SystemMessage(line), *messages]
+
+
+def _send(call: GuardedCall, pmap, ward: Ward) -> list[BaseMessage]:
+    messages = call.kwargs["messages"]
+    send = with_instruction(messages, pmap, ward)
+    if send is not messages:
+        call.span.set_attribute("taintward.placeholders.instruction", True)
+    return send
+
+
+def _finish(call: GuardedCall, out: Any, pmap, ward: Ward) -> None:
+    view = _message_view(out) if isinstance(out, BaseMessage) else out
+    call.record_result(out, view=view)  # placeholder version
+    if pmap is not None and len(pmap):
+        ph.check_output(pmap, view, span=call.span,
+                        strict=getattr(ward, "placeholder_strict", False))
+
+
 _MODEL_CLASSES: dict[tuple[type, int], type] = {}
 
 
@@ -289,9 +322,10 @@ def _protected_model_class(base: type, ward: Ward) -> type:
                 return pv
             # stream / astream / direct generate: redact, record a request span.
             # The streamed output is not restored (see docs/integrations.md).
-            with _llm_call(self, pv.to_messages(), ward, ward.llm_placeholder_map()) as call:
-                pass
-            return ChatPromptValue(messages=call.kwargs["messages"])
+            pmap = ward.llm_placeholder_map()
+            with _llm_call(self, pv.to_messages(), ward, pmap) as call:
+                messages = _send(call, pmap, ward)
+            return ChatPromptValue(messages=messages)
 
         def invoke(self, input, config=None, **kwargs):
             messages = super()._convert_input(input).to_messages()
@@ -300,11 +334,11 @@ def _protected_model_class(base: type, ward: Ward) -> type:
                 tok = _IN_GUARDED_INVOKE.set(True)
                 try:
                     out = super().invoke(
-                        ChatPromptValue(messages=call.kwargs["messages"]), config, **kwargs
+                        ChatPromptValue(messages=_send(call, pmap, ward)), config, **kwargs
                     )
                 finally:
                     _IN_GUARDED_INVOKE.reset(tok)
-                call.record_result(out, view=_message_view(out))  # placeholder version
+                _finish(call, out, pmap, ward)
             return restore_message(out, pmap)
 
         async def ainvoke(self, input, config=None, **kwargs):
@@ -314,11 +348,11 @@ def _protected_model_class(base: type, ward: Ward) -> type:
                 tok = _IN_GUARDED_INVOKE.set(True)
                 try:
                     out = await super().ainvoke(
-                        ChatPromptValue(messages=call.kwargs["messages"]), config, **kwargs
+                        ChatPromptValue(messages=_send(call, pmap, ward)), config, **kwargs
                     )
                 finally:
                     _IN_GUARDED_INVOKE.reset(tok)
-                call.record_result(out, view=_message_view(out))  # placeholder version
+                _finish(call, out, pmap, ward)
             return restore_message(out, pmap)
 
     Protected.__name__ = f"Protected{base.__name__}"
