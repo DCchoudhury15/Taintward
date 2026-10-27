@@ -29,3 +29,6 @@ signoz-data/
 # CI caches
 .cache/
 
+
+# Generated benchmark data (python bench/make_dataset.py, seed 1337)
+bench/data/detection.jsonl
