@@ -67,6 +67,11 @@ def overlaps(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     return a_start < b_end and b_start < a_end
 
 
+def mask(value: str) -> str:
+    # Reports are committed, so never write a full secret into them.
+    return value if len(value) <= 8 else f"{value[:8]}...({len(value)} chars)"
+
+
 def prf(tp_p: int, n_pred: int, tp_g: int, n_gold: int) -> dict:
     p = tp_p / n_pred if n_pred else None
     r = tp_g / n_gold if n_gold else None
@@ -117,7 +122,7 @@ def evaluate(examples: list[dict]) -> dict:
             if not strict:
                 false_negatives.append({
                     "id": ex["id"], "class": g["type"], "tag": ex["tag"], "format": ex["format"],
-                    "value": g["value"][:80],
+                    "value": mask(g["value"]),
                     "found_as": sorted({c for c, d in pmapped
                                         if overlaps(d.start, d.end, g["start"], g["end"])}),
                 })
