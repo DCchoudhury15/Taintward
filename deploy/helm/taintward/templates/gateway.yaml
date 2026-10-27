@@ -50,7 +50,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: gateway
-          image: "{{ $g.image.repository }}:{{ $g.image.tag }}"
+          image: "{{ $g.image.repository }}:{{ $g.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $g.image.pullPolicy }}
           command: ["python", "-m", "taintward.gateway"]
           args:

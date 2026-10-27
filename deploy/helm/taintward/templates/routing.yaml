@@ -46,7 +46,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: collector
-          image: "{{ $c.image.repository }}:{{ $c.image.tag }}"
+          image: "{{ $c.image.repository }}:{{ $c.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $c.image.pullPolicy }}
           args: ["--config=/etc/taintward/config/config.yaml"]
           ports:

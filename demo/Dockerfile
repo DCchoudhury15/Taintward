@@ -1,6 +1,7 @@
 # Taintward demo image: runs the HR bot breach simulator once.
 # Build from the repo root:  docker build -f demo/Dockerfile -t taintward-demo .
-FROM python:3.12-slim
+# The base image is pinned by digest (same as deploy/gateway.Dockerfile).
+FROM python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -9,13 +10,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install the runtime deps listed in pyproject.toml, plus the small spaCy
-# model that taintward/sdk/detect.py pins (not the 400MB en_core_web_lg).
-COPY pyproject.toml ./
-RUN python -c "import tomllib; print('\n'.join(tomllib.load(open('pyproject.toml','rb'))['project']['dependencies']))" > /tmp/req.txt \
- && pip install -r /tmp/req.txt \
- && python -m spacy download en_core_web_sm \
- && rm -rf /root/.cache /tmp/req.txt
+# Runtime deps plus the small spaCy model that taintward/sdk/detect.py pins
+# (not the 400MB en_core_web_lg), from the hashed lock file made by
+# deploy/requirements/update.sh. Same layer as deploy/gateway.Dockerfile.
+COPY deploy/requirements/runtime.txt /tmp/req/runtime.txt
+RUN pip install --require-hashes --no-deps --only-binary=:all: --retries 10 --timeout 60 \
+        -r /tmp/req/runtime.txt \
+ && rm -rf /root/.cache
 
 COPY taintward ./taintward
 COPY demo ./demo

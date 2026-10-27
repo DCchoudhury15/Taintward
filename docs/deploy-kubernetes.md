@@ -18,15 +18,12 @@ How to size it is in [scaling.md](scaling.md).
 
 * A Kubernetes cluster (1.27 or newer) and `kubectl` pointed at it.
 * Helm 3.
-* The images. There is no public registry image yet, so build them and push
-  them to your own registry (or load them into a local cluster):
-
-```bash
-docker build -f collector/Dockerfile -t <registry>/taintward-collector:0.2.0 .
-docker build -f deploy/gateway.Dockerfile   -t <registry>/taintward-gateway:0.2.0 .
-docker push <registry>/taintward-collector:0.2.0
-docker push <registry>/taintward-gateway:0.2.0
-```
+* Nothing to build. Each release publishes signed images to
+  `registry.gitlab.com/divyanshuchoudhury51/taintward/collector` and
+  `/gateway`, and the chart to
+  `oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward`
+  (how to check the signatures: [releasing.md](releasing.md)). The chart
+  uses those images, tagged with its appVersion, by default.
 
 * `metrics-server` in the cluster if you want the HPAs to scale (most
   managed clusters have it).
@@ -40,10 +37,15 @@ set `exporter.endpoint`:
 ```bash
 kubectl create namespace taintward
 
-helm install taintward deploy/helm/taintward -n taintward \
-  --set collector.image.repository=<registry>/taintward-collector \
+helm install taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward \
+  --version 0.2.0 -n taintward \
   --set exporter.endpoint=my-backend.observability.svc:4317
 ```
+
+To use your own copy of the images (an air gapped cluster, for example),
+set `collector.image.repository` and `gateway.image.repository`. To install
+from a clone of the repo instead, use `deploy/helm/taintward` in place of
+the `oci://` URL.
 
 Backend options:
 
@@ -79,7 +81,7 @@ With the SDK that is `configure_tracing("my-agent", endpoint="http://taintward-c
 The Rego policy is in a ConfigMap. To use your own file:
 
 ```bash
-helm upgrade taintward deploy/helm/taintward -n taintward --reuse-values \
+helm upgrade taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward --version 0.2.0 -n taintward --reuse-values \
   --set-file collector.policy.rego=my-policy.rego
 ```
 
@@ -131,9 +133,8 @@ kubectl -n taintward create secret generic taintward-keys \
 Then:
 
 ```bash
-helm upgrade taintward deploy/helm/taintward -n taintward --reuse-values \
+helm upgrade taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward --version 0.2.0 -n taintward --reuse-values \
   --set gateway.enabled=true \
-  --set gateway.image.repository=<registry>/taintward-gateway \
   --set gateway.existingSecret=taintward-keys \
   --set gateway.sessionStore.redisUrl=redis://my-redis:6379/0
 ```

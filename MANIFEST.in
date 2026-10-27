@@ -1,0 +1,15 @@
+# What goes into the sdist besides the taintward package.
+# The wheel only holds taintward/ (see pyproject.toml).
+include LICENSE README.md CHANGELOG.md SECURITY.md
+include taintward/gateway/example-config.yaml
+prune tests
+prune bench
+prune loadtest
+prune spike
+prune site
+prune signoz
+prune docs
+prune collector
+prune deploy
+prune demo
+global-exclude *.py[cod] __pycache__

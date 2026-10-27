@@ -1,39 +1,110 @@
-# Runs on merge requests and on main only, to keep the pipeline count low.
+# Taintward CI.
+#
+# Merge requests and main: tests, lint, Helm check, and image build checks
+# only when the files they build change.
+# Tags like v0.2.0: the same tests, then the release (docs/releasing.md):
+# PyPI upload, signed images with SBOMs, the Helm chart as an OCI artifact,
+# and a GitLab release.
+#
+# Jobs have no runner tags, so they run on GitLab shared runners or on a
+# self-hosted project runner that is allowed to pick untagged jobs
+# (docs/self-hosted-runner.md).
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
 
 stages:
   - test
+  - build
+  - publish
+  - release
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
   GOPATH: "$CI_PROJECT_DIR/.cache/go"
   GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
+  # Tool versions used by the release jobs. Binaries are checked against
+  # these sha256 values (from each project's release checksums file).
+  SYFT_VERSION: "1.55.0"
+  SYFT_SHA256: "bb65249542db5fedeeb4d3f9b018b75e7264dbfbbb10486f044581a92f90490d"
+  COSIGN_VERSION: "3.1.4"
+  COSIGN_SHA256: "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa"
+  DOCKER_IMAGE: "docker:29.9.2"
+  HELM_IMAGE: "alpine/helm:3.20.2"
 
+# ---------------------------------------------------------------------------
+# Templates
+# ---------------------------------------------------------------------------
 .python:
   image: python:3.12
   cache:
     key:
-      files: [pyproject.toml]
+      files: [pyproject.toml, constraints.txt]
       prefix: pip
     paths: [.cache/pip]
 
+.release-only:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
+
+# Docker jobs work with both kinds of runner:
+# * GitLab shared runners: the docker:dind service below (TLS on 2376).
+# * a self-hosted runner that mounts the host Docker socket: the socket is
+#   found and the dind settings are dropped (the dind service then fails to
+#   start, which is harmless; the runner config skips waiting for it).
+.docker:
+  image: $DOCKER_IMAGE
+  services:
+    - name: $DOCKER_IMAGE-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "/certs/client"
+  before_script:
+    - |
+      if [ -S /var/run/docker.sock ]; then
+        echo "using the host Docker socket"
+        unset DOCKER_HOST DOCKER_TLS_VERIFY DOCKER_CERT_PATH
+      fi
+    - for i in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done
+    - docker version --format 'client {{.Client.Version}} server {{.Server.Version}}'
+
+# Downloads syft and cosign and checks them against the pinned sha256.
+.install-syft-cosign:
+  script:
+    - &install-syft-cosign |
+      apk add --no-cache curl >/dev/null
+      curl -sSfL -o /tmp/syft.tgz "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+      echo "${SYFT_SHA256}  /tmp/syft.tgz" | sha256sum -c -
+      tar -xzf /tmp/syft.tgz -C /usr/local/bin syft
+      curl -sSfL -o /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64"
+      echo "${COSIGN_SHA256}  /usr/local/bin/cosign" | sha256sum -c -
+      chmod +x /usr/local/bin/cosign
+
+# ---------------------------------------------------------------------------
+# test: runs on merge requests, main and release tags
+# ---------------------------------------------------------------------------
 python-tests:
   extends: .python
   stage: test
   script:
-    - python -m pip install -e ".[dev]"
+    - python -m pip install -c constraints.txt -e ".[dev]" build twine
     - python -m spacy download en_core_web_sm
     - python -m pytest -q
-    - python -m pip wheel . --no-deps -w dist
+    # The package builds and its metadata is valid for PyPI.
+    - python -m build -o dist .
+    - python -m twine check --strict dist/*
 
 ruff:
   extends: .python
   stage: test
   script:
-    - python -m pip install ruff
+    - python -m pip install -c constraints.txt ruff
     - ruff check . --statistics || true
     - ruff check .
 
@@ -54,7 +125,7 @@ go-tests:
 # checks the chart's policy copy matches collector/policy/pii_egress.rego.
 helm-lint:
   image:
-    name: alpine/helm:3.16.2
+    name: $HELM_IMAGE
     entrypoint: [""]
   stage: test
   script:
@@ -66,15 +137,253 @@ helm-lint:
       --set gateway.enabled=true --set gateway.existingSecret=keys
       --set routingTier.enabled=true --set collector.fileExport.enabled=true > /dev/null
 
-# Builds the collector image (ocb compile included) to catch build breaks.
-# Nothing is pushed.
+# Image build checks. Nothing is pushed. They run only when the files that
+# go into the image change, to keep merge request pipelines short.
 collector-image:
-  image: docker:27.3.1
-  services:
-    - docker:27.3.1-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
+  extends: .docker
   stage: test
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - changes: [collector/**/*, .dockerignore]
   script:
     - docker build -f collector/Dockerfile -t taintward-collector:ci .
     - docker image ls taintward-collector:ci
+
+gateway-image:
+  extends: .docker
+  stage: test
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - changes: [deploy/gateway.Dockerfile, deploy/requirements/*, .dockerignore]
+  script:
+    - docker build -f deploy/gateway.Dockerfile -t taintward-gateway:ci .
+    - docker image ls taintward-gateway:ci
+
+# Docs site check on merge requests that touch the docs.
+docs-check:
+  extends: .python
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      exists: [mkdocs.yml]
+      changes: [docs/**/*, mkdocs.yml]
+  script:
+    - &install-mkdocs |
+      if [ -f docs/requirements.txt ]; then
+        python -m pip install -c constraints.txt -r docs/requirements.txt
+      else
+        python -m pip install -c constraints.txt mkdocs-material mkdocstrings-python
+      fi
+    - mkdocs build --strict -d public
+
+# GitLab Pages: the docs site, published from main.
+pages:
+  extends: .python
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      exists: [mkdocs.yml]
+  script:
+    - *install-mkdocs
+    - mkdocs build --strict -d public
+  artifacts:
+    paths: [public]
+
+# ---------------------------------------------------------------------------
+# build: release tags only
+# ---------------------------------------------------------------------------
+
+# Checks the tag matches the code, and prepares everything the later jobs
+# publish: sdist + wheel, the Helm chart package, and the release notes.
+release-build:
+  extends: [.python, .release-only]
+  stage: build
+  needs: [python-tests, ruff, go-tests, helm-lint]
+  script:
+    - VERSION="${CI_COMMIT_TAG#v}"
+    - CODE_VERSION=$(python -c "import ast,sys; t=ast.parse(open('taintward/__init__.py').read()); print([n.value.value for n in t.body if isinstance(n, ast.Assign) and n.targets[0].id == '__version__'][0])")
+    - |
+      if [ "$VERSION" != "$CODE_VERSION" ]; then
+        echo "tag $CI_COMMIT_TAG does not match taintward.__version__ $CODE_VERSION"
+        exit 1
+      fi
+    # Release notes: the CHANGELOG.md section for this version.
+    - awk -v v="$VERSION" '$0 == "## " v {on=1; next} on && /^## / {exit} on {print}' CHANGELOG.md > release-notes.md
+    - |
+      if [ ! -s release-notes.md ]; then
+        echo "CHANGELOG.md has no '## $VERSION' section"
+        exit 1
+      fi
+    - python -m pip install -c constraints.txt build twine
+    - python -m build -o dist .
+    - python -m twine check --strict dist/*
+    - ls -l dist
+    - echo "VERSION=$VERSION" > release.env
+  artifacts:
+    paths: [dist/, release-notes.md]
+    reports:
+      dotenv: release.env
+
+release-chart:
+  image:
+    name: $HELM_IMAGE
+    entrypoint: [""]
+  extends: .release-only
+  stage: build
+  needs: [helm-lint]
+  script:
+    - VERSION="${CI_COMMIT_TAG#v}"
+    - helm lint deploy/helm/taintward
+    - helm package deploy/helm/taintward --version "$VERSION" --app-version "$VERSION" -d chart
+  artifacts:
+    paths: [chart/]
+
+# ---------------------------------------------------------------------------
+# publish: release tags only
+# ---------------------------------------------------------------------------
+
+# Uploads sdist + wheel to PyPI.
+# Uses PyPI Trusted Publishing (no stored secret): the job gets a GitLab
+# OIDC token for audience "pypi" and trades it for a short lived upload
+# token. If the masked CI variable PYPI_API_TOKEN is set, that is used
+# instead. The environment name must match the PyPI trusted publisher form.
+pypi:
+  extends: [.python, .release-only]
+  stage: publish
+  needs: [release-build]
+  environment:
+    name: pypi
+    url: https://pypi.org/project/taintward/
+  id_tokens:
+    PYPI_ID_TOKEN:
+      aud: pypi
+  script:
+    - python -m pip install -c constraints.txt twine requests
+    - |
+      if [ -n "${PYPI_API_TOKEN:-}" ]; then
+        echo "using the PYPI_API_TOKEN variable"
+        export TWINE_PASSWORD="$PYPI_API_TOKEN"
+      else
+        echo "using PyPI trusted publishing"
+        export TWINE_PASSWORD=$(python - <<'EOF'
+      import os, sys, requests
+      r = requests.post("https://pypi.org/_/oidc/mint-token",
+                        json={"token": os.environ["PYPI_ID_TOKEN"]}, timeout=30)
+      if r.status_code != 200:
+          sys.exit(f"PyPI token exchange failed: {r.status_code} {r.text}")
+      print(r.json()["token"])
+      EOF
+      )
+      fi
+    - export TWINE_USERNAME=__token__
+    - python -m twine upload --non-interactive dist/*
+    # Keep a copy in the project's generic package registry for the release page.
+    - |
+      for f in dist/*; do
+        curl -sSf --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file "$f" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/taintward/${VERSION}/$(basename "$f")" >/dev/null
+      done
+
+# Builds, pushes and signs the collector and gateway images, with an SPDX
+# SBOM for each, attached as a signed attestation and uploaded to the
+# generic package registry. Signing is keyless (Sigstore) with the job's
+# GitLab OIDC token, audience "sigstore".
+release-images:
+  extends: [.docker, .release-only]
+  stage: publish
+  needs: [release-build]
+  parallel:
+    matrix:
+      - NAME: collector
+        DOCKERFILE: collector/Dockerfile
+      - NAME: gateway
+        DOCKERFILE: deploy/gateway.Dockerfile
+  id_tokens:
+    SIGSTORE_ID_TOKEN:
+      aud: sigstore
+  script:
+    - *install-syft-cosign
+    - IMAGE="$CI_REGISTRY_IMAGE/$NAME"
+    - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token --password-stdin "$CI_REGISTRY"
+    - >-
+      docker build -f "$DOCKERFILE"
+      --label org.opencontainers.image.version="$VERSION"
+      --label org.opencontainers.image.revision="$CI_COMMIT_SHA"
+      --label org.opencontainers.image.created="$CI_PIPELINE_CREATED_AT"
+      -t "$IMAGE:$VERSION" -t "$IMAGE:latest" .
+    - docker push "$IMAGE:$VERSION"
+    - docker push "$IMAGE:latest"
+    - REF=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$VERSION")
+    - echo "pushed $REF"
+    - mkdir -p sbom
+    - syft scan "registry:$REF" -o "spdx-json=sbom/taintward-$NAME-$VERSION.spdx.json"
+    - cosign login "$CI_REGISTRY" -u gitlab-ci-token -p "$CI_JOB_TOKEN"
+    - cosign sign --yes "$REF"
+    - cosign attest --yes --type spdxjson --predicate "sbom/taintward-$NAME-$VERSION.spdx.json" "$REF"
+    - echo "$REF" > "sbom/taintward-$NAME-$VERSION.digest"
+    - |
+      for f in sbom/*; do
+        curl -sSf --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file "$f" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/taintward/${VERSION}/$(basename "$f")" >/dev/null
+      done
+  artifacts:
+    paths: [sbom/]
+
+# Pushes the chart as an OCI artifact:
+#   oci://registry.gitlab.com/<namespace>/<project>/charts/taintward:<version>
+# and signs it the same way as the images.
+release-chart-push:
+  image:
+    name: $HELM_IMAGE
+    entrypoint: [""]
+  extends: .release-only
+  stage: publish
+  needs: [release-chart, release-build]
+  id_tokens:
+    SIGSTORE_ID_TOKEN:
+      aud: sigstore
+  script:
+    - *install-syft-cosign
+    - echo "$CI_JOB_TOKEN" | helm registry login -u gitlab-ci-token --password-stdin "$CI_REGISTRY"
+    - helm push "chart/taintward-$VERSION.tgz" "oci://$CI_REGISTRY_IMAGE/charts" 2>&1 | tee push.log
+    - |
+      DIGEST=$(sed -n 's/^Digest: //p' push.log)
+    - cosign login "$CI_REGISTRY" -u gitlab-ci-token -p "$CI_JOB_TOKEN"
+    - cosign sign --yes "$CI_REGISTRY_IMAGE/charts/taintward@$DIGEST"
+
+# ---------------------------------------------------------------------------
+# release: the GitLab release page, with notes from CHANGELOG.md
+# ---------------------------------------------------------------------------
+gitlab-release:
+  image: registry.gitlab.com/gitlab-org/cli:v1.124.0
+  extends: .release-only
+  stage: release
+  needs: [release-build, pypi, release-images, release-chart-push]
+  script:
+    - echo "release $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: Taintward $VERSION
+    description: ./release-notes.md
+    assets:
+      links:
+        - name: PyPI package
+          url: https://pypi.org/project/taintward/$VERSION/
+          link_type: package
+        - name: Collector image ($CI_REGISTRY_IMAGE/collector:$VERSION)
+          url: $CI_PROJECT_URL/container_registry
+          link_type: image
+        - name: Gateway image ($CI_REGISTRY_IMAGE/gateway:$VERSION)
+          url: $CI_PROJECT_URL/container_registry
+          link_type: image
+        - name: Helm chart (oci://$CI_REGISTRY_IMAGE/charts/taintward --version $VERSION)
+          url: $CI_PROJECT_URL/container_registry
+          link_type: package
+        - name: Collector SBOM (SPDX JSON)
+          url: $CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/taintward/$VERSION/taintward-collector-$VERSION.spdx.json
+          link_type: other
+        - name: Gateway SBOM (SPDX JSON)
+          url: $CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/taintward/$VERSION/taintward-gateway-$VERSION.spdx.json
+          link_type: other

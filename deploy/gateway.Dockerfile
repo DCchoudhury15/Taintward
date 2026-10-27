@@ -4,7 +4,16 @@
 # Default command serves MCP over HTTP on port 8811 with the config at
 # /etc/taintward/gateway.yaml (mount your own there). For stdio, run
 #   docker run -i --rm taintward-gateway python -m taintward.gateway --config /etc/taintward/gateway.yaml
-FROM python:3.12-slim
+#
+# The base image is pinned by digest. To update it:
+#   skopeo inspect --raw docker://docker.io/library/python:3.12-slim | sha256sum
+FROM python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+
+LABEL org.opencontainers.image.title="taintward-gateway" \
+      org.opencontainers.image.description="Taintward MCP gateway: redacts and blocks PII and secrets in MCP tool calls" \
+      org.opencontainers.image.source="https://gitlab.com/divyanshuchoudhury51/taintward" \
+      org.opencontainers.image.url="https://taintward.vercel.app" \
+      org.opencontainers.image.licenses="Apache-2.0"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -13,25 +22,27 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Same first layers as demo/Dockerfile, so a machine that built the demo
-# reuses this layer from the build cache: runtime deps from pyproject.toml
-# plus the small spaCy model that taintward/sdk/detect.py uses.
-COPY pyproject.toml ./
-RUN python -c "import tomllib; print('\n'.join(tomllib.load(open('pyproject.toml','rb'))['project']['dependencies']))" > /tmp/req.txt \
- && pip install -r /tmp/req.txt \
- && python -m spacy download en_core_web_sm \
- && rm -rf /root/.cache /tmp/req.txt
+# Dependencies come from hashed lock files (deploy/requirements/, made by
+# deploy/requirements/update.sh from constraints.txt). pip checks every
+# file against its sha256, and installs wheels only, so nothing is built
+# from source during the image build.
+#
+# First layer: the runtime deps plus the small spaCy model that
+# taintward/sdk/detect.py uses. Same as demo/Dockerfile, so a machine that
+# built the demo reuses this layer from the build cache.
+COPY deploy/requirements/runtime.txt /tmp/req/runtime.txt
+RUN pip install --require-hashes --no-deps --only-binary=:all: --retries 10 --timeout 60 \
+        -r /tmp/req/runtime.txt \
+ && rm -rf /root/.cache
 
-# The mcp extra (mcp, PyYAML, uvicorn) and the redis and postgres extras, so
-# several replicas can share sessions (TAINTWARD_SESSION_STORE) and the
-# token vault (TAINTWARD_VAULT).
-RUN python -c "import tomllib; x=tomllib.load(open('pyproject.toml','rb'))['project']['optional-dependencies']; print('\n'.join(x['mcp'] + x['redis'] + x['postgres']))" > /tmp/req.txt \
- && pip install --retries 10 --timeout 60 -r /tmp/req.txt \
- && rm -rf /root/.cache /tmp/req.txt
-
-# preshed 3.0.14 breaks loading the spaCy 3.8.16 model ("Python int too large
-# to convert to C ssize_t"), and taintward/sdk/detect.py then finds nothing. Pin it.
-RUN pip install --retries 10 --timeout 60 "preshed<3.0.14" && rm -rf /root/.cache
+# Second layer: the mcp extra (mcp, PyYAML, uvicorn) and the redis and
+# postgres extras, so several replicas can share sessions
+# (TAINTWARD_SESSION_STORE) and the token vault (TAINTWARD_VAULT).
+COPY deploy/requirements/gateway.txt /tmp/req/gateway.txt
+RUN pip install --require-hashes --no-deps --only-binary=:all: --retries 10 --timeout 60 \
+        -r /tmp/req/gateway.txt \
+ && pip check \
+ && rm -rf /root/.cache /tmp/req
 
 COPY taintward ./taintward
 # Fail the build if detection is broken. taintward/sdk/detect.py returns no findings

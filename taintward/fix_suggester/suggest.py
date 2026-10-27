@@ -163,9 +163,9 @@ def narrate(finding: Finding) -> str:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
-        print("usage: suggest.py <agent_source.py> [...]", file=sys.stderr)
-        return 2
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print("usage: taintward-fix <agent_source.py> [...]", file=sys.stderr)
+        return 0 if len(sys.argv) >= 2 else 2
     any_finding = False
     for path in sys.argv[1:]:
         for f in analyze_file(path):

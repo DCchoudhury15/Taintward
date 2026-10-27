@@ -1,15 +1,49 @@
 [build-system]
-requires = ["setuptools>=68"]
+# 77+ for the SPDX `license` string and `license-files` (PEP 639).
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "taintward"
-version = "0.2.0"
-description = "Runtime enforcement of the AgentRaft Data Over-Exposure model on OpenTelemetry + SigNoz"
-readme = "README.md"
+# The version lives in one place: taintward/__init__.py (__version__).
+# The release pipeline checks that the git tag (v0.2.0) matches it.
+dynamic = ["version"]
+description = "Runtime data-exposure control for AI agents: PII and secret taint tracking, redaction and policy checks on OpenTelemetry traces"
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "Divyanshu Choudhury" }]
+maintainers = [{ name = "Divyanshu Choudhury" }]
+keywords = [
+    "ai-agents",
+    "llm",
+    "security",
+    "privacy",
+    "pii",
+    "redaction",
+    "taint-tracking",
+    "data-loss-prevention",
+    "opentelemetry",
+    "mcp",
+    "langchain",
+    "compliance",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: System :: Monitoring",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 # taintward/core/doe.py is pure stdlib; everything below is what taintward/sdk/, taintward/evidence/, and
 # taintward/fix_suggester/ actually import at runtime (Phase 2+). Presidio also needs
@@ -36,17 +70,39 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Each extra is one install option: pip install "taintward[mcp]".
+# To add one, add a line in the matching group below. After changing any
+# dependency, regenerate the pinned files (see docs/releasing.md,
+# "Pinned dependencies").
+
+# --- Development -----------------------------------------------------------
 dev = ["pytest>=8", "ruff>=0.5"]
+
+# --- LLM clients -----------------------------------------------------------
 # Only needed for `--llm real` (the default demo/tests use the stub LLM).
 llm = ["openai", "anthropic"]
+# New LLM client / proxy extras go here (for example litellm).
+
+# --- MCP gateway and shared state ------------------------------------------
 # MCP gateway (taintward/gateway/).
 mcp = ["mcp>=2.3", "PyYAML>=6", "uvicorn>=0.30"]
 # Shared state for running several replicas (vault and gateway sessions).
 postgres = ["psycopg[binary]>=3.2"]
 redis = ["redis>=5"]
-# Framework adapters (taintward/sdk/integrations/).
+# New key / secret store extras go here (for example hvac, boto3).
+
+# --- Framework adapters (taintward/sdk/integrations/) ----------------------
 langchain = ["langchain-core>=1.7", "langchain>=1.4", "langgraph>=1.2"]
 openai-agents = ["openai-agents>=0.24"]
+# New framework extras go here (for example crewai, llama-index,
+# pydantic-ai, google-adk).
+
+[project.urls]
+Homepage = "https://taintward.vercel.app"
+Documentation = "https://gitlab.com/divyanshuchoudhury51/taintward/-/tree/main/docs"
+Source = "https://gitlab.com/divyanshuchoudhury51/taintward"
+Issues = "https://gitlab.com/divyanshuchoudhury51/taintward/-/issues"
+Changelog = "https://gitlab.com/divyanshuchoudhury51/taintward/-/blob/main/CHANGELOG.md"
 
 [project.scripts]
 taintward-evidence = "taintward.evidence.log:main"
@@ -54,12 +110,20 @@ taintward-fix = "taintward.fix_suggester.suggest:main"
 taintward-gateway = "taintward.gateway.__main__:main"
 taintward-report = "taintward.evidence.report:main"
 
+[tool.setuptools.dynamic]
+version = { attr = "taintward.__version__" }
+
 # Runtime packages only. tests/, demo/, spike/, scripts/ and the Go collector
-# are not shipped. New runtime code goes in a subpackage of taintward/;
-# its extra deps go in [project.optional-dependencies].
+# are not shipped (MANIFEST.in keeps them out of the sdist too). New runtime
+# code goes in a subpackage of taintward/; its extra deps go in
+# [project.optional-dependencies].
 [tool.setuptools.packages.find]
 include = ["taintward", "taintward.*"]
 namespaces = false
+
+# Non-Python files that ship inside the package.
+[tool.setuptools.package-data]
+"taintward.gateway" = ["example-config.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

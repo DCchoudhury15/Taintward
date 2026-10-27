@@ -1,8 +1,12 @@
 # Taintward collector image.
 # Build from the repo root:  docker build -f collector/Dockerfile -t taintward-collector .
 
+# Base images are pinned by digest (multi-arch index digest), so a rebuild
+# uses the same bytes. To update, resolve the new digest, for example:
+#   skopeo inspect --raw docker://docker.io/library/golang:1.26 | sha256sum
+
 # Stage 1: build the collector binary with the OpenTelemetry builder (ocb).
-FROM golang:1.26 AS build
+FROM golang:1.26@sha256:672c944cfd07599b5f1bb179869270cdc94c6254e41db4d431259693cb286b82 AS build
 
 RUN go install go.opentelemetry.io/collector/cmd/builder@v0.160.0
 
@@ -26,7 +30,13 @@ RUN builder --config=builder.yaml \
  && mkdir -p /out/var/lib/taintward
 
 # Stage 2: small runtime image with only the static binary, config and policy.
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
+
+LABEL org.opencontainers.image.title="taintward-collector" \
+      org.opencontainers.image.description="OpenTelemetry collector with the Taintward taint_policy processor" \
+      org.opencontainers.image.source="https://gitlab.com/divyanshuchoudhury51/taintward" \
+      org.opencontainers.image.url="https://taintward.vercel.app" \
+      org.opencontainers.image.licenses="Apache-2.0"
 
 COPY --from=build /src/collector/build/taintward-collector /taintward-collector
 COPY collector/config.docker.yaml /etc/taintward/config.yaml

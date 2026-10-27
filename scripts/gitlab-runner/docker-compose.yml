@@ -1,0 +1,25 @@
+# Self-hosted GitLab runner for Taintward CI. See docs/self-hosted-runner.md.
+#
+# Start (registers on the first run):
+#   GITLAB_RUNNER_TOKEN=glrt-... sh scripts/gitlab-runner/start.sh
+# Stop:
+#   docker compose -f scripts/gitlab-runner/docker-compose.yml down
+#
+# SECURITY: this mounts the host Docker socket. Any CI job can then control
+# the host's Docker daemon, which is the same as root on this machine. Only
+# use it for a project where you trust everyone who can push or open merge
+# requests that run pipelines.
+name: taintward-runner
+
+services:
+  gitlab-runner:
+    image: gitlab/gitlab-runner:alpine-v19.5.1@sha256:86a371df46b076bb4c510bca1751d428177d2567bd88e4047613bc7fa92d1a0e
+    restart: unless-stopped
+    volumes:
+      # config.toml written by start.sh (holds the runner token).
+      - runner-config:/etc/gitlab-runner
+      # The runner starts job containers through the host Docker daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  runner-config:

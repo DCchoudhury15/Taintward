@@ -1,7 +1,7 @@
 name: ci
 
-# Same jobs as .gitlab-ci.yml except collector-image (the Docker build check).
-# Runs on pull requests and on main only.
+# Mirror of the test jobs in .gitlab-ci.yml (GitLab is the main CI and does
+# releases). Runs on pull requests and on main only.
 on:
   pull_request:
   push:
@@ -23,11 +23,14 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - run: python -m pip install -e ".[dev]"
+          cache-dependency-path: |
+            pyproject.toml
+            constraints.txt
+      - run: python -m pip install -c constraints.txt -e ".[dev]" build twine
       - run: python -m spacy download en_core_web_sm
       - run: python -m pytest -q
-      - run: python -m pip wheel . --no-deps -w dist
+      - run: python -m build -o dist .
+      - run: python -m twine check --strict dist/*
 
   ruff:
     runs-on: ubuntu-latest
@@ -36,7 +39,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install ruff
+      - run: python -m pip install -c constraints.txt ruff
       - run: ruff check . --statistics || true
       - run: ruff check .
 
@@ -60,7 +63,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
         with:
-          version: v3.16.2
+          version: v3.20.2
       - run: diff collector/policy/pii_egress.rego deploy/helm/taintward/files/pii_egress.rego
       - run: helm lint deploy/helm/taintward
       - run: helm template t deploy/helm/taintward > /dev/null
