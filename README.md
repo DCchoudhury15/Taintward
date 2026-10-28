@@ -1,94 +1,79 @@
-<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/hero-dark.svg">
+  <img alt="taintward: customer data stays with your agent, the LLM only ever sees placeholders" src=".github/assets/hero-light.svg" width="100%">
+</picture>
 
-# Taintward
+<p align="center">
+  <a href="https://github.com/DCchoudhury15/Taintward/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DCchoudhury15/Taintward/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://dcchoudhury15.github.io/Taintward/"><img alt="Docs" src="https://img.shields.io/badge/docs-online-b5652a"></a>
+  <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-8b5e3c"></a>
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-8b5e3c">
+  <img alt="TypeScript" src="https://img.shields.io/badge/typescript-AI%20SDK-8b5e3c">
+</p>
 
-**Let your AI agent use customer data without sending it to the LLM.**
+<p align="center">
+  <a href="https://dcchoudhury15.github.io/Taintward/"><b>Docs</b></a> ·
+  <a href="docs/quickstart.md"><b>Quickstart</b></a> ·
+  <a href="docs/threat-model.md"><b>Threat model</b></a> ·
+  <a href="https://taintward.vercel.app"><b>Website</b></a>
+</p>
 
-[![CI](https://github.com/DCchoudhury15/Taintward/actions/workflows/ci.yml/badge.svg)](https://github.com/DCchoudhury15/Taintward/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-online-b5703c)](https://dcchoudhury15.github.io/Taintward/)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-![Python](https://img.shields.io/badge/python-3.11%2B-3776ab)
-![TypeScript](https://img.shields.io/badge/typescript-Vercel%20AI%20SDK-3178c6)
+<br>
 
-[Docs](https://dcchoudhury15.github.io/Taintward/) ·
-[Quickstart](docs/quickstart.md) ·
-[Threat model](docs/threat-model.md) ·
-[Website](https://taintward.vercel.app)
+An agent reads a customer record, asks the model about it, calls an API and
+writes a log line. Each step is fine on its own. Together they send an
+email address to the LLM provider, an SSN to a third party and an API key to
+your log storage, and nothing in a normal agent stack notices.
 
-</div>
+Taintward notices. It finds sensitive values in every tool call and model
+call, follows them through the whole run, and changes them for **where they
+are going** before they leave.
 
----
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/journey-dark.svg">
+  <img alt="One record, four destinations: placeholders for the LLM, a reversible token for your database, a one-way mask for external APIs, logs and RAG" src=".github/assets/journey-light.svg" width="100%">
+</picture>
 
-## What it does
+## The round trip
 
-Taintward sits between your agent and the outside world. It finds sensitive
-values (SSNs, emails, cards, API keys, names) in every tool call and model
-call, and changes them based on **where they are going**:
+Masks break agents: a model that reads `Remind [PII] ([PII])` cannot write
+the email. Placeholders do not. The model gets `<PERSON_1>` and `<EMAIL_1>`,
+does its job, and the answer comes back with the real values in it.
 
-```text
-your user  : Remind Alice Lee (alice.lee@example.com) about her tax form.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/roundtrip-dark.svg">
+  <img alt="Round trip: your app sends real values, the LLM sees placeholders, your app gets the real values back, the collector records the decision without raw values" src=".github/assets/roundtrip-light.svg" width="100%">
+</picture>
 
-to the LLM : Remind <PERSON_1> (<EMAIL_1>) about her tax form.
-LLM replies: send_email(to="<EMAIL_1>", body="Hi <PERSON_1>, ...")
-your code  : send_email(to="alice.lee@example.com", body="Hi Alice Lee, ...")
-```
+The same value always gets the same placeholder within a run, so the model
+can still tell two people apart. If it rewrites one (`[EMAIL_1]`,
+`EMAIL_1`), it is still restored. The map from placeholder to value never
+leaves your process.
 
-The model can still do its job, because it sees consistent placeholders
-instead of blanks. The real values never leave your process.
+## In numbers
 
-| where the data goes | what it gets |
-|---|---|
-| the LLM | a placeholder like `<PERSON_1>`, swapped back in the reply |
-| your own systems | a reversible token that keeps the shape (an SSN still looks like an SSN) |
-| external APIs, logs, RAG | a one-way mask: `[PII]` or `[SECRET]` |
-| a tool you forgot to list | treated as external, so it gets the mask |
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/stats-dark.svg">
+  <img alt="About 8 ms per tool call, 0 raw values reached the model, 3 in 4 answers fully restored, about 4000 spans per second per core" src=".github/assets/stats-light.svg" width="100%">
+</picture>
 
-Every decision is recorded in a signed, tamper-evident log, and
-`taintward-report` turns it into an HTML report your security team can read.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/coverage-dark.svg">
+  <img alt="Detector coverage: reliable for email, IP address, valid cards and IBANs, AWS keys, GitHub tokens, JWTs, private keys; partial for English names, US SSNs, US phones, street addresses; weak for names in other languages, non-US phones, national ids, plain passwords" src=".github/assets/coverage-light.svg" width="100%">
+</picture>
 
-## At a glance
+Measured on one laptop, and on public datasets the rules were never tuned
+on. How: [benchmark](docs/benchmark.md) ·
+[placeholders with real models](docs/placeholders-eval.md).
 
-<table>
-<tr>
-<td align="center" width="25%"><h3>~8 ms</h3>added to a tool call<br/><sub>1 KB payload, one laptop</sub></td>
-<td align="center" width="25%"><h3>0</h3>raw values reached the model<br/><sub>47 tasks, 3 local LLMs</sub></td>
-<td align="center" width="25%"><h3>3 in 4</h3>tasks fully restored<br/><sub>with small local models</sub></td>
-<td align="center" width="25%"><h3>~4,000</h3>spans/s per CPU core<br/><sub>collector, all redacted</sub></td>
-</tr>
-</table>
+## Where it runs
 
-**Good at:** emails, US-format SSNs, valid card numbers and IBANs, IP
-addresses, and known key formats (AWS keys, GitHub tokens, JWTs, private
-keys). Emails and IP addresses are found 95% of the time or more, also on
-outside data.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/deploy-dark.svg">
+  <img alt="Three ways in: SDK in your code, gateway in front of MCP servers, collector next to your traces; all feed a signed evidence log" src=".github/assets/deploy-light.svg" width="100%">
+</picture>
 
-**Weaker at:** names in non-English text, non-US phone numbers and national
-ids, addresses written in parts, and plain passwords. On public datasets it did not see during
-development it found something sensitive in 68% to 93% of the examples that
-had some. Full numbers: [benchmark](docs/benchmark.md) and
-[placeholder evaluation](docs/placeholders-eval.md).
-
-## How it works
-
-```mermaid
-flowchart LR
-    A["1. Detect<br/>find PII and secrets"] --> B["2. Track<br/>tag the whole run<br/>(OpenTelemetry baggage)"]
-    B --> C["3. Redact<br/>per destination"]
-    C --> D["4. Record<br/>signed evidence log"]
-```
-
-1. **Detect.** Patterns with checksums (cards, IBANs, SSNs), secret formats,
-   and a small NER model for names.
-2. **Track.** Once a call touches sensitive data, the whole run is tagged.
-   The tag survives even when the LLM rewrites the data.
-3. **Redact.** Before anything leaves, values are replaced for that
-   destination. A Rego policy decides what counts as a violation.
-4. **Record.** Violations go into an append-only Merkle log with signed
-   checkpoints, and anything raw left in a trace is removed before storage.
-
-## Try it
-
-Needs Docker. The first build takes a few minutes.
+## See it work
 
 ```bash
 git clone https://github.com/DCchoudhury15/Taintward && cd Taintward
@@ -96,15 +81,12 @@ docker compose up --build
 ```
 
 Open http://localhost:16686 and pick `taintward-hr-bot`. A demo HR agent
-leaks a fake SSN and AWS key to an LLM, an external API and a log; you will
-see all three calls flagged, and the real values nowhere.
-[Full walkthrough](docs/quickstart.md).
+leaks a fake SSN and AWS key to an LLM, an external API and a log. All three
+calls show up flagged, and the real values are nowhere in the traces.
 
-## Use it in your agent
+## Add it to your agent
 
-Pick the one that fits your stack.
-
-### Python: LangChain, LangGraph, OpenAI Agents SDK, OpenAI, Anthropic
+**Python** · LangChain, LangGraph, OpenAI Agents SDK, OpenAI, Anthropic
 
 ```bash
 pip install "taintward[langchain] @ git+https://github.com/DCchoudhury15/Taintward"
@@ -116,88 +98,64 @@ import taintward as tw
 
 tw.init("my-agent", destinations={"search_db": "internal", "send_email": "external"})
 tools = tw.wrap_langchain_tools(tools)
-model = tw.protect_langchain_model(model)   # or tw.protect_openai(OpenAI())
+model = tw.protect_langchain_model(model)      # or tw.protect_openai(OpenAI())
 
 with tw.run():
     agent.invoke(...)
 ```
 
-[Integration guide](docs/integrations.md)
-
-### TypeScript: Vercel AI SDK
+**TypeScript** · Vercel AI SDK, `generateText` and `streamText`
 
 ```ts
-import { wrapLanguageModel, generateText } from "ai";
+import { wrapLanguageModel } from "ai";
 import { taintwardMiddleware } from "taintward/ai-sdk";
 
-const model = wrapLanguageModel({ model: openai("gpt-4.1"), middleware: taintwardMiddleware() });
-const { text } = await generateText({ model, prompt: "Email alice.lee@example.com about her order" });
-// the model saw <EMAIL_1>; `text` has the real address
+const model = wrapLanguageModel({
+  model: openai("gpt-4.1"),
+  middleware: taintwardMiddleware(),
+});
 ```
 
-Works with `generateText` and `streamText`, including tool calls and
-placeholders split across stream chunks.
-[TypeScript SDK](packages/taintward-js/README.md)
+**MCP** · no code changes: put `taintward-gateway --config gateway.yaml` in
+your MCP client config in place of the real server.
 
-### MCP: no code changes
+More: [Python integrations](docs/integrations.md) ·
+[TypeScript SDK](packages/taintward-js/README.md) ·
+[MCP gateway](docs/mcp-gateway.md) ·
+[Kubernetes](docs/deploy-kubernetes.md)
 
-Put `taintward-gateway --config gateway.yaml` in your MCP client config in
-place of the real server. Each tool can redact, block or only record.
-[Gateway guide](docs/mcp-gateway.md)
+## Where it stops
 
-### Kubernetes
+- It protects the calls that go through it. A client or tool you did not
+  wrap is not seen.
+- It does not stop prompt injection. It limits what an injected
+  instruction can get out.
+- A value that is encoded, split across fields or in an unknown format can
+  slip past detection.
 
-A Helm chart runs the policy collector and the gateway.
-[Deploy guide](docs/deploy-kubernetes.md)
-
-## What it does not do
-
-- It only protects calls that go through it. A tool or LLM client you did
-  not wrap is not seen.
-- It does not stop prompt injection. It limits what an injected instruction
-  can get out.
-- Detection can miss values that are encoded, split across fields, or in
-  formats it does not know.
-
-The full list, with every known bypass and how to harden a deployment, is in
-the [threat model](docs/threat-model.md).
-
-## Documentation
-
-| | |
-|---|---|
-| [Quickstart](docs/quickstart.md) | run the demo |
-| [Integrations](docs/integrations.md) | Python adapters and settings |
-| [TypeScript SDK](packages/taintward-js/README.md) | Vercel AI SDK middleware |
-| [MCP gateway](docs/mcp-gateway.md) | redact, block or audit MCP tools |
-| [Evidence and reports](docs/evidence-report.md) | signed log and compliance report |
-| [Kubernetes](docs/deploy-kubernetes.md) | Helm chart |
-| [Threat model](docs/threat-model.md) | what it protects and where it stops |
-| [Benchmark](docs/benchmark.md) | detection quality and speed |
-| [Changelog](CHANGELOG.md) | what changed |
-
-Everything is also on the [docs site](https://dcchoudhury15.github.io/Taintward/).
+Every known gap and a hardening checklist: [threat model](docs/threat-model.md).
 
 ## Background
 
-Taintward builds on [AgentRaft](https://arxiv.org/abs/2603.07557) (Lin et
-al., 2026), which found data over-exposure in 57% of the agent call chains
-it studied. AgentRaft runs offline and uses three LLMs to judge each step.
-Taintward keeps its formal model but runs live, with no LLM in the decision.
-How each part maps: [docs/agentraft-mapping.md](docs/agentraft-mapping.md).
+Built on the formal model from
+[AgentRaft](https://arxiv.org/abs/2603.07557) (Lin et al., 2026), which
+found data over-exposure in 57% of the agent call chains it studied.
+AgentRaft runs offline and asks three LLMs to judge each step. Taintward
+runs live, with no LLM in the decision:
+[how the parts map](docs/agentraft-mapping.md). It was called AgentWard
+before 0.2.0.
 
-It was called AgentWard before version 0.2.0.
-
-## Development
+<details>
+<summary><b>Development</b></summary>
 
 ```bash
-python -m pytest -q                                      # Python
-cd collector/processor/taintpolicy && go test ./...      # Go collector processor
-cd packages/taintward-js && npm ci && npm test           # TypeScript
+python -m pytest -q                                   # Python
+cd collector/processor/taintpolicy && go test ./...   # Go collector processor
+cd packages/taintward-js && npm ci && npm test        # TypeScript
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
-## License
+</details>
 
-Apache-2.0
+<sub>Apache-2.0</sub>
