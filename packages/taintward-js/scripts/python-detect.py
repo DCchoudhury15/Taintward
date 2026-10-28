@@ -8,13 +8,13 @@ Usage (from the repository root, with the Python SDK installed):
 
 For each case it writes the spans the Python detector finds, with offsets
 converted to UTF-16 units (what JavaScript string indexes use). Case texts are
-stored base64-encoded (``text_b64``) and the output holds fingerprints, not
+stored XOR 0x5A then hex (``text_x``; plain base64 is not enough, GitHub
+decodes it when scanning) and the output holds fingerprints, not
 values, so fake secrets in the fixtures do not trip secret scanners. Entity
 types the TypeScript SDK does not detect (names and places from NER, and a few
 Presidio-only types) are listed separately under "out_of_scope".
 """
 
-import base64
 import json
 import sys
 
@@ -38,7 +38,7 @@ def main() -> None:
     health = detect.health()
     out = {"python_detector_mode": health["mode"], "cases": {}}
     for case in cases:
-        text, key = base64.b64decode(case["text_b64"]).decode("utf-8"), case.get("key", "")
+        text, key = bytes(b ^ 0x5A for b in bytes.fromhex(case["text_x"])).decode("utf-8"), case.get("key", "")
         dets = detect._analyze([(text, key)], 0.5)[0] if text else []
         spans, other = [], []
         for d in dets:

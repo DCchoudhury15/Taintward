@@ -9,10 +9,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { detectText } from "../src/detect/index.js";
 
-// Texts are base64 so the fake secrets in them do not trip secret scanners.
+// Texts are XOR 0x5A then hex, so the fake secrets in them do not trip
+// secret scanners (plain base64 is not enough: GitHub decodes it).
 interface Case {
   id: string;
-  text_b64: string;
+  text_x: string;
   key?: string;
 }
 interface Span {
@@ -40,7 +41,7 @@ describe("cross-check with the Python detector", () => {
 
   for (const c of cases) {
     it(c.id, () => {
-      const text = Buffer.from(c.text_b64, "base64").toString("utf8");
+      const text = Buffer.from(Buffer.from(c.text_x, "hex").map((b) => b ^ 0x5a)).toString("utf8");
       const js = detectText(text, c.key ? { key: c.key } : {}).map((d) => ({
         type: d.entityType,
         start: d.start,
