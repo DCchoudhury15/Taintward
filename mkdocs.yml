@@ -1,0 +1,164 @@
+# Documentation site for Taintward.
+#
+#   pip install mkdocs-material "mkdocstrings[python]"
+#   mkdocs serve                  # http://127.0.0.1:8000
+#   mkdocs build --strict         # what CI runs (GitHub Pages; GitLab Pages uses -d public)
+
+site_name: Taintward
+site_description: >-
+  Find sensitive data in AI agent tool calls, track it with OpenTelemetry,
+  redact it per destination, and keep signed evidence of every decision.
+site_url: https://dcchoudhury15.github.io/Taintward/
+repo_url: https://github.com/DCchoudhury15/Taintward
+repo_name: DCchoudhury15/Taintward
+edit_uri: edit/main/docs/
+copyright: Apache-2.0
+
+docs_dir: docs
+# Not the default "site": that folder is the landing page.
+site_dir: build/docs-site
+# Helper code for the build itself, not pages.
+exclude_docs: |
+  _hooks/
+
+hooks:
+  - docs/_hooks/repo_links.py
+
+theme:
+  name: material
+  font:
+    text: Space Grotesk
+    code: Space Mono
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            # Docstrings in this project are plain text with ``code``, not
+            # Google or NumPy sections.
+            docstring_style: null
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: true
+            show_signature_annotations: true
+            separate_signature: true
+            members_order: source
+            filters: ["!^_"]
+            heading_level: 3
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      # Lets docs/changelog.md and friends include files from the repo root.
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Concepts:
+      - Destinations: concepts/destinations.md
+      - Taint and runs: concepts/taint-and-runs.md
+      - Placeholders, tokens and masks: concepts/redaction.md
+      - Policy: concepts/policy.md
+      - Evidence: concepts/evidence.md
+  - Guides:
+      - SDK integrations: integrations.md
+      - MCP gateway: mcp-gateway.md
+      - Policy collector: guides/collector.md
+      - Kubernetes and Helm: deploy-kubernetes.md
+      - Compliance report and evidence log: evidence-report.md
+      - Key management and the vault: redaction-crypto.md
+      - Scaling: scaling.md
+  - Recipes:
+      - recipes/index.md
+      - Protect a LangGraph support bot: recipes/langgraph-support-bot.md
+      - Gateway in front of a GitHub MCP server: recipes/github-mcp-gateway.md
+      - Audit mode first, then enforce: recipes/audit-then-enforce.md
+      - Send traces to SigNoz, Tempo or Jaeger: recipes/trace-backends.md
+      - Monthly report for a security review: recipes/monthly-report.md
+  - Reference:
+      - Configuration and environment variables: reference/configuration.md
+      - Span attributes: reference/span-attributes.md
+      - Command line: reference/cli.md
+      - Python API: reference/python-api.md
+  - Operations:
+      - Upgrade guide: operations/upgrade.md
+      - Stability and versioning: operations/versioning.md
+      - Releasing: releasing.md
+      - Self-hosted CI runner: self-hosted-runner.md
+  - Security:
+      - Threat model: threat-model.md
+      - Reporting a vulnerability: security.md
+  - Benchmarks:
+      - Detection benchmark: benchmark.md
+      - Placeholder evaluation: placeholders-eval.md
+  - Background:
+      - AgentRaft mapping: agentraft-mapping.md
+      - "Spike: taint across an LLM hop": spike-llm-hop.md
+      - "Phase 3: policy collector": phase3-collector.md
+      - "Phase 4: redaction": phase4-redaction.md
+      - "Phase 5: evidence": phase5-evidence.md
+      - "Phase 6: fix suggester": phase6-recover.md
+  - Changelog: changelog.md
+  - Contributing: contributing.md

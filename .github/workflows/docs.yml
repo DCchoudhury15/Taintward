@@ -1,0 +1,51 @@
+name: docs
+
+# Builds the mkdocs site on every pull request and publishes it to GitHub
+# Pages from main. Pages must be set to "GitHub Actions" in the repository
+# settings (Settings > Pages > Source).
+on:
+  pull_request:
+    paths: [docs/**, mkdocs.yml, CHANGELOG.md, CONTRIBUTING.md, SECURITY.md, taintward/**]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NO_MKDOCS_2_WARNING: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: constraints.txt
+      - run: python -m pip install -c constraints.txt mkdocs-material mkdocstrings-python
+      - run: mkdocs build --strict
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/docs-site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -5,7 +5,11 @@ to protect. Please report them privately.
 
 ## How to report
 
-Open a **confidential issue** on GitLab:
+Report it privately on GitHub:
+https://github.com/DCchoudhury15/Taintward/security/advisories/new
+
+If that does not work for you, open a **confidential issue** on the GitLab
+mirror instead:
 https://gitlab.com/divyanshuchoudhury51/taintward/-/issues/new
 (tick "This issue is confidential").
 

@@ -12,12 +12,20 @@
   (ai4privacy, gretel finance multilingual). Results in
   `bench/results/external_*` show value shapes only, never dataset text.
   Summary in "Results on outside data" in `docs/benchmark.md`.
+- Documentation site (mkdocs-material, `mkdocs.yml`): concepts, guides,
+  recipes, configuration, span attribute, command line and Python API
+  reference, operations and security pages. `mkdocs build --strict` runs in
+  CI, and `.github/workflows/docs.yml` publishes it to GitHub Pages from
+  main.
 
 ### Changed
 
 - README and SECURITY.md say that the 0% false alarm and 0.94 recall numbers
   are from the synthetic benchmark, and link the outside-data results and
   the threat model.
+- Links on the site, quickstart, SECURITY.md and CONTRIBUTING.md point to
+  the GitHub repo. Security reports go to GitHub private advisories, with the
+  GitLab confidential issue as a fallback.
 
 ## 0.2.0
 
