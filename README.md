@@ -1,326 +1,203 @@
+<div align="center">
+
 # Taintward
 
-Taintward finds sensitive data (SSNs, emails, API keys, names) in the tool
-calls of AI agents, tracks it through the call chain with OpenTelemetry
-baggage, and redacts it for each destination before it leaves: internal
-systems get a reversible FF1 token, the LLM gets placeholders such as
-`<PERSON_1>`, and external APIs and logs get a one-way mask. Every decision
-is recorded in a signed, tamper-evident evidence log. It is runtime
-**enforcement** of the Data Over-Exposure (DOE) model on OpenTelemetry.
+**Let your AI agent use customer data without sending it to the LLM.**
 
-Taintward was called AgentWard before version 0.2.0.
+[![CI](https://github.com/DCchoudhury15/Taintward/actions/workflows/ci.yml/badge.svg)](https://github.com/DCchoudhury15/Taintward/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-online-b5703c)](https://dcchoudhury15.github.io/Taintward/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.11%2B-3776ab)
+![TypeScript](https://img.shields.io/badge/typescript-Vercel%20AI%20SDK-3178c6)
 
-## The problem
+[Docs](https://dcchoudhury15.github.io/Taintward/) ·
+[Quickstart](docs/quickstart.md) ·
+[Threat model](docs/threat-model.md) ·
+[Website](https://taintward.vercel.app)
 
-AI agents chain tool calls together: read from a database, hand the result to
-an LLM, call an external API, write a log line. Somewhere in that chain, a
-field that must stay internal (an SSN, an API key, a customer's address) can
-reach an external sink, because nothing tracks where the data *goes* once it
-enters the chain.
+</div>
 
-[AgentRaft](https://arxiv.org/abs/2603.07557) (Lin et al., March 2026) proved
-this is measurable: it found this kind of over-exposure in 57% of the call
-chains it analyzed. But AgentRaft is a research pipeline, not something you
-can run in production. It works offline, on a custom trace format from the
-AgentDojo benchmark, and it decides "was this data strictly necessary?" by
-polling three different LLMs and taking a majority vote.
+---
 
-Taintward takes AgentRaft's formal model and turns it into something that
-runs live, on infrastructure you already have (OpenTelemetry + SigNoz), with
-no LLM in the hot path:
+## What it does
 
-| AgentRaft | Taintward |
+Taintward sits between your agent and the outside world. It finds sensitive
+values (SSNs, emails, cards, API keys, names) in every tool call and model
+call, and changes them based on **where they are going**:
+
+```text
+your user  : Remind Alice Lee (alice.lee@example.com) about her tax form.
+
+to the LLM : Remind <PERSON_1> (<EMAIL_1>) about her tax form.
+LLM replies: send_email(to="<EMAIL_1>", body="Hi <PERSON_1>, ...")
+your code  : send_email(to="alice.lee@example.com", body="Hi Alice Lee, ...")
+```
+
+The model can still do its job, because it sees consistent placeholders
+instead of blanks. The real values never leave your process.
+
+| where the data goes | what it gets |
 |---|---|
-| Φ = LLM-judged semantic dependency (taint propagation) | structural OTel **baggage + span-link** propagation, real-time and LLM-free |
-| D_nec = GPT-4.1 / Qwen3-Plus / DeepSeek-V3.2 voting committee | deterministic **Rego** policy, auditable, no 3 LLM calls per step |
-| AgentDojo custom trace format | standard OTel `gen_ai.*` semconv into **SigNoz** |
-| offline **detection** | runtime **enforcement** (redact-before-egress) |
-| metrics | **lineage / blast-radius** as GDPR Art. 30 evidence |
+| the LLM | a placeholder like `<PERSON_1>`, swapped back in the reply |
+| your own systems | a reversible token that keeps the shape (an SSN still looks like an SSN) |
+| external APIs, logs, RAG | a one-way mask: `[PII]` or `[SECRET]` |
+| a tool you forgot to list | treated as external, so it gets the mask |
 
-The underlying math (`D_OE = (D_trans \ (D_nec ∪ D_int)) ∩ D_total`) is kept
-exactly as AgentRaft defined it, see [`taintward/core/doe.py`](taintward/core/doe.py) and
-[`docs/agentraft-mapping.md`](docs/agentraft-mapping.md) for the full
-section-by-section mapping. The build plan is in [`PLAN.md`](PLAN.md).
+Every decision is recorded in a signed, tamper-evident log, and
+`taintward-report` turns it into an HTML report your security team can read.
+
+## At a glance
+
+<table>
+<tr>
+<td align="center" width="25%"><h3>~8 ms</h3>added to a tool call<br/><sub>1 KB payload, one laptop</sub></td>
+<td align="center" width="25%"><h3>0</h3>raw values reached the model<br/><sub>47 tasks, 3 local LLMs</sub></td>
+<td align="center" width="25%"><h3>3 in 4</h3>tasks fully restored<br/><sub>with small local models</sub></td>
+<td align="center" width="25%"><h3>~4,000</h3>spans/s per CPU core<br/><sub>collector, all redacted</sub></td>
+</tr>
+</table>
+
+**Good at:** emails, US-format SSNs, valid card numbers and IBANs, IP
+addresses, and known key formats (AWS keys, GitHub tokens, JWTs, private
+keys). Emails and IP addresses are found 95% of the time or more, also on
+outside data.
+
+**Weaker at:** names in non-English text, non-US phone numbers and national
+ids, addresses written in parts, and plain passwords. On public datasets it did not see during
+development it found something sensitive in 68% to 93% of the examples that
+had some. Full numbers: [benchmark](docs/benchmark.md) and
+[placeholder evaluation](docs/placeholders-eval.md).
 
 ## How it works
 
-Six stages, each replacing one piece of AgentRaft with something that runs
-in real time:
-
 ```mermaid
 flowchart LR
-    A["1. Detect<br/>Presidio + secret regexes"] --> B["2. Propagate<br/>OTel baggage + span links"]
-    B --> C["3. Decide<br/>Rego policy, sidecar collector"]
-    C --> D["4. Redact<br/>reversible token (internal) /<br/>one-way mask (egress)"]
-    D --> E["5. Record<br/>Merkle log + SigNoz dashboards"]
-    E --> F["6. Recover<br/>AST-grounded fix-suggester"]
+    A["1. Detect<br/>find PII and secrets"] --> B["2. Track<br/>tag the whole run<br/>(OpenTelemetry baggage)"]
+    B --> C["3. Redact<br/>per destination"]
+    C --> D["4. Record<br/>signed evidence log"]
 ```
 
-And here is the actual runtime shape of it, an agent process instrumented
-with the Taintward SDK, talking to a sidecar collector that makes the
-policy decision before anything reaches storage:
+1. **Detect.** Patterns with checksums (cards, IBANs, SSNs), secret formats,
+   and a small NER model for names.
+2. **Track.** Once a call touches sensitive data, the whole run is tagged.
+   The tag survives even when the LLM rewrites the data.
+3. **Redact.** Before anything leaves, values are replaced for that
+   destination. A Rego policy decides what counts as a violation.
+4. **Record.** Violations go into an append-only Merkle log with signed
+   checkpoints, and anything raw left in a trace is removed before storage.
 
-```mermaid
-flowchart TD
-    subgraph AP["Agent process (the HR bot demo)"]
-        SDK["Taintward SDK<br/>detect · taint · redact"]
-        T1["query_db (internal)"]
-        T2["ask_llm (llm)"]
-        T3["call_external_api (external)"]
-        T4["write_log (log)"]
-        T5["rag_retrieve (rag)"]
-        SDK -. instrument_tool .-> T1
-        SDK -. instrument_tool .-> T2
-        SDK -. instrument_tool .-> T3
-        SDK -. instrument_tool .-> T4
-        SDK -. instrument_tool .-> T5
-    end
+## Try it
 
-    AP -->|"OTLP/HTTP spans, :4319"| RCV
-
-    subgraph SC["taintward-collector (sidecar)"]
-        RCV["otlp receiver"]
-        POL["taint_policy processor<br/>Rego eval + redact"]
-        RCV --> POL
-    end
-
-    SC -->|"OTLP/gRPC, :4317"| SNZ
-
-    subgraph SNZ["SigNoz"]
-        CH[("ClickHouse")]
-        UI["React UI, :8080"]
-        CH --> UI
-    end
-
-    CH --> EV["Merkle evidence log<br/>tamper-evident, GDPR Art. 30"]
-    CH --> DASH["Dashboards<br/>lineage / blast-radius / SLO"]
-    DASH -. prioritizes .-> FIX
-    AP -. source code .-> FIX["Fix-suggester<br/>walks the AST for unguarded sinks"]
-    FIX -. one-line patch .-> AP
-```
-
-Two propagation layers do the actual tracking, which is the part that has
-to survive an LLM rewriting the data beyond recognition:
-
-1. **Chain-level (baggage)**: the moment a tool call touches sensitive data,
-   a compact tag (`taint.id`, `taint.classes`, never the value itself) rides
-   along in OTel baggage to every downstream span in that trace. This
-   doesn't care what the LLM does to the data. Even if summarizing or
-   translating destroys the original bytes, the taint tag survives because
-   it's attached to the *call chain*, not the *value*.
-2. **Field-level (re-detection)**: every tool's input and output is
-   re-scanned on the way through, so brand-new sensitive data introduced
-   mid-chain (an LLM inventing a plausible-looking SSN, say) still gets
-   caught.
-
-At the sink, the collector's Rego policy is what actually decides:
-`sensitive data + destination in {external, llm, log} ⇒ violation`, plus a
-second rule for cross-border transfers (`PII + non-adequate jurisdiction ⇒
-transfer_violation`, the GDPR Art. 44 case). Whatever the policy flags gets
-redacted before it's ever written to SigNoz's storage.
-
-## See it in action
-
-Running the breach simulator (injects a fake SSN and AWS key into the HR
-bot's database, then lets the agent's normal `query_db → internal_store →
-ask_llm → rag_retrieve → call_external_api → write_log` chain run) produces
-this, verified against a live SigNoz instance:
-
-| tool | destination | stored value | violation | transfer |
-|---|---|---|---|---|
-| `query_db` | internal | `"ssn": "[PII]"` | no | no |
-| `internal_store` | internal | `"ssn": "103-48-0677"` (reversible token, same shape as a real SSN, round-trips to the original) | no | no |
-| `ask_llm` | llm | `"ssn": "[PII]"` | **yes** | **yes** |
-| `rag_retrieve` | rag | `[PII]` (embeddings are invertible, so RAG is treated as egress too) | no | no |
-| `call_external_api` | external | `[PII]` | **yes** | **yes** |
-| `write_log` | log | `[PII]` | **yes** | no |
-
-The real SSN and the real AWS key never appear anywhere in ClickHouse, not
-even in the spans for tools that legitimately need the data internally.
-That's the "context-aware" part: the same field gets a reversible token in
-one tool and an irreversible mask two hops later, because the system tracked
-*where the data was actually headed*, not just what field it came from.
-
-## Quickstart
+Needs Docker. The first build takes a few minutes.
 
 ```bash
+git clone https://github.com/DCchoudhury15/Taintward && cd Taintward
 docker compose up --build
 ```
 
-This starts the Taintward collector, a demo HR agent that leaks an SSN and an
-AWS key, and a Jaeger trace viewer. Open http://localhost:16686, pick the
-service `taintward-hr-bot`, and you will see `ask_llm`, `call_external_api`
-and `write_log` flagged as violations, with no raw SSN or key anywhere. Full
-walkthrough, and how to send traces to SigNoz instead: [`docs/quickstart.md`](docs/quickstart.md).
+Open http://localhost:16686 and pick `taintward-hr-bot`. A demo HR agent
+leaks a fake SSN and AWS key to an LLM, an external API and a log; you will
+see all three calls flagged, and the real values nowhere.
+[Full walkthrough](docs/quickstart.md).
 
 ## Use it in your agent
 
+Pick the one that fits your stack.
+
+### Python: LangChain, LangGraph, OpenAI Agents SDK, OpenAI, Anthropic
+
 ```bash
-pip install "taintward[langchain]"      # or [openai-agents], [mcp], [llm]
+pip install "taintward[langchain] @ git+https://github.com/DCchoudhury15/Taintward"
 python -m spacy download en_core_web_sm
 ```
-
-**LangChain / LangGraph / OpenAI Agents SDK.** One `init()` call, then wrap
-your tools and model (`tw.wrap_function_tools` for the OpenAI Agents SDK).
-Tools not in the map are treated as `external`, so a forgotten tool gets
-masked data, never raw data.
 
 ```python
 import taintward as tw
 
-tw.init("my-agent", destinations={
-    "search_db": "internal",
-    "send_email": ("external", "us"),   # (destination, jurisdiction)
-})
-tools = tw.wrap_langchain_tools(tools)       # keeps names and schemas
-model = tw.protect_langchain_model(model)    # redacts every request to the LLM
+tw.init("my-agent", destinations={"search_db": "internal", "send_email": "external"})
+tools = tw.wrap_langchain_tools(tools)
+model = tw.protect_langchain_model(model)   # or tw.protect_openai(OpenAI())
+
 with tw.run():
     agent.invoke(...)
 ```
 
-Plain OpenAI and Anthropic clients:
+[Integration guide](docs/integrations.md)
 
-```python
-client = tw.protect_openai(OpenAI())         # or tw.protect_anthropic(Anthropic())
-with tw.run():
-    reply = client.chat.completions.create(model="gpt-4.1-mini", messages=messages)
+### TypeScript: Vercel AI SDK
+
+```ts
+import { wrapLanguageModel, generateText } from "ai";
+import { taintwardMiddleware } from "taintward/ai-sdk";
+
+const model = wrapLanguageModel({ model: openai("gpt-4.1"), middleware: taintwardMiddleware() });
+const { text } = await generateText({ model, prompt: "Email alice.lee@example.com about her order" });
+// the model saw <EMAIL_1>; `text` has the real address
 ```
 
-The model sees `<PERSON_1>` and `<SSN_1>`; the reply your code gets back has
-the real values again (`tw.restore` does the same for any value). Details
-and limits: [`docs/integrations.md`](docs/integrations.md).
+Works with `generateText` and `streamText`, including tool calls and
+placeholders split across stream chunks.
+[TypeScript SDK](packages/taintward-js/README.md)
 
-**MCP gateway, no code changes.** Put `taintward-gateway --config gateway.yaml`
-in your MCP client config in place of the real server. Every tool call is
-scanned and, per tool, redacted, blocked or only recorded (audit mode).
-See [`docs/mcp-gateway.md`](docs/mcp-gateway.md).
+### MCP: no code changes
 
-**If detection cannot load.** When spaCy or Presidio fail to load, Taintward
-logs one ERROR and falls back to regex-only detection (SSNs, cards, emails,
-secrets are still found; names are not). `tw.health()` reports the state,
-and `TAINTWARD_FAIL_CLOSED=1` refuses calls to non-internal sinks while
-detection is degraded.
+Put `taintward-gateway --config gateway.yaml` in your MCP client config in
+place of the real server. Each tool can redact, block or only record.
+[Gateway guide](docs/mcp-gateway.md)
 
-## Numbers
+### Kubernetes
 
-Detection quality and the time added to a tool call, from
-[`docs/benchmark.md`](docs/benchmark.md) (one laptop, single thread):
+A Helm chart runs the policy collector and the gateway.
+[Deploy guide](docs/deploy-kubernetes.md)
 
-| | before the fast path | 0.2.0 |
-|---|---:|---:|
-| wrapped tool call, 1 KB, p50 | 518 ms | **8.4 ms** |
-| wrapped tool call, 1 KB, p99 | 690 ms | **11.6 ms** |
-| wrapped tool call, 10 KB, p50 | 4,067 ms | **38 ms** |
-| false alarms on clean payloads that look sensitive | 48% to 52% | **0%** |
-| example-level recall | 0.94 | 0.94 |
+## What it does not do
 
-These are on the synthetic benchmark, which was written together with the
-rules. On two public datasets written by other people, example-level recall
-is 0.68 and 0.93, emails are still found 95% to 97% of the time, but names,
-non-US phone numbers and addresses are found much less often, and false
-alarms on German, Dutch and Italian text are high. See "Results on outside
-data" in [`docs/benchmark.md`](docs/benchmark.md).
+- It only protects calls that go through it. A tool or LLM client you did
+  not wrap is not seen.
+- It does not stop prompt injection. It limits what an injected instruction
+  can get out.
+- Detection can miss values that are encoded, split across fields, or in
+  formats it does not know.
 
-Collector throughput, from [`docs/scaling.md`](docs/scaling.md):
-
-| spans | spans/s per core |
-|---|---:|
-| every span is a violation (redacted) | about 4,000 |
-| clean spans (policy runs, nothing to redact) | about 17,000 |
-
-Throughput grows with cores at the same rate per core. The scaling doc also
-has gateway numbers and a sizing guide.
+The full list, with every known bypass and how to harden a deployment, is in
+the [threat model](docs/threat-model.md).
 
 ## Documentation
 
-| topic | doc |
+| | |
 |---|---|
-| run the demo with Docker | [`docs/quickstart.md`](docs/quickstart.md) |
-| framework adapters and settings | [`docs/integrations.md`](docs/integrations.md) |
-| MCP gateway | [`docs/mcp-gateway.md`](docs/mcp-gateway.md) |
-| compliance report and evidence log | [`docs/evidence-report.md`](docs/evidence-report.md) |
-| Helm chart and Kubernetes | [`docs/deploy-kubernetes.md`](docs/deploy-kubernetes.md) |
-| throughput and sizing | [`docs/scaling.md`](docs/scaling.md) |
-| detection benchmark | [`docs/benchmark.md`](docs/benchmark.md) |
-| tokens, FF1 and the vault | [`docs/redaction-crypto.md`](docs/redaction-crypto.md) |
-| threat model, known bypasses, hardening checklist | [`docs/threat-model.md`](docs/threat-model.md) |
-| changes per release | [`CHANGELOG.md`](CHANGELOG.md) |
+| [Quickstart](docs/quickstart.md) | run the demo |
+| [Integrations](docs/integrations.md) | Python adapters and settings |
+| [TypeScript SDK](packages/taintward-js/README.md) | Vercel AI SDK middleware |
+| [MCP gateway](docs/mcp-gateway.md) | redact, block or audit MCP tools |
+| [Evidence and reports](docs/evidence-report.md) | signed log and compliance report |
+| [Kubernetes](docs/deploy-kubernetes.md) | Helm chart |
+| [Threat model](docs/threat-model.md) | what it protects and where it stops |
+| [Benchmark](docs/benchmark.md) | detection quality and speed |
+| [Changelog](CHANGELOG.md) | what changed |
 
-## Status
+Everything is also on the [docs site](https://dcchoudhury15.github.io/Taintward/).
 
-All six phases are built and verified, each landed as its own stacked PR:
+## Background
 
-| phase | does | replaces |
-|---|---|---|
-| 1 | formal DOE model + local SigNoz substrate | (foundation) |
-| 2 | runtime taint on OTel (baggage + per-I/O re-detection) | AgentRaft's Φ (LLM-judged propagation) |
-| 3 | Rego policy in a sidecar collector | AgentRaft's D_nec 3-LLM committee |
-| 4 | reversible, context-aware redaction (FF1 FPE for internal, mask for egress) | static field-name masking |
-| 5 | tamper-evident Merkle log + lineage / blast-radius / SLO dashboards | metrics turned into verifiable Art. 30/15 records |
-| 6 | AST-grounded fix-suggester + DLP dry-run | (AgentRaft has no recovery step) |
+Taintward builds on [AgentRaft](https://arxiv.org/abs/2603.07557) (Lin et
+al., 2026), which found data over-exposure in 57% of the agent call chains
+it studied. AgentRaft runs offline and uses three LLMs to judge each step.
+Taintward keeps its formal model but runs live, with no LLM in the decision.
+How each part maps: [docs/agentraft-mapping.md](docs/agentraft-mapping.md).
 
-On top of that, v0.2 adds what is needed to use it for real:
+It was called AgentWard before version 0.2.0.
 
-- one-command Docker quickstart ([`docs/quickstart.md`](docs/quickstart.md))
-- framework adapters for LangChain, LangGraph, the OpenAI Agents SDK and the OpenAI / Anthropic clients ([`docs/integrations.md`](docs/integrations.md))
-- an MCP gateway with redact / block / audit modes ([`docs/mcp-gateway.md`](docs/mcp-gateway.md))
-- placeholders for the LLM (`<PERSON_1>`), restored to the real values in the reply
-- FF1 encryption checked against the NIST sample vectors, and a token vault (in memory, SQLite, Postgres or Redis, encrypted at rest) with per-subject erasure for GDPR ([`docs/redaction-crypto.md`](docs/redaction-crypto.md))
-- a compliance report and a sharded evidence log with Ed25519 signed checkpoints and RFC 9162 proofs ([`docs/evidence-report.md`](docs/evidence-report.md))
-- a Helm chart for the collector and the gateway ([`docs/deploy-kubernetes.md`](docs/deploy-kubernetes.md)) and load tests ([`docs/scaling.md`](docs/scaling.md))
-- detection about 60 times faster with no false alarms on the synthetic benchmark ([`docs/benchmark.md`](docs/benchmark.md))
-- CI for GitLab and GitHub
-
-The full list is in [`CHANGELOG.md`](CHANGELOG.md).
-
-Per-phase writeups live in `docs/phase{3,4,5,6}-*.md` and `docs/spike-llm-hop.md`.
-
-## Run it yourself
+## Development
 
 ```bash
-# unit tests, no SigNoz needed
-python3 -m pytest -q                                   # Python tests
-cd collector/processor/taintpolicy && go test ./...   # Go processor tests
-
-# end-to-end against your own SigNoz
-cd signoz && foundryctl cast -f casting.yaml                              # start SigNoz
-cd collector && ./bin/taintward-collector --config file:./config.yaml &  # sidecar, :4319
-python3 demo/hr_bot/breach_simulator.py --endpoint http://localhost:4319/v1/traces
-python3 demo/phase5_evidence_demo.py                    # Merkle inclusion + tamper check
-taintward-fix taintward/fix_suggester/sample_buggy_agent.py       # exits 1 when it finds unguarded sinks
+python -m pytest -q                                      # Python
+cd collector/processor/taintpolicy && go test ./...      # Go collector processor
+cd packages/taintward-js && npm ci && npm test           # TypeScript
 ```
 
-Then open `http://localhost:8080`, filter on `taintward.violation=true`, and
-you'll see the flagged spans from the run above.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
 
-**Keys.** Set `TAINTWARD_FPE_KEY` (hex AES key) for stable tokens. Without it
-a random key is made per process and a warning is printed. The public demo
-key is only used when `TAINTWARD_ALLOW_DEMO_KEY=1`. The FF1 code has not had
-an outside audit yet; see [`docs/redaction-crypto.md`](docs/redaction-crypto.md)
-for the limits.
+## License
 
-## Layout
-
-```
-taintward/                   the Python package (import taintward as tw)
-  core/                      formal DOE model (pure, the mathematical anchor)
-  sdk/                       detect / taint / redact / vault / instrumentation
-  sdk/integrations/          LangChain, LangGraph, OpenAI Agents, LLM client adapters
-  gateway/                   MCP gateway (redact / block / audit per tool)
-  evidence/                  evidence log, signed checkpoints, compliance report
-  fix_suggester/             AST-walk patch proposer
-collector/                   Go: custom OTel processor + Rego policy
-deploy/                      Helm chart, gateway Dockerfile
-demo/hr_bot/                 the instrumented demo bot + breach simulator
-dashboards/                  SigNoz JSON: lineage / blast-radius / SLO / alerts
-bench/, loadtest/            detection benchmark and load tests
-site/                        landing page
-tests/                       unit + e2e
-```
-
-## References
-
-- AgentRaft: Automated Detection of Data Over-Exposure in LLM Agents, Lin et al.,
-  arXiv:2603.07557, March 2026.
-- OpenTelemetry GenAI semantic conventions (`gen_ai.*`).
-- SigNoz, OTel-native observability.
+Apache-2.0

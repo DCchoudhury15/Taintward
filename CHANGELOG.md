@@ -4,6 +4,13 @@
 
 ### Added
 
+- TypeScript SDK in `packages/taintward-js` (npm name `taintward`):
+  `taintwardMiddleware()` for the Vercel AI SDK sends placeholders to the
+  model and restores real values in text, reasoning and tool call
+  arguments, also when streamed. Same detector rules as Python (checked
+  case by case against it), tolerant restore of rewritten placeholders,
+  the placeholder instruction line and strict mode. No name detection.
+
 - `docs/threat-model.md`: trust boundaries, assets, what is prevented,
   detected or not handled for each attacker, known detection bypasses,
   STRIDE per component, 11 open gaps (G1 to G11) and a deployment hardening
@@ -19,6 +26,8 @@
   main.
 
 ### Changed
+
+- The README is shorter, with the key numbers at the top.
 
 - README and SECURITY.md say that the 0% false alarm and 0.94 recall numbers
   are from the synthetic benchmark, and link the outside-data results and

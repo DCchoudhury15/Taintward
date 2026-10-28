@@ -32,3 +32,4 @@ signoz-data/
 
 # Generated benchmark data (python bench/make_dataset.py, seed 1337)
 bench/data/detection.jsonl
+node_modules/

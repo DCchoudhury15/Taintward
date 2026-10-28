@@ -1,0 +1,88 @@
+{
+  "name": "taintward",
+  "version": "0.1.0",
+  "description": "Keep PII and secrets out of LLM calls: placeholders for the model, real values back for your code. Vercel AI SDK middleware.",
+  "license": "Apache-2.0",
+  "author": "Divyanshu Choudhury",
+  "homepage": "https://dcchoudhury15.github.io/Taintward/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DCchoudhury15/Taintward.git",
+    "directory": "packages/taintward-js"
+  },
+  "bugs": "https://github.com/DCchoudhury15/Taintward/issues",
+  "keywords": [
+    "pii",
+    "redaction",
+    "llm",
+    "ai-sdk",
+    "agents",
+    "privacy",
+    "dlp",
+    "placeholders"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./ai-sdk": {
+      "import": {
+        "types": "./dist/ai-sdk.d.ts",
+        "default": "./dist/ai-sdk.js"
+      },
+      "require": {
+        "types": "./dist/ai-sdk.d.cts",
+        "default": "./dist/ai-sdk.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "crosscheck:python": "cd ../.. && .venv/bin/python packages/taintward-js/scripts/python-detect.py packages/taintward-js/test/fixtures/detect-cases.json packages/taintward-js/test/fixtures/python-expected.json",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "libphonenumber-js": "1.13.15",
+    "tldts": "7.4.18"
+  },
+  "peerDependencies": {
+    "@ai-sdk/provider": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/provider": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ai-sdk/provider": "4.0.26",
+    "@types/node": "24.19.2",
+    "ai": "7.0.137",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vite": "8.3.4",
+    "vitest": "5.0.3",
+    "zod": "4.6.6"
+  }
+}

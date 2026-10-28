@@ -1,0 +1,1098 @@
+{
+ "python_detector_mode": "full",
+ "cases": {
+  "ssn-dashed": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 16,
+     "end": 27,
+     "fingerprint": "432fd09f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-dots": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 4,
+     "end": 15,
+     "fingerprint": "0c0dacb2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-spaces": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 7,
+     "end": 18,
+     "fingerprint": "7b5dfdd7"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-mixed-delims": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-area-000": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-area-666": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-area-9xx": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 3,
+     "end": 14,
+     "fingerprint": "3c36afac"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-group-00": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-serial-0000": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-same-digit": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-sample": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-inside-word": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-plain-key": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 0,
+     "end": 9,
+     "fingerprint": "1b58a22c"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-plain-key-camel": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-plain-no-context": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-plain-context-word": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 17,
+     "end": 26,
+     "fingerprint": "1b58a22c"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-plain-tax-id": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 7,
+     "end": 16,
+     "fingerprint": "1b58a22c"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-plain-invalid": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "ssn-fullwidth": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 4,
+     "end": 15,
+     "fingerprint": "782becfc"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-zero-width": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 4,
+     "end": 16,
+     "fingerprint": "997418a7"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-zero-width-many": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 2,
+     "end": 17,
+     "fingerprint": "2701b32c"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-spaced-digits": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 10,
+     "end": 31,
+     "fingerprint": "ca88a3db"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ssn-spaced-plain-key": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 0,
+     "end": 17,
+     "fingerprint": "7ccf134d"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "email-simple": {
+   "spans": [
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 8,
+     "end": 29,
+     "fingerprint": "89ca0bb1"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "email-plus": {
+   "spans": [
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 0,
+     "end": 28,
+     "fingerprint": "127243eb"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "email-subdomain-uk": {
+   "spans": [
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 9,
+     "end": 22,
+     "fingerprint": "0c26a688"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "email-bad-tld": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "email-local-tld": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "email-ip-domain": {
+   "spans": [],
+   "out_of_scope": [
+    {
+     "type": "IP_ADDRESS",
+     "start": 5,
+     "end": 13,
+     "fingerprint": "f5047344"
+    }
+   ]
+  },
+  "email-public-suffix-only": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "email-upper": {
+   "spans": [
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 0,
+     "end": 17,
+     "fingerprint": "f2bc147f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "email-in-json": {
+   "spans": [
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 8,
+     "end": 30,
+     "fingerprint": "718f4596"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "email-two": {
+   "spans": [
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 0,
+     "end": 13,
+     "fingerprint": "08168cd8"
+    },
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 18,
+     "end": 30,
+     "fingerprint": "bedea583"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "card-visa": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 5,
+     "end": 24,
+     "fingerprint": "6a7e0e79"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "card-visa-dashes": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 0,
+     "end": 19,
+     "fingerprint": "b3f846b2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "card-visa-plain": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 9,
+     "end": 25,
+     "fingerprint": "9bbef194"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "card-mastercard": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 3,
+     "end": 19,
+     "fingerprint": "2f725bbd"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "card-amex": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 5,
+     "end": 20,
+     "fingerprint": "3a134ef7"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "card-discover": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 0,
+     "end": 16,
+     "fingerprint": "19ff47cc"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "card-bad-luhn": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "card-bad-prefix": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "card-spaced-digits": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 5,
+     "end": 36,
+     "fingerprint": "ac1f21f4"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "iban-de": {
+   "spans": [
+    {
+     "type": "IBAN_CODE",
+     "start": 5,
+     "end": 27,
+     "fingerprint": "faf7e1c0"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "iban-gb-spaced": {
+   "spans": [
+    {
+     "type": "IBAN_CODE",
+     "start": 8,
+     "end": 35,
+     "fingerprint": "f34b4ac2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "iban-fr": {
+   "spans": [
+    {
+     "type": "IBAN_CODE",
+     "start": 0,
+     "end": 27,
+     "fingerprint": "cb2609a4"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "iban-bad-check": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "iban-trailing-words": {
+   "spans": [
+    {
+     "type": "IBAN_CODE",
+     "start": 21,
+     "end": 43,
+     "fingerprint": "faf7e1c0"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "iban-lowercase": {
+   "spans": [
+    {
+     "type": "IBAN_CODE",
+     "start": 0,
+     "end": 22,
+     "fingerprint": "9cf685bd"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-context": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 7,
+     "end": 21,
+     "fingerprint": "460ba65f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-no-context": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "phone-key": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 0,
+     "end": 15,
+     "fingerprint": "02172ddf"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-uk-context": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 11,
+     "end": 27,
+     "fingerprint": "8326724c"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-de-context": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 4,
+     "end": 17,
+     "fingerprint": "26c9ac89"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-whatsapp": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 9,
+     "end": 24,
+     "fingerprint": "138a70a7"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-spaced": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "aws-akia": {
+   "spans": [
+    {
+     "type": "AWS_ACCESS_KEY",
+     "start": 4,
+     "end": 24,
+     "fingerprint": "1a5d44a2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "aws-asia": {
+   "spans": [
+    {
+     "type": "AWS_ACCESS_KEY",
+     "start": 0,
+     "end": 20,
+     "fingerprint": "e1de2469"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "aws-lower": {
+   "spans": [
+    {
+     "type": "AWS_ACCESS_KEY",
+     "start": 0,
+     "end": 20,
+     "fingerprint": "2eb6c602"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "aws-in-word": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "github-ghp": {
+   "spans": [
+    {
+     "type": "GITHUB_TOKEN",
+     "start": 6,
+     "end": 46,
+     "fingerprint": "9d6060e2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "github-pat": {
+   "spans": [
+    {
+     "type": "GITHUB_TOKEN",
+     "start": 0,
+     "end": 93,
+     "fingerprint": "69ca16fd"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "github-gho-short": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "generic-assign": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 0,
+     "end": 32,
+     "fingerprint": "3369ccbc"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "generic-secret-colon": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 0,
+     "end": 37,
+     "fingerprint": "86d26fde"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "generic-token-quote": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 1,
+     "end": 34,
+     "fingerprint": "051faa1c"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "generic-short": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "stripe-live": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 0,
+     "end": 32,
+     "fingerprint": "78a08441"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "stripe-test-pk": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 0,
+     "end": 32,
+     "fingerprint": "b1471f54"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "slack-bot": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 0,
+     "end": 26,
+     "fingerprint": "9787577e"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "bearer": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 15,
+     "end": 59,
+     "fingerprint": "7ffcda0b"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "UK_NHS",
+     "start": 49,
+     "end": 59,
+     "fingerprint": "84d89877"
+    }
+   ]
+  },
+  "jwt": {
+   "spans": [
+    {
+     "type": "JWT",
+     "start": 4,
+     "end": 96,
+     "fingerprint": "7c5b0229"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "pem-full": {
+   "spans": [
+    {
+     "type": "PRIVATE_KEY",
+     "start": 0,
+     "end": 126,
+     "fingerprint": "9b3586b8"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "pem-truncated": {
+   "spans": [
+    {
+     "type": "PRIVATE_KEY",
+     "start": 5,
+     "end": 40,
+     "fingerprint": "03d104c6"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "keyed-secret-shape": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 0,
+     "end": 18,
+     "fingerprint": "57268eb1"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "keyed-password": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 0,
+     "end": 8,
+     "fingerprint": "cb1ade2b"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "keyed-password-sentence": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "keyed-token-no-digits": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "keyed-not-secret-key": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "street": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 8,
+     "end": 52,
+     "fingerprint": "5d999c0d"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "LOCATION",
+     "start": 31,
+     "end": 42,
+     "fingerprint": "f93f27a2"
+    }
+   ]
+  },
+  "street-lowercase": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "street-apt": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 9,
+     "end": 63,
+     "fingerprint": "09cd09b9"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "LOCATION",
+     "start": 35,
+     "end": 41,
+     "fingerprint": "664c85d1"
+    },
+    {
+     "type": "LOCATION",
+     "start": 43,
+     "end": 53,
+     "fingerprint": "6b9031df"
+    }
+   ]
+  },
+  "clean-ids": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "clean-uuid": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "clean-version": {
+   "spans": [],
+   "out_of_scope": [
+    {
+     "type": "IP_ADDRESS",
+     "start": 8,
+     "end": 15,
+     "fingerprint": "6694f83c"
+    }
+   ]
+  },
+  "multi": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 4,
+     "end": 15,
+     "fingerprint": "432fd09f"
+    },
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 23,
+     "end": 39,
+     "fingerprint": "07e2f139"
+    },
+    {
+     "type": "AWS_ACCESS_KEY",
+     "start": 45,
+     "end": 65,
+     "fingerprint": "1a5d44a2"
+    },
+    {
+     "type": "CREDIT_CARD",
+     "start": 72,
+     "end": 91,
+     "fingerprint": "6a7e0e79"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "overlap-generic-aws": {
+   "spans": [
+    {
+     "type": "AWS_ACCESS_KEY",
+     "start": 7,
+     "end": 27,
+     "fingerprint": "1a5d44a2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "overlap-generic-jwt": {
+   "spans": [
+    {
+     "type": "JWT",
+     "start": 7,
+     "end": 99,
+     "fingerprint": "7c5b0229"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "quotes-edge": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 1,
+     "end": 12,
+     "fingerprint": "432fd09f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "unicode-before": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 8,
+     "end": 19,
+     "fingerprint": "432fd09f"
+    },
+    {
+     "type": "EMAIL_ADDRESS",
+     "start": 22,
+     "end": 38,
+     "fingerprint": "07e2f139"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "unicode-word-adjacent": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "emoji-astral": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 7,
+     "end": 18,
+     "fingerprint": "432fd09f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "math-digits": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 4,
+     "end": 24,
+     "fingerprint": "63f2a933"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "ligature": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 8,
+     "end": 19,
+     "fingerprint": "432fd09f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "html-escaped": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 9,
+     "end": 20,
+     "fingerprint": "432fd09f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "newline-split": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 11,
+     "end": 22,
+     "fingerprint": "432fd09f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-de-national": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 6,
+     "end": 16,
+     "fingerprint": "49f9c705"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-de-no-prefix": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "phone-fr-national": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 4,
+     "end": 18,
+     "fingerprint": "a5ef6bb2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-fr-intl": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 4,
+     "end": 21,
+     "fingerprint": "66fe3b32"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-in-mobile": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 7,
+     "end": 18,
+     "fingerprint": "c5e1a6c7"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-br": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 16,
+     "end": 33,
+     "fingerprint": "7a57cd67"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-il": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 6,
+     "end": 17,
+     "fingerprint": "311ef6d2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-gb-national": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 6,
+     "end": 19,
+     "fingerprint": "17ecf2f5"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-us-dots": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 5,
+     "end": 17,
+     "fingerprint": "893fec6c"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-us-plain": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 6,
+     "end": 16,
+     "fingerprint": "983c2560"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-us-1": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 6,
+     "end": 20,
+     "fingerprint": "4decf76e"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-00-idd": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 6,
+     "end": 20,
+     "fingerprint": "e09814cd"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-ext": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 6,
+     "end": 27,
+     "fingerprint": "357f9f7f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-two": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 6,
+     "end": 18,
+     "fingerprint": "88e0d594"
+    },
+    {
+     "type": "PHONE_NUMBER",
+     "start": 26,
+     "end": 38,
+     "fingerprint": "b23982be"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "UK_NHS",
+     "start": 6,
+     "end": 18,
+     "fingerprint": "88e0d594"
+    }
+   ]
+  },
+  "phone-ca": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 5,
+     "end": 17,
+     "fingerprint": "c6528b4c"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-letters-after": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "phone-json-key": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 0,
+     "end": 14,
+     "fingerprint": "f222369b"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "phone-date-like": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "empty": {
+   "spans": [],
+   "out_of_scope": []
+  }
+ }
+}
