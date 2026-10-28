@@ -34,7 +34,8 @@ not urgent. A normal issue with a fake example is fine for those.
 
 ## Known limits
 
-These are documented and are not vulnerabilities on their own:
+These are documented and are not vulnerabilities on their own. The full
+list, with the known bypasses and open gaps, is in `docs/threat-model.md`:
 
 - detection is pattern and model based, so it can miss data
   (see `docs/benchmark.md` for measured accuracy)

@@ -1,0 +1,6493 @@
+{
+  "n_examples": 4000,
+  "n_entities_mapped": 7824,
+  "n_entities_all": 9604,
+  "per_class": {
+    "PERSON": {
+      "precision": 0.5568561872909699,
+      "recall": 0.5023866348448688,
+      "f1": 0.5282209143726969,
+      "n_pred": 2990,
+      "n_gold": 4190,
+      "tp_pred": 1665,
+      "tp_gold": 2105,
+      "recall_any_type": 0.5443914081145584
+    },
+    "EMAIL": {
+      "precision": 1.0,
+      "recall": 0.9703196347031964,
+      "f1": 0.984936268829664,
+      "n_pred": 425,
+      "n_gold": 438,
+      "tp_pred": 425,
+      "tp_gold": 425,
+      "recall_any_type": 0.9703196347031964
+    },
+    "PHONE": {
+      "precision": 0.9857142857142858,
+      "recall": 0.10714285714285714,
+      "f1": 0.19327731092436973,
+      "n_pred": 70,
+      "n_gold": 644,
+      "tp_pred": 69,
+      "tp_gold": 69,
+      "recall_any_type": 0.11180124223602485
+    },
+    "CREDIT_CARD": {
+      "precision": 1.0,
+      "recall": 0.0594059405940594,
+      "f1": 0.11214953271028036,
+      "n_pred": 6,
+      "n_gold": 101,
+      "tp_pred": 6,
+      "tp_gold": 6,
+      "recall_any_type": 0.0594059405940594
+    },
+    "IBAN": {
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "n_pred": 0,
+      "n_gold": 0,
+      "tp_pred": 0,
+      "tp_gold": 0,
+      "recall_any_type": null
+    },
+    "SSN": {
+      "precision": 0.75,
+      "recall": 0.05747126436781609,
+      "f1": 0.10676156583629894,
+      "n_pred": 12,
+      "n_gold": 87,
+      "tp_pred": 9,
+      "tp_gold": 5,
+      "recall_any_type": 0.06896551724137931
+    },
+    "GOV_ID": {
+      "precision": 1.0,
+      "recall": 0.015625,
+      "f1": 0.03076923076923077,
+      "n_pred": 7,
+      "n_gold": 704,
+      "tp_pred": 7,
+      "tp_gold": 11,
+      "recall_any_type": 0.017045454545454544
+    },
+    "ADDRESS": {
+      "precision": 0.26807760141093473,
+      "recall": 0.09457831325301205,
+      "f1": 0.1398258036731812,
+      "n_pred": 567,
+      "n_gold": 1660,
+      "tp_pred": 152,
+      "tp_gold": 157,
+      "recall_any_type": 0.29156626506024097
+    },
+    "IP_ADDRESS": {
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "n_pred": 0,
+      "n_gold": 0,
+      "tp_pred": 0,
+      "tp_gold": 0,
+      "recall_any_type": null
+    },
+    "SECRET": {
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "n_pred": 0,
+      "n_gold": 0,
+      "tp_pred": 0,
+      "tp_gold": 0,
+      "recall_any_type": null
+    }
+  },
+  "overall_strict": {
+    "precision": 0.5722344861417709,
+    "recall": 0.35506134969325154,
+    "f1": 0.438216890745683,
+    "n_pred": 4077,
+    "n_gold": 7824,
+    "tp_pred": 2333,
+    "tp_gold": 2778
+  },
+  "overall_any_type": {
+    "precision": 0.7162129016433653,
+    "recall": 0.4199897750511247,
+    "f1": 0.5294866868735463,
+    "n_pred": 4077,
+    "n_gold": 7824,
+    "tp_pred": 2920,
+    "tp_gold": 3286
+  },
+  "other_detector_types": {},
+  "binary": {
+    "text": {
+      "precision": 0.9679907443116081,
+      "recall": 0.6824361065796629,
+      "f1": 0.8005102854409185,
+      "false_alarm_rate": 0.2577639751552795,
+      "tp": 2510,
+      "fp": 83,
+      "fn": 1168,
+      "tn": 239
+    },
+    "payload": {
+      "precision": 0.9679907443116081,
+      "recall": 0.6824361065796629,
+      "f1": 0.8005102854409185,
+      "false_alarm_rate": 0.2577639751552795,
+      "tp": 2510,
+      "fp": 83,
+      "fn": 1168,
+      "tn": 239
+    },
+    "correct_span": {
+      "precision": 0.9639130434782609,
+      "recall": 0.6027732463295269,
+      "f1": 0.7417196386751421,
+      "false_alarm_rate": 0.2577639751552795,
+      "tp": 2217,
+      "fp": 83,
+      "fn": 1461,
+      "tn": 239
+    }
+  },
+  "per_language": {
+    "de": {
+      "examples": 500,
+      "strict": {
+        "precision": 0.3339676498572788,
+        "recall": 0.4204081632653061,
+        "f1": 0.37223549277212636,
+        "n_pred": 1051,
+        "n_gold": 980,
+        "tp_pred": 351,
+        "tp_gold": 412
+      },
+      "any_type": {
+        "precision": 0.4100856327307326,
+        "recall": 0.4857142857142857,
+        "f1": 0.4447074532653557,
+        "n_pred": 1051,
+        "n_gold": 980,
+        "tp_pred": 431,
+        "tp_gold": 476
+      },
+      "recall_by_class": {
+        "PERSON": 0.5897435897435898,
+        "EMAIL": 0.9830508474576272,
+        "PHONE": 0.07142857142857142,
+        "CREDIT_CARD": 0.125,
+        "IBAN": null,
+        "SSN": 0.0,
+        "GOV_ID": 0.05434782608695652,
+        "ADDRESS": 0.1130952380952381,
+        "IP_ADDRESS": null,
+        "SECRET": null
+      },
+      "gold_by_class": {
+        "PERSON": 546,
+        "EMAIL": 59,
+        "PHONE": 98,
+        "CREDIT_CARD": 8,
+        "IBAN": 0,
+        "SSN": 9,
+        "GOV_ID": 92,
+        "ADDRESS": 168,
+        "IP_ADDRESS": 0,
+        "SECRET": 0
+      },
+      "binary_text": {
+        "precision": 0.9249448123620309,
+        "recall": 0.9108695652173913,
+        "f1": 0.9178532311062432,
+        "false_alarm_rate": 0.85,
+        "tp": 419,
+        "fp": 34,
+        "fn": 41,
+        "tn": 6
+      }
+    },
+    "en": {
+      "examples": 500,
+      "strict": {
+        "precision": 0.7940379403794038,
+        "recall": 0.34110787172011664,
+        "f1": 0.47721198284982463,
+        "n_pred": 369,
+        "n_gold": 1029,
+        "tp_pred": 293,
+        "tp_gold": 351
+      },
+      "any_type": {
+        "precision": 0.978319783197832,
+        "recall": 0.4013605442176871,
+        "f1": 0.5692028114059702,
+        "n_pred": 369,
+        "n_gold": 1029,
+        "tp_pred": 361,
+        "tp_gold": 413
+      },
+      "recall_by_class": {
+        "PERSON": 0.4604051565377532,
+        "EMAIL": 1.0,
+        "PHONE": 0.1686746987951807,
+        "CREDIT_CARD": 0.0,
+        "IBAN": null,
+        "SSN": 0.2222222222222222,
+        "GOV_ID": 0.0,
+        "ADDRESS": 0.11764705882352941,
+        "IP_ADDRESS": null,
+        "SECRET": null
+      },
+      "gold_by_class": {
+        "PERSON": 543,
+        "EMAIL": 57,
+        "PHONE": 83,
+        "CREDIT_CARD": 12,
+        "IBAN": 0,
+        "SSN": 9,
+        "GOV_ID": 87,
+        "ADDRESS": 238,
+        "IP_ADDRESS": 0,
+        "SECRET": 0
+      },
+      "binary_text": {
+        "precision": 0.9964912280701754,
+        "recall": 0.6133909287257019,
+        "f1": 0.7593582887700533,
+        "false_alarm_rate": 0.02702702702702703,
+        "tp": 284,
+        "fp": 1,
+        "fn": 179,
+        "tn": 36
+      }
+    },
+    "es": {
+      "examples": 500,
+      "strict": {
+        "precision": 0.543046357615894,
+        "recall": 0.30416666666666664,
+        "f1": 0.38992932286747223,
+        "n_pred": 453,
+        "n_gold": 960,
+        "tp_pred": 246,
+        "tp_gold": 292
+      },
+      "any_type": {
+        "precision": 0.7262693156732892,
+        "recall": 0.384375,
+        "f1": 0.5026987745265499,
+        "n_pred": 453,
+        "n_gold": 960,
+        "tp_pred": 329,
+        "tp_gold": 369
+      },
+      "recall_by_class": {
+        "PERSON": 0.43661971830985913,
+        "EMAIL": 1.0,
+        "PHONE": 0.11842105263157894,
+        "CREDIT_CARD": 0.08333333333333333,
+        "IBAN": null,
+        "SSN": 0.125,
+        "GOV_ID": 0.011764705882352941,
+        "ADDRESS": 0.08368200836820083,
+        "IP_ADDRESS": null,
+        "SECRET": null
+      },
+      "gold_by_class": {
+        "PERSON": 497,
+        "EMAIL": 43,
+        "PHONE": 76,
+        "CREDIT_CARD": 12,
+        "IBAN": 0,
+        "SSN": 8,
+        "GOV_ID": 85,
+        "ADDRESS": 239,
+        "IP_ADDRESS": 0,
+        "SECRET": 0
+      },
+      "binary_text": {
+        "precision": 0.9709677419354839,
+        "recall": 0.6501079913606912,
+        "f1": 0.778783958602846,
+        "false_alarm_rate": 0.24324324324324326,
+        "tp": 301,
+        "fp": 9,
+        "fn": 162,
+        "tn": 28
+      }
+    },
+    "fr": {
+      "examples": 500,
+      "strict": {
+        "precision": 0.6596194503171248,
+        "recall": 0.3875968992248062,
+        "f1": 0.4882781933706845,
+        "n_pred": 473,
+        "n_gold": 903,
+        "tp_pred": 312,
+        "tp_gold": 350
+      },
+      "any_type": {
+        "precision": 0.7949260042283298,
+        "recall": 0.4407530454042082,
+        "f1": 0.567082621233767,
+        "n_pred": 473,
+        "n_gold": 903,
+        "tp_pred": 376,
+        "tp_gold": 398
+      },
+      "recall_by_class": {
+        "PERSON": 0.540948275862069,
+        "EMAIL": 1.0,
+        "PHONE": 0.2073170731707317,
+        "CREDIT_CARD": 0.1,
+        "IBAN": null,
+        "SSN": 0.0,
+        "GOV_ID": 0.011627906976744186,
+        "ADDRESS": 0.08465608465608465,
+        "IP_ADDRESS": null,
+        "SECRET": null
+      },
+      "gold_by_class": {
+        "PERSON": 464,
+        "EMAIL": 64,
+        "PHONE": 82,
+        "CREDIT_CARD": 10,
+        "IBAN": 0,
+        "SSN": 8,
+        "GOV_ID": 86,
+        "ADDRESS": 189,
+        "IP_ADDRESS": 0,
+        "SECRET": 0
+      },
+      "binary_text": {
+        "precision": 0.96996996996997,
+        "recall": 0.7067833698030634,
+        "f1": 0.8177215189873417,
+        "false_alarm_rate": 0.23255813953488372,
+        "tp": 323,
+        "fp": 10,
+        "fn": 134,
+        "tn": 33
+      }
+    },
+    "hi": {
+      "examples": 500,
+      "strict": {
+        "precision": 0.8322147651006712,
+        "recall": 0.31049250535331907,
+        "f1": 0.4522530906895728,
+        "n_pred": 298,
+        "n_gold": 934,
+        "tp_pred": 248,
+        "tp_gold": 290
+      },
+      "any_type": {
+        "precision": 1.0,
+        "recall": 0.35974304068522484,
+        "f1": 0.5291338582677165,
+        "n_pred": 298,
+        "n_gold": 934,
+        "tp_pred": 298,
+        "tp_gold": 336
+      },
+      "recall_by_class": {
+        "PERSON": 0.44246031746031744,
+        "EMAIL": 1.0,
+        "PHONE": 0.0,
+        "CREDIT_CARD": 0.07142857142857142,
+        "IBAN": null,
+        "SSN": 0.0,
+        "GOV_ID": 0.011904761904761904,
+        "ADDRESS": 0.046242774566473986,
+        "IP_ADDRESS": null,
+        "SECRET": null
+      },
+      "gold_by_class": {
+        "PERSON": 504,
+        "EMAIL": 57,
+        "PHONE": 90,
+        "CREDIT_CARD": 14,
+        "IBAN": 0,
+        "SSN": 12,
+        "GOV_ID": 84,
+        "ADDRESS": 173,
+        "IP_ADDRESS": 0,
+        "SECRET": 0
+      },
+      "binary_text": {
+        "precision": 1.0,
+        "recall": 0.5224839400428265,
+        "f1": 0.6863572433192686,
+        "false_alarm_rate": 0.0,
+        "tp": 244,
+        "fp": 0,
+        "fn": 223,
+        "tn": 33
+      }
+    },
+    "it": {
+      "examples": 500,
+      "strict": {
+        "precision": 0.5293040293040293,
+        "recall": 0.3798283261802575,
+        "f1": 0.4422780957651006,
+        "n_pred": 546,
+        "n_gold": 932,
+        "tp_pred": 289,
+        "tp_gold": 354
+      },
+      "any_type": {
+        "precision": 0.6959706959706959,
+        "recall": 0.4570815450643777,
+        "f1": 0.5517796153767495,
+        "n_pred": 546,
+        "n_gold": 932,
+        "tp_pred": 380,
+        "tp_gold": 426
+      },
+      "recall_by_class": {
+        "PERSON": 0.5284552845528455,
+        "EMAIL": 1.0,
+        "PHONE": 0.208955223880597,
+        "CREDIT_CARD": 0.1,
+        "IBAN": null,
+        "SSN": 0.0,
+        "GOV_ID": 0.0,
+        "ADDRESS": 0.10526315789473684,
+        "IP_ADDRESS": null,
+        "SECRET": null
+      },
+      "gold_by_class": {
+        "PERSON": 492,
+        "EMAIL": 55,
+        "PHONE": 67,
+        "CREDIT_CARD": 10,
+        "IBAN": 0,
+        "SSN": 4,
+        "GOV_ID": 76,
+        "ADDRESS": 228,
+        "IP_ADDRESS": 0,
+        "SECRET": 0
+      },
+      "binary_text": {
+        "precision": 0.9415204678362573,
+        "recall": 0.7171492204899778,
+        "f1": 0.8141592920353983,
+        "false_alarm_rate": 0.39215686274509803,
+        "tp": 322,
+        "fp": 20,
+        "fn": 127,
+        "tn": 31
+      }
+    },
+    "nl": {
+      "examples": 500,
+      "strict": {
+        "precision": 0.6117850953206239,
+        "recall": 0.42331932773109243,
+        "f1": 0.5003948384328167,
+        "n_pred": 577,
+        "n_gold": 952,
+        "tp_pred": 353,
+        "tp_gold": 403
+      },
+      "any_type": {
+        "precision": 0.75736568457539,
+        "recall": 0.5031512605042017,
+        "f1": 0.604624158912316,
+        "n_pred": 577,
+        "n_gold": 952,
+        "tp_pred": 437,
+        "tp_gold": 479
+      },
+      "recall_by_class": {
+        "PERSON": 0.60727969348659,
+        "EMAIL": 0.9803921568627451,
+        "PHONE": 0.1111111111111111,
+        "CREDIT_CARD": 0.0,
+        "IBAN": null,
+        "SSN": 0.0,
+        "GOV_ID": 0.0,
+        "ADDRESS": 0.14507772020725387,
+        "IP_ADDRESS": null,
+        "SECRET": null
+      },
+      "gold_by_class": {
+        "PERSON": 522,
+        "EMAIL": 51,
+        "PHONE": 72,
+        "CREDIT_CARD": 18,
+        "IBAN": 0,
+        "SSN": 13,
+        "GOV_ID": 83,
+        "ADDRESS": 193,
+        "IP_ADDRESS": 0,
+        "SECRET": 0
+      },
+      "binary_text": {
+        "precision": 0.9812834224598931,
+        "recall": 0.7841880341880342,
+        "f1": 0.8717339667458432,
+        "false_alarm_rate": 0.21875,
+        "tp": 367,
+        "fp": 7,
+        "fn": 101,
+        "tn": 25
+      }
+    },
+    "te": {
+      "examples": 500,
+      "strict": {
+        "precision": 0.7774193548387097,
+        "recall": 0.2874779541446208,
+        "f1": 0.41974174177382906,
+        "n_pred": 310,
+        "n_gold": 1134,
+        "tp_pred": 241,
+        "tp_gold": 326
+      },
+      "any_type": {
+        "precision": 0.9935483870967742,
+        "recall": 0.3430335097001764,
+        "f1": 0.5099880390412505,
+        "n_pred": 310,
+        "n_gold": 1134,
+        "tp_pred": 308,
+        "tp_gold": 389
+      },
+      "recall_by_class": {
+        "PERSON": 0.42604501607717044,
+        "EMAIL": 0.7884615384615384,
+        "PHONE": 0.0,
+        "CREDIT_CARD": 0.058823529411764705,
+        "IBAN": null,
+        "SSN": 0.08333333333333333,
+        "GOV_ID": 0.02702702702702703,
+        "ADDRESS": 0.0603448275862069,
+        "IP_ADDRESS": null,
+        "SECRET": null
+      },
+      "gold_by_class": {
+        "PERSON": 622,
+        "EMAIL": 52,
+        "PHONE": 76,
+        "CREDIT_CARD": 17,
+        "IBAN": 0,
+        "SSN": 24,
+        "GOV_ID": 111,
+        "ADDRESS": 232,
+        "IP_ADDRESS": 0,
+        "SECRET": 0
+      },
+      "binary_text": {
+        "precision": 0.9920634920634921,
+        "recall": 0.5543237250554324,
+        "f1": 0.7112375533428166,
+        "false_alarm_rate": 0.04081632653061224,
+        "tp": 250,
+        "fp": 2,
+        "fn": 201,
+        "tn": 47
+      }
+    }
+  },
+  "per_source_label": {
+    "GIVENNAME": {
+      "n": 3035,
+      "class": "PERSON",
+      "recall_strict": 0.4771004942339374,
+      "recall_any_type": 0.5252059308072488,
+      "found_as": {
+        "PERSON": 1448,
+        "LOCATION": 151
+      }
+    },
+    "SURNAME": {
+      "n": 1155,
+      "class": "PERSON",
+      "recall_strict": 0.5688311688311688,
+      "recall_any_type": 0.5948051948051948,
+      "found_as": {
+        "PERSON": 657,
+        "LOCATION": 36
+      }
+    },
+    "CITY": {
+      "n": 659,
+      "class": "ADDRESS",
+      "recall_strict": 0.18057663125948406,
+      "recall_any_type": 0.4931714719271624,
+      "found_as": {
+        "PERSON": 210,
+        "LOCATION": 118,
+        "STREET_ADDRESS": 1
+      }
+    },
+    "TELEPHONENUM": {
+      "n": 644,
+      "class": "PHONE",
+      "recall_strict": 0.10714285714285714,
+      "recall_any_type": 0.11180124223602485,
+      "found_as": {
+        "PHONE_NUMBER": 69,
+        "UK_NHS": 3
+      }
+    },
+    "TIME": {
+      "n": 608,
+      "class": null,
+      "recall_strict": 0.0,
+      "recall_any_type": 0.0,
+      "found_as": {}
+    },
+    "DATE": {
+      "n": 462,
+      "class": null,
+      "recall_strict": 0.0,
+      "recall_any_type": 0.0021645021645021645,
+      "found_as": {
+        "PERSON": 1
+      }
+    },
+    "STREET": {
+      "n": 440,
+      "class": "ADDRESS",
+      "recall_strict": 0.06818181818181818,
+      "recall_any_type": 0.3431818181818182,
+      "found_as": {
+        "PERSON": 121,
+        "LOCATION": 22,
+        "STREET_ADDRESS": 8
+      }
+    },
+    "EMAIL": {
+      "n": 438,
+      "class": "EMAIL",
+      "recall_strict": 0.9703196347031964,
+      "recall_any_type": 0.9703196347031964,
+      "found_as": {
+        "EMAIL_ADDRESS": 425
+      }
+    },
+    "BUILDINGNUM": {
+      "n": 388,
+      "class": "ADDRESS",
+      "recall_strict": 0.015463917525773196,
+      "recall_any_type": 0.015463917525773196,
+      "found_as": {
+        "STREET_ADDRESS": 6
+      }
+    },
+    "IDCARDNUM": {
+      "n": 331,
+      "class": "GOV_ID",
+      "recall_strict": 0.012084592145015106,
+      "recall_any_type": 0.012084592145015106,
+      "found_as": {
+        "US_DRIVER_LICENSE": 4
+      }
+    },
+    "TITLE": {
+      "n": 310,
+      "class": null,
+      "recall_strict": 0.0,
+      "recall_any_type": 0.3387096774193548,
+      "found_as": {
+        "PERSON": 94,
+        "LOCATION": 11
+      }
+    },
+    "AGE": {
+      "n": 221,
+      "class": null,
+      "recall_strict": 0.0,
+      "recall_any_type": 0.0,
+      "found_as": {}
+    },
+    "ZIPCODE": {
+      "n": 173,
+      "class": "ADDRESS",
+      "recall_strict": 0.011560693641618497,
+      "recall_any_type": 0.011560693641618497,
+      "found_as": {
+        "LOCATION": 1,
+        "STREET_ADDRESS": 1
+      }
+    },
+    "PASSPORTNUM": {
+      "n": 166,
+      "class": "GOV_ID",
+      "recall_strict": 0.012048192771084338,
+      "recall_any_type": 0.012048192771084338,
+      "found_as": {
+        "US_DRIVER_LICENSE": 2
+      }
+    },
+    "TAXNUM": {
+      "n": 133,
+      "class": "GOV_ID",
+      "recall_strict": 0.022556390977443608,
+      "recall_any_type": 0.022556390977443608,
+      "found_as": {
+        "UK_NHS": 3
+      }
+    },
+    "SEX": {
+      "n": 106,
+      "class": null,
+      "recall_strict": 0.0,
+      "recall_any_type": 0.1792452830188679,
+      "found_as": {
+        "PERSON": 13,
+        "LOCATION": 6
+      }
+    },
+    "CREDITCARDNUMBER": {
+      "n": 101,
+      "class": "CREDIT_CARD",
+      "recall_strict": 0.0594059405940594,
+      "recall_any_type": 0.0594059405940594,
+      "found_as": {
+        "CREDIT_CARD": 6
+      }
+    },
+    "SOCIALNUM": {
+      "n": 87,
+      "class": "SSN",
+      "recall_strict": 0.05747126436781609,
+      "recall_any_type": 0.06896551724137931,
+      "found_as": {
+        "UK_NHS": 3,
+        "US_SSN": 2,
+        "PHONE_NUMBER": 1
+      }
+    },
+    "DRIVERLICENSENUM": {
+      "n": 74,
+      "class": "GOV_ID",
+      "recall_strict": 0.02702702702702703,
+      "recall_any_type": 0.04054054054054054,
+      "found_as": {
+        "LOCATION": 1,
+        "UK_NHS": 1,
+        "US_DRIVER_LICENSE": 1
+      }
+    },
+    "GENDER": {
+      "n": 73,
+      "class": null,
+      "recall_strict": 0.0,
+      "recall_any_type": 0.2191780821917808,
+      "found_as": {
+        "PERSON": 15,
+        "LOCATION": 1
+      }
+    }
+  },
+  "false_negative_reasons": {
+    "ADDRESS": {
+      "address part: BUILDINGNUM": 382,
+      "address part: CITY": 334,
+      "found as another type: PERSON": 327,
+      "address part: STREET": 289,
+      "address part: ZIPCODE": 171
+    },
+    "PHONE": {
+      "PHONE format +d7.d4": 12,
+      "PHONE format +d2-d9": 12,
+      "PHONE format +d7 d4": 10,
+      "PHONE format +d2 d2 d3 d4": 9,
+      "PHONE format +d7-d4": 8,
+      "PHONE format d5 d6": 7,
+      "PHONE format d5-d6": 7,
+      "PHONE format d4.d9": 6,
+      "PHONE format d4 d9": 6,
+      "PHONE format +d2-d2.d3 d4": 6,
+      "PHONE format d4-d8": 6,
+      "PHONE format d3 d7 ": 6
+    },
+    "PERSON": {
+      "capitalized name missed by NER": 1909,
+      "found as another type: LOCATION": 176
+    },
+    "GOV_ID": {
+      "GOV_ID format Ad7": 170,
+      "GOV_ID format d9": 65,
+      "GOV_ID format Ad1A": 27,
+      "GOV_ID format d5 d5": 24,
+      "GOV_ID format Ad1Ad1A": 23,
+      "GOV_ID format d10": 22,
+      "GOV_ID format Ad6A": 20,
+      "GOV_ID format Ad6Ad2": 20,
+      "GOV_ID format d5-d5": 19,
+      "GOV_ID format d5.d5": 18,
+      "GOV_ID format Ad8": 15,
+      "GOV_ID format Ad7A": 15
+    },
+    "CREDIT_CARD": {
+      "CREDIT_CARD fails its checksum (rejected on purpose)": 87,
+      "CREDIT_CARD format d19": 4,
+      "CREDIT_CARD format d16": 3,
+      "CREDIT_CARD format d15": 1
+    },
+    "SSN": {
+      "SSN format d10": 45,
+      "SSN format d9": 14,
+      "SSN format d3.d4.d4.d2": 6,
+      "SSN format d12": 4,
+      "SSN format d2 d2 d2 d2 Ad2 d1": 3,
+      "SSN format d3.d3.d4": 2,
+      "SSN format Aa-Aa-d2-A-d2-d1-A": 2,
+      "SSN format d2.d2.d2.d2.Ad2.d1": 1,
+      "SSN format d8Ad3": 1,
+      "SSN format d3-d4-d4-d2": 1,
+      "found as another type: PHONE_NUMBER": 1,
+      "SSN format d13": 1
+    },
+    "EMAIL": {
+      "EMAIL A@a.a": 6,
+      "EMAIL Ad4@a.a": 3,
+      "EMAIL d2A@a.a": 1,
+      "EMAIL Ad2@a.a": 1,
+      "EMAIL d4A@a.a": 1,
+      "EMAIL a@a.a": 1
+    }
+  },
+  "false_negative_examples": {
+    "ADDRESS | found as another type: PERSON": [
+      {
+        "id": "5669419",
+        "lang": "de",
+        "label": "STREET",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5353452",
+        "lang": "de",
+        "label": "CITY",
+        "shape": "Aa"
+      },
+      {
+        "id": "5318115",
+        "lang": "de",
+        "label": "CITY",
+        "shape": "Aa Aa"
+      }
+    ],
+    "ADDRESS | address part: BUILDINGNUM": [
+      {
+        "id": "5669419",
+        "lang": "de",
+        "label": "BUILDINGNUM",
+        "shape": "d2"
+      },
+      {
+        "id": "5845098",
+        "lang": "de",
+        "label": "BUILDINGNUM",
+        "shape": "d3"
+      },
+      {
+        "id": "5524138",
+        "lang": "de",
+        "label": "BUILDINGNUM",
+        "shape": "d1"
+      }
+    ],
+    "PHONE | PHONE format d5-d3 d3 d4": [
+      {
+        "id": "5607028",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d3 d3 d4"
+      },
+      {
+        "id": "5742049",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d3 d3 d4"
+      }
+    ],
+    "ADDRESS | address part: CITY": [
+      {
+        "id": "5607028",
+        "lang": "de",
+        "label": "CITY",
+        "shape": "Aa"
+      },
+      {
+        "id": "5845098",
+        "lang": "de",
+        "label": "CITY",
+        "shape": "Aa"
+      },
+      {
+        "id": "5533546",
+        "lang": "de",
+        "label": "CITY",
+        "shape": "Aa"
+      }
+    ],
+    "PERSON | capitalized name missed by NER": [
+      {
+        "id": "5567015",
+        "lang": "de",
+        "label": "GIVENNAME",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5398876",
+        "lang": "de",
+        "label": "GIVENNAME",
+        "shape": "Aa"
+      },
+      {
+        "id": "5522252",
+        "lang": "de",
+        "label": "GIVENNAME",
+        "shape": "Aa Aa"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad7": [
+      {
+        "id": "5398876",
+        "lang": "de",
+        "label": "IDCARDNUM",
+        "shape": "Ad7"
+      },
+      {
+        "id": "5756323",
+        "lang": "de",
+        "label": "IDCARDNUM",
+        "shape": "Ad7"
+      },
+      {
+        "id": "5895435",
+        "lang": "de",
+        "label": "IDCARDNUM",
+        "shape": "Ad7"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad4A": [
+      {
+        "id": "5398876",
+        "lang": "de",
+        "label": "PASSPORTNUM",
+        "shape": "Ad2Ad4A"
+      },
+      {
+        "id": "5654623",
+        "lang": "de",
+        "label": "PASSPORTNUM",
+        "shape": "Ad2Ad4A"
+      },
+      {
+        "id": "5645194",
+        "lang": "de",
+        "label": "PASSPORTNUM",
+        "shape": "Ad2Ad4A"
+      }
+    ],
+    "PERSON | found as another type: LOCATION": [
+      {
+        "id": "5522252",
+        "lang": "de",
+        "label": "GIVENNAME",
+        "shape": "Aa"
+      },
+      {
+        "id": "5848221",
+        "lang": "de",
+        "label": "SURNAME",
+        "shape": "Aa Aa Aa"
+      },
+      {
+        "id": "5433457",
+        "lang": "de",
+        "label": "GIVENNAME",
+        "shape": "Aa"
+      }
+    ],
+    "PHONE | PHONE format d4-d2 d3.d4": [
+      {
+        "id": "5522252",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format (d3)-d7": [
+      {
+        "id": "5532271",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "(d3)-d7"
+      },
+      {
+        "id": "5373070",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "(d3)-d7"
+      },
+      {
+        "id": "5456821",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "(d3)-d7"
+      }
+    ],
+    "ADDRESS | address part: STREET": [
+      {
+        "id": "5851119",
+        "lang": "de",
+        "label": "STREET",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5845098",
+        "lang": "de",
+        "label": "STREET",
+        "shape": "Aa"
+      },
+      {
+        "id": "5524138",
+        "lang": "de",
+        "label": "STREET",
+        "shape": "Aa"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2.d3.d4": [
+      {
+        "id": "5353452",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3.d4"
+      },
+      {
+        "id": "5792575",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3.d4"
+      },
+      {
+        "id": "5354769",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2.d3-d4": [
+      {
+        "id": "5353452",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3-d4"
+      },
+      {
+        "id": "5634515",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3-d4"
+      },
+      {
+        "id": "5404263",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2-d3-d4": [
+      {
+        "id": "5845098",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3-d4"
+      },
+      {
+        "id": "5881364",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3-d4"
+      },
+      {
+        "id": "5594248",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d9": [
+      {
+        "id": "5408488",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d9"
+      },
+      {
+        "id": "5568392",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d9"
+      },
+      {
+        "id": "5443050",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d9"
+      }
+    ],
+    "CREDIT_CARD | CREDIT_CARD fails its checksum (rejected on purpose)": [
+      {
+        "id": "5260041",
+        "lang": "de",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d14"
+      },
+      {
+        "id": "5454610",
+        "lang": "de",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d16"
+      },
+      {
+        "id": "5407205",
+        "lang": "de",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d19"
+      }
+    ],
+    "PHONE | PHONE format d5.d5 ": [
+      {
+        "id": "5265793",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d5 "
+      },
+      {
+        "id": "5550152",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d5 "
+      },
+      {
+        "id": "5271364",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d5 "
+      }
+    ],
+    "PHONE | PHONE format d4 d2 d3-d4": [
+      {
+        "id": "5729370",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2 d3-d4"
+      },
+      {
+        "id": "5879775",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2 d3-d4"
+      },
+      {
+        "id": "5698294",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3-d3-d4": [
+      {
+        "id": "5729370",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3-d3-d4"
+      },
+      {
+        "id": "5740370",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d3-d4": [
+      {
+        "id": "5914018",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3-d4"
+      },
+      {
+        "id": "5976061",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d3.d7 ": [
+      {
+        "id": "5920700",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d7 "
+      },
+      {
+        "id": "5754122",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d7 "
+      },
+      {
+        "id": "5623702",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d7 "
+      }
+    ],
+    "GOV_ID | GOV_ID format A-d3 d3 d3": [
+      {
+        "id": "5968614",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "A-d3 d3 d3"
+      },
+      {
+        "id": "5416102",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "A-d3 d3 d3"
+      },
+      {
+        "id": "5313815",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "A-d3 d3 d3"
+      }
+    ],
+    "PHONE | PHONE format d4.d9": [
+      {
+        "id": "5246745",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d9"
+      },
+      {
+        "id": "5646062",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d9"
+      },
+      {
+        "id": "5850298",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d9"
+      }
+    ],
+    "GOV_ID | GOV_ID format d10": [
+      {
+        "id": "5454610",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d10"
+      },
+      {
+        "id": "5462874",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d10"
+      },
+      {
+        "id": "5557958",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d10"
+      }
+    ],
+    "PHONE | PHONE format d5.d6": [
+      {
+        "id": "5845665",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d6"
+      },
+      {
+        "id": "5683684",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d6"
+      },
+      {
+        "id": "5563416",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d6"
+      }
+    ],
+    "PHONE | PHONE format d4.d2.d3.d4": [
+      {
+        "id": "5994125",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2.d3.d4"
+      },
+      {
+        "id": "5583130",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d7.d4": [
+      {
+        "id": "5985473",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d7.d4"
+      },
+      {
+        "id": "5332017",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d7.d4"
+      },
+      {
+        "id": "5730068",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d7.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2.d3-d4": [
+      {
+        "id": "5651995",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3-d4"
+      },
+      {
+        "id": "5537213",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3-d4"
+      },
+      {
+        "id": "5954561",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d1 d3.d3 d4": [
+      {
+        "id": "5372119",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d3.d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format A-d9": [
+      {
+        "id": "5304541",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "A-d9"
+      },
+      {
+        "id": "5928107",
+        "lang": "fr",
+        "label": "TAXNUM",
+        "shape": "A-d9"
+      },
+      {
+        "id": "5688012",
+        "lang": "fr",
+        "label": "TAXNUM",
+        "shape": "A-d9"
+      }
+    ],
+    "PHONE | PHONE format (d2) d4-d4": [
+      {
+        "id": "5277804",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "(d2) d4-d4"
+      },
+      {
+        "id": "5274380",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "(d2) d4-d4"
+      },
+      {
+        "id": "5538675",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "(d2) d4-d4"
+      }
+    ],
+    "SSN | SSN format d2.d2.d2.d2.Ad2.d1": [
+      {
+        "id": "5669025",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d2.d2.d2.d2.Ad2.d1"
+      }
+    ],
+    "ADDRESS | address part: ZIPCODE": [
+      {
+        "id": "5669025",
+        "lang": "de",
+        "label": "ZIPCODE",
+        "shape": "d5"
+      },
+      {
+        "id": "5468525",
+        "lang": "de",
+        "label": "ZIPCODE",
+        "shape": "d5"
+      },
+      {
+        "id": "5241077",
+        "lang": "de",
+        "label": "ZIPCODE",
+        "shape": "d5"
+      }
+    ],
+    "PHONE | PHONE format d4.d2 d3 d4": [
+      {
+        "id": "5358870",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2 d3 d4"
+      },
+      {
+        "id": "5388530",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2 d3.d4": [
+      {
+        "id": "5313815",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3.d4"
+      },
+      {
+        "id": "5813751",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3.d4"
+      },
+      {
+        "id": "5344961",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2 d3 d4": [
+      {
+        "id": "5419884",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2 d3 d4"
+      },
+      {
+        "id": "5399980",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2 d3 d4"
+      },
+      {
+        "id": "5729422",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format (d3) d7": [
+      {
+        "id": "5671942",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "(d3) d7"
+      },
+      {
+        "id": "5538235",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "(d3) d7"
+      },
+      {
+        "id": "5511643",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "(d3) d7"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2-d3.d4": [
+      {
+        "id": "5864681",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3.d4"
+      },
+      {
+        "id": "5659140",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3.d4"
+      },
+      {
+        "id": "5560862",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d2 d3.d4": [
+      {
+        "id": "5531682",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format (d2).d4-d4": [
+      {
+        "id": "5902437",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "(d2).d4-d4"
+      }
+    ],
+    "PHONE | PHONE format +d1.d3 d3 d4": [
+      {
+        "id": "5484939",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d3 d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1 d2 d1Ad1Ad1Ad1 d1": [
+      {
+        "id": "5912095",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1 d2 d1Ad1Ad1Ad1 d1"
+      }
+    ],
+    "EMAIL | EMAIL Ad4@a.a": [
+      {
+        "id": "5796955",
+        "lang": "de",
+        "label": "EMAIL",
+        "shape": "Ad4@a.a"
+      },
+      {
+        "id": "5679525",
+        "lang": "nl",
+        "label": "EMAIL",
+        "shape": "Ad4@a.a"
+      },
+      {
+        "id": "5876558",
+        "lang": "te",
+        "label": "EMAIL",
+        "shape": "Ad4@a.a"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2 d3.d4": [
+      {
+        "id": "5622284",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2 d3.d4"
+      },
+      {
+        "id": "5808914",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d4-d3-d4": [
+      {
+        "id": "5510107",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d4-d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad8": [
+      {
+        "id": "5563441",
+        "lang": "de",
+        "label": "IDCARDNUM",
+        "shape": "Ad8"
+      },
+      {
+        "id": "5531485",
+        "lang": "de",
+        "label": "IDCARDNUM",
+        "shape": "Ad8"
+      },
+      {
+        "id": "5534171",
+        "lang": "de",
+        "label": "IDCARDNUM",
+        "shape": "Ad8"
+      }
+    ],
+    "PHONE | PHONE format +d3-d3.d3.d4": [
+      {
+        "id": "5569394",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3.d3.d4"
+      },
+      {
+        "id": "5584347",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3.d3.d4"
+      }
+    ],
+    "SSN | SSN format d2 d2 d2 d2 Ad2 d1": [
+      {
+        "id": "5645194",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d2 d2 d2 d2 Ad2 d1"
+      },
+      {
+        "id": "5661329",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d2 d2 d2 d2 Ad2 d1"
+      },
+      {
+        "id": "5648888",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d2 d2 d2 d2 Ad2 d1"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad3Ad1Ad1Ad1": [
+      {
+        "id": "5712185",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad3Ad1Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d1.d3-d3.d4": [
+      {
+        "id": "5615564",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d3-d3.d4"
+      },
+      {
+        "id": "5525805",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d3-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3 d3 d4": [
+      {
+        "id": "5906402",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d3 d4.d4": [
+      {
+        "id": "5488281",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d4.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1 d2 Ad1Ad2A d1": [
+      {
+        "id": "5612283",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1 d2 Ad1Ad2A d1"
+      }
+    ],
+    "SSN | SSN format d3.d4.d4.d2": [
+      {
+        "id": "5320474",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d3.d4.d4.d2"
+      },
+      {
+        "id": "5823895",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d3.d4.d4.d2"
+      },
+      {
+        "id": "5343083",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d3.d4.d4.d2"
+      }
+    ],
+    "PHONE | PHONE format d3-d4-d4": [
+      {
+        "id": "5850410",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d4-d4"
+      },
+      {
+        "id": "5616538",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d4-d4"
+      },
+      {
+        "id": "5888262",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d4-d4"
+      }
+    ],
+    "PHONE | PHONE format d5.d2-d3.d4": [
+      {
+        "id": "5402584",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d2-d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format A-d3-d3-d3": [
+      {
+        "id": "5844807",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "A-d3-d3-d3"
+      }
+    ],
+    "PHONE | PHONE format +d2-d3-d3-d4": [
+      {
+        "id": "5484555",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3-d3-d4"
+      }
+    ],
+    "PHONE | found as another type: UK_NHS": [
+      {
+        "id": "5349305",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3 d3 d4"
+      },
+      {
+        "id": "5496635",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3-d3-d4"
+      },
+      {
+        "id": "5917112",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d3.d4": [
+      {
+        "id": "5496807",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d3.d4"
+      },
+      {
+        "id": "5434041",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d5 d3.d4": [
+      {
+        "id": "6002266",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d5 d3.d4"
+      },
+      {
+        "id": "5644621",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d5 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d3.d3-d3.d4": [
+      {
+        "id": "5800837",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d3-d3.d4"
+      }
+    ],
+    "GOV_ID | found as another type: LOCATION": [
+      {
+        "id": "5911755",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad3Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d2.d3 d3.d4": [
+      {
+        "id": "5946766",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d1.d2.d3-d4": [
+      {
+        "id": "5561728",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2 d3 d4": [
+      {
+        "id": "5827752",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3 d4"
+      },
+      {
+        "id": "5708762",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3 d4"
+      },
+      {
+        "id": "5717950",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d3.d3.d4": [
+      {
+        "id": "5653825",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3.d3.d4"
+      },
+      {
+        "id": "5880059",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3.d3.d4"
+      },
+      {
+        "id": "5750659",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2 d3.d4": [
+      {
+        "id": "5974351",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2 d3.d4"
+      },
+      {
+        "id": "5677233",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2 d3.d4"
+      },
+      {
+        "id": "5286862",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2-d3 d4": [
+      {
+        "id": "5740769",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2-d3 d4"
+      },
+      {
+        "id": "5851885",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2-d3 d4"
+      },
+      {
+        "id": "5895249",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d9": [
+      {
+        "id": "5680764",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d9"
+      },
+      {
+        "id": "5243168",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d9"
+      },
+      {
+        "id": "5783848",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d9"
+      }
+    ],
+    "SSN | SSN format d8Ad3": [
+      {
+        "id": "5661329",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d8Ad3"
+      }
+    ],
+    "PHONE | PHONE format +d3.d3 d3.d4": [
+      {
+        "id": "5504574",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d3 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d3 d3 d3 d4": [
+      {
+        "id": "5480202",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3 d3 d4"
+      },
+      {
+        "id": "5832697",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3 d3 d4"
+      },
+      {
+        "id": "5307484",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2-d3 d4": [
+      {
+        "id": "5717592",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3 d4"
+      },
+      {
+        "id": "5579958",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3 d4"
+      },
+      {
+        "id": "5340442",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d3 d3 d3-d4": [
+      {
+        "id": "5383067",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d7 d4": [
+      {
+        "id": "5431170",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d7 d4"
+      },
+      {
+        "id": "5884520",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d7 d4"
+      },
+      {
+        "id": "5736716",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d7 d4"
+      }
+    ],
+    "PHONE | PHONE format +d1-d2-d3-d4": [
+      {
+        "id": "5854308",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d2-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3.d3-d4": [
+      {
+        "id": "5462834",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3.d3-d4"
+      },
+      {
+        "id": "5515010",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3.d3-d4"
+      },
+      {
+        "id": "5963177",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2.d3 d3 d4": [
+      {
+        "id": "5451778",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3 d3 d4"
+      },
+      {
+        "id": "5634613",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3 d3 d4"
+      },
+      {
+        "id": "5815866",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3 d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2.d3.d3.d3": [
+      {
+        "id": "5721509",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "d2.d3.d3.d3"
+      }
+    ],
+    "PHONE | PHONE format +d2.d9": [
+      {
+        "id": "5497223",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d9"
+      },
+      {
+        "id": "5456344",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d9"
+      },
+      {
+        "id": "5631219",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d9"
+      }
+    ],
+    "PHONE | PHONE format +d2-d9": [
+      {
+        "id": "5593354",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d9"
+      },
+      {
+        "id": "5790796",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d9"
+      },
+      {
+        "id": "5572326",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d9"
+      }
+    ],
+    "PHONE | PHONE format +d5-d3 d4": [
+      {
+        "id": "5924273",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d5-d3 d4"
+      },
+      {
+        "id": "5248390",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d5-d3 d4"
+      }
+    ],
+    "SSN | SSN format d3-d4-d4-d2": [
+      {
+        "id": "5458838",
+        "lang": "de",
+        "label": "SOCIALNUM",
+        "shape": "d3-d4-d4-d2"
+      }
+    ],
+    "PHONE | PHONE format +d1 d2.d3.d4": [
+      {
+        "id": "5810721",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d2.d3.d4"
+      },
+      {
+        "id": "5783490",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d2.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d3.d4 d4": [
+      {
+        "id": "5976496",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d4 d4"
+      }
+    ],
+    "PHONE | PHONE format +d3-d2 d3-d4": [
+      {
+        "id": "5850666",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d2 d3-d4"
+      },
+      {
+        "id": "5379121",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d2 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d2-d3 d4": [
+      {
+        "id": "5481732",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2-d3 d4"
+      },
+      {
+        "id": "5696170",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2-d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad3Ad1Ad1": [
+      {
+        "id": "5585983",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad3Ad1Ad1"
+      },
+      {
+        "id": "5247681",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad3Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format d2 d2-d2.d2 d2": [
+      {
+        "id": "5316139",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d2 d2-d2.d2 d2"
+      }
+    ],
+    "PHONE | PHONE format d5 d6": [
+      {
+        "id": "5865102",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d6"
+      },
+      {
+        "id": "5899919",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d6"
+      },
+      {
+        "id": "5493209",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d6"
+      }
+    ],
+    "PHONE | PHONE format d4.d3.d4": [
+      {
+        "id": "5605142",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3.d4"
+      },
+      {
+        "id": "6011857",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format A-d3.d3.d3": [
+      {
+        "id": "5343083",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "A-d3.d3.d3"
+      },
+      {
+        "id": "5440869",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "A-d3.d3.d3"
+      },
+      {
+        "id": "5306029",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "A-d3.d3.d3"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2-d3.d4": [
+      {
+        "id": "5771812",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2-d3.d4"
+      },
+      {
+        "id": "5474106",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2-d3.d4"
+      },
+      {
+        "id": "5524109",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2-d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1 d2 Ad1A d1": [
+      {
+        "id": "5562780",
+        "lang": "de",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1 d2 Ad1A d1"
+      }
+    ],
+    "PHONE | PHONE format d5 d3 d3 d4": [
+      {
+        "id": "5859804",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d3 d3 d4"
+      },
+      {
+        "id": "5369429",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d3 d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2 d3 d3 d3": [
+      {
+        "id": "5387733",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "d2 d3 d3 d3"
+      }
+    ],
+    "PHONE | PHONE format (d3).d7": [
+      {
+        "id": "5384844",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "(d3).d7"
+      },
+      {
+        "id": "5965412",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "(d3).d7"
+      },
+      {
+        "id": "5713284",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "(d3).d7"
+      }
+    ],
+    "PHONE | PHONE format +d5-d3.d4": [
+      {
+        "id": "5777159",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d5-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2.d3 d3-d4": [
+      {
+        "id": "5774840",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3 d3-d4"
+      },
+      {
+        "id": "5697679",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3.d3.d4": [
+      {
+        "id": "5584190",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3.d3.d4"
+      },
+      {
+        "id": "5642670",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d5-d5 ": [
+      {
+        "id": "5510951",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d5 "
+      },
+      {
+        "id": "5371549",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d5 "
+      },
+      {
+        "id": "5867942",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d5 "
+      }
+    ],
+    "PHONE | PHONE format d3.d3.d4": [
+      {
+        "id": "5573439",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3.d4"
+      },
+      {
+        "id": "5554740",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3.d4"
+      },
+      {
+        "id": "5704085",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d1.d3-d3-d4": [
+      {
+        "id": "5316673",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d3-d3-d4"
+      },
+      {
+        "id": "5904247",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d3-d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2-d3-d3-d3": [
+      {
+        "id": "5316673",
+        "lang": "de",
+        "label": "TAXNUM",
+        "shape": "d2-d3-d3-d3"
+      }
+    ],
+    "PHONE | PHONE format +d2 d5 d4": [
+      {
+        "id": "5617319",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d5 d4"
+      },
+      {
+        "id": "5798436",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d5 d4"
+      },
+      {
+        "id": "5908911",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d5 d4"
+      }
+    ],
+    "PHONE | PHONE format d3-d3.d4": [
+      {
+        "id": "5275363",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2.d3 d4": [
+      {
+        "id": "5321382",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3 d4"
+      },
+      {
+        "id": "5756823",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3 d4"
+      },
+      {
+        "id": "5562018",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d5-d6": [
+      {
+        "id": "5481753",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d6"
+      },
+      {
+        "id": "5748971",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d6"
+      },
+      {
+        "id": "5307484",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d6"
+      }
+    ],
+    "PHONE | PHONE format d3.d4-d4": [
+      {
+        "id": "5733857",
+        "lang": "de",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d4-d4"
+      },
+      {
+        "id": "5494405",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d4-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d5 d4": [
+      {
+        "id": "5328826",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d5 d4"
+      },
+      {
+        "id": "5356616",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d5 d4"
+      },
+      {
+        "id": "5724505",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d5 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad7Ad3": [
+      {
+        "id": "5485785",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad7Ad3"
+      }
+    ],
+    "GOV_ID | GOV_ID format d13": [
+      {
+        "id": "5682368",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d13"
+      },
+      {
+        "id": "5771698",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d13"
+      },
+      {
+        "id": "5428299",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d13"
+      }
+    ],
+    "PHONE | PHONE format +d1.d2 d3.d4": [
+      {
+        "id": "5486509",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2 d3.d4"
+      },
+      {
+        "id": "5397546",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d9": [
+      {
+        "id": "5593530",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d9"
+      },
+      {
+        "id": "5683796",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d9"
+      },
+      {
+        "id": "5855612",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d9"
+      }
+    ],
+    "PHONE | PHONE format +d1-d3 d3 d4": [
+      {
+        "id": "5586354",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d2 d4 d4": [
+      {
+        "id": "5429892",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d2 d4 d4"
+      },
+      {
+        "id": "5887701",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d2 d4 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d9": [
+      {
+        "id": "5429892",
+        "lang": "en",
+        "label": "PASSPORTNUM",
+        "shape": "d9"
+      },
+      {
+        "id": "5713772",
+        "lang": "en",
+        "label": "PASSPORTNUM",
+        "shape": "d9"
+      },
+      {
+        "id": "5538384",
+        "lang": "en",
+        "label": "PASSPORTNUM",
+        "shape": "d9"
+      }
+    ],
+    "PHONE | PHONE format +d3.d2.d3-d4": [
+      {
+        "id": "5366707",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d2.d3-d4"
+      },
+      {
+        "id": "5379663",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d2.d3-d4"
+      },
+      {
+        "id": "5873038",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d2.d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d5 d5": [
+      {
+        "id": "5366707",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5 d5"
+      },
+      {
+        "id": "5360143",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5 d5"
+      },
+      {
+        "id": "5772950",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5 d5"
+      }
+    ],
+    "PHONE | PHONE format d2-d4-d4": [
+      {
+        "id": "5784322",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d2-d4-d4"
+      },
+      {
+        "id": "5649802",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d2-d4-d4"
+      },
+      {
+        "id": "5842577",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d2-d4-d4"
+      }
+    ],
+    "PHONE | PHONE format d3 d3-d4": [
+      {
+        "id": "5531361",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3-d4"
+      },
+      {
+        "id": "5541892",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3-d4"
+      },
+      {
+        "id": "5829953",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d14": [
+      {
+        "id": "5573286",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d14"
+      },
+      {
+        "id": "5635169",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d14"
+      }
+    ],
+    "PHONE | PHONE format d5-d3-d3.d4": [
+      {
+        "id": "5501242",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d3-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d1-d2-d3 d4": [
+      {
+        "id": "5791856",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d2-d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad5A": [
+      {
+        "id": "5578916",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad5A"
+      },
+      {
+        "id": "5806949",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad5A"
+      },
+      {
+        "id": "5567451",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad5A"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad1Ad1A": [
+      {
+        "id": "5884703",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1Ad1A"
+      },
+      {
+        "id": "5290775",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1Ad1A"
+      },
+      {
+        "id": "5637237",
+        "lang": "fr",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d1Ad1Ad1A"
+      }
+    ],
+    "PHONE | PHONE format d2 d2-d2 d2.d2": [
+      {
+        "id": "5359254",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d2 d2-d2 d2.d2"
+      }
+    ],
+    "SSN | SSN format d10": [
+      {
+        "id": "5449776",
+        "lang": "en",
+        "label": "SOCIALNUM",
+        "shape": "d10"
+      },
+      {
+        "id": "5971143",
+        "lang": "en",
+        "label": "SOCIALNUM",
+        "shape": "d10"
+      },
+      {
+        "id": "5428474",
+        "lang": "en",
+        "label": "SOCIALNUM",
+        "shape": "d10"
+      }
+    ],
+    "GOV_ID | GOV_ID format d5.d5": [
+      {
+        "id": "5449776",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5.d5"
+      },
+      {
+        "id": "5743598",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5.d5"
+      },
+      {
+        "id": "5380064",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5.d5"
+      }
+    ],
+    "SSN | SSN format d3.d3.d4": [
+      {
+        "id": "5707217",
+        "lang": "en",
+        "label": "SOCIALNUM",
+        "shape": "d3.d3.d4"
+      },
+      {
+        "id": "5975395",
+        "lang": "en",
+        "label": "SOCIALNUM",
+        "shape": "d3.d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format A d6 Ad1 d3": [
+      {
+        "id": "5707217",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "A d6 Ad1 d3"
+      }
+    ],
+    "PHONE | PHONE format +d2-d5-d4": [
+      {
+        "id": "5538384",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d5-d4"
+      },
+      {
+        "id": "5615053",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d5-d4"
+      },
+      {
+        "id": "5474397",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d5-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad1Ad1A": [
+      {
+        "id": "5546097",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1A"
+      },
+      {
+        "id": "5867974",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1A"
+      },
+      {
+        "id": "5790255",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1A"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad1A": [
+      {
+        "id": "5514389",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad2Ad1A"
+      },
+      {
+        "id": "5466717",
+        "lang": "es",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad2Ad1A"
+      },
+      {
+        "id": "5997416",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad1A"
+      }
+    ],
+    "PHONE | PHONE format +d4-d3 d4": [
+      {
+        "id": "5826178",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d4-d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d3Ad1A": [
+      {
+        "id": "5804703",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d3Ad1A"
+      },
+      {
+        "id": "5781484",
+        "lang": "es",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d3Ad1A"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad2Ad1Ad1": [
+      {
+        "id": "5457050",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d2Ad2Ad1Ad1"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad1Ad2": [
+      {
+        "id": "5899031",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad1Ad2"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1A": [
+      {
+        "id": "5578455",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1A"
+      },
+      {
+        "id": "5373070",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1A"
+      },
+      {
+        "id": "5878285",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1A"
+      }
+    ],
+    "PHONE | PHONE format +d1-d3 d3.d4": [
+      {
+        "id": "5802508",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3 d3.d4"
+      },
+      {
+        "id": "5543018",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3 d3.d4"
+      },
+      {
+        "id": "5516171",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3 d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad1Ad1A": [
+      {
+        "id": "5292653",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad1Ad1A"
+      }
+    ],
+    "PHONE | PHONE format d2.d4 d4": [
+      {
+        "id": "5538966",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d2.d4 d4"
+      },
+      {
+        "id": "5790583",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d2.d4 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad1A": [
+      {
+        "id": "5588723",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1A"
+      },
+      {
+        "id": "5418084",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1A"
+      },
+      {
+        "id": "5897454",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1A"
+      }
+    ],
+    "PHONE | PHONE format +d3.d3.d3.d4": [
+      {
+        "id": "5412714",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d3.d3.d4"
+      },
+      {
+        "id": "5766862",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d3.d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format A": [
+      {
+        "id": "5318298",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "A"
+      },
+      {
+        "id": "5430892",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "A"
+      },
+      {
+        "id": "5240274",
+        "lang": "te",
+        "label": "DRIVERLICENSENUM",
+        "shape": "A"
+      }
+    ],
+    "PHONE | PHONE format +d7-d4": [
+      {
+        "id": "5462015",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d7-d4"
+      },
+      {
+        "id": "5721382",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d7-d4"
+      },
+      {
+        "id": "5540431",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d7-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad3": [
+      {
+        "id": "5883309",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad3"
+      }
+    ],
+    "PHONE | PHONE format +d1 d3.d3-d4": [
+      {
+        "id": "5879590",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d3.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d1 d3 d3.d4": [
+      {
+        "id": "5917792",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d3 d3.d4"
+      },
+      {
+        "id": "5769514",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d3 d3.d4"
+      },
+      {
+        "id": "5907557",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d3 d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad2Ad1Ad1": [
+      {
+        "id": "5449333",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad2Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format d5-d3.d3-d4": [
+      {
+        "id": "5487019",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d3.d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d5-d5": [
+      {
+        "id": "5295704",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5-d5"
+      },
+      {
+        "id": "5238027",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5-d5"
+      },
+      {
+        "id": "5748427",
+        "lang": "en",
+        "label": "TAXNUM",
+        "shape": "d5-d5"
+      }
+    ],
+    "PHONE | PHONE format +d2.d3-d3.d4": [
+      {
+        "id": "5448748",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3-d3.d4"
+      },
+      {
+        "id": "5384237",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d5-d4": [
+      {
+        "id": "5387218",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d5-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad7": [
+      {
+        "id": "5624675",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad2Ad7"
+      },
+      {
+        "id": "5967742",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad2Ad7"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1": [
+      {
+        "id": "5283307",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1"
+      },
+      {
+        "id": "5505467",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "Ad1"
+      },
+      {
+        "id": "5882695",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d1 d2 d3 d4": [
+      {
+        "id": "5989527",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d2 d3 d4"
+      },
+      {
+        "id": "5333234",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d2 d3 d4"
+      }
+    ],
+    "CREDIT_CARD | CREDIT_CARD format d19": [
+      {
+        "id": "5620143",
+        "lang": "en",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d19"
+      },
+      {
+        "id": "5357104",
+        "lang": "en",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d19"
+      },
+      {
+        "id": "5262964",
+        "lang": "es",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d19"
+      }
+    ],
+    "PHONE | PHONE format d3.d3.d3.d4": [
+      {
+        "id": "5798680",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d5 d2-d3 d4": [
+      {
+        "id": "5722177",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d2-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d3 d3 d4": [
+      {
+        "id": "5744892",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3 d3 d4"
+      }
+    ],
+    "SSN | found as another type: PHONE_NUMBER": [
+      {
+        "id": "5882728",
+        "lang": "en",
+        "label": "SOCIALNUM",
+        "shape": "d10"
+      }
+    ],
+    "PHONE | PHONE format d3 d3.d4": [
+      {
+        "id": "5686395",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3.d4"
+      },
+      {
+        "id": "5270527",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3.d4"
+      }
+    ],
+    "SSN | SSN format d9": [
+      {
+        "id": "5519996",
+        "lang": "en",
+        "label": "SOCIALNUM",
+        "shape": "d9"
+      },
+      {
+        "id": "5695965",
+        "lang": "nl",
+        "label": "SOCIALNUM",
+        "shape": "d9"
+      },
+      {
+        "id": "5350712",
+        "lang": "nl",
+        "label": "SOCIALNUM",
+        "shape": "d9"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2A": [
+      {
+        "id": "5549714",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad2A"
+      },
+      {
+        "id": "5463511",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "Ad2A"
+      },
+      {
+        "id": "5248003",
+        "lang": "fr",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad2A"
+      }
+    ],
+    "PHONE | PHONE format d4-d8": [
+      {
+        "id": "5583557",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d8"
+      },
+      {
+        "id": "5254889",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d8"
+      },
+      {
+        "id": "5704336",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d8"
+      }
+    ],
+    "PHONE | PHONE format +d2.d3.d3 d4": [
+      {
+        "id": "6007012",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3.d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad2Ad2A": [
+      {
+        "id": "5910802",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d1Ad2Ad2A"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad2Ad1": [
+      {
+        "id": "5298564",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d2Ad2Ad1"
+      }
+    ],
+    "CREDIT_CARD | CREDIT_CARD format d16": [
+      {
+        "id": "5572982",
+        "lang": "en",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d16"
+      },
+      {
+        "id": "5404873",
+        "lang": "hi",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d16"
+      },
+      {
+        "id": "5919313",
+        "lang": "te",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d16"
+      }
+    ],
+    "PHONE | PHONE format +d2.d5-d4": [
+      {
+        "id": "5806733",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d5-d4"
+      }
+    ],
+    "PHONE | PHONE format d3 d4 d4": [
+      {
+        "id": "5784346",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d4 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad1": [
+      {
+        "id": "5574949",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1"
+      },
+      {
+        "id": "5408289",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1"
+      },
+      {
+        "id": "5548574",
+        "lang": "te",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d2-d3-d3.d4": [
+      {
+        "id": "5535162",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3-d3.d4"
+      },
+      {
+        "id": "5637884",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3-d3.d4"
+      },
+      {
+        "id": "5933529",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d3.d3 d4": [
+      {
+        "id": "5843357",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3 d4"
+      },
+      {
+        "id": "5328377",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3 d4"
+      },
+      {
+        "id": "5622759",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d2.d3 d4": [
+      {
+        "id": "5412428",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2.d3 d4"
+      },
+      {
+        "id": "5998402",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d3 d7 ": [
+      {
+        "id": "5349016",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d7 "
+      },
+      {
+        "id": "5975263",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d7 "
+      },
+      {
+        "id": "5286194",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d7 "
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad1Ad1Ad1": [
+      {
+        "id": "5614595",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1Ad1"
+      },
+      {
+        "id": "5418417",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format d3.d3.d3-d4": [
+      {
+        "id": "5588966",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3.d3-d4"
+      },
+      {
+        "id": "5454304",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3.d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad2A": [
+      {
+        "id": "5790141",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2A"
+      },
+      {
+        "id": "5273344",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2A"
+      },
+      {
+        "id": "5884042",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2A"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad1Ad1": [
+      {
+        "id": "5566784",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1Ad1Ad1"
+      },
+      {
+        "id": "5638646",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1"
+      },
+      {
+        "id": "5456413",
+        "lang": "te",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1Ad1Ad1"
+      }
+    ],
+    "GOV_ID | GOV_ID format d12": [
+      {
+        "id": "5934200",
+        "lang": "en",
+        "label": "IDCARDNUM",
+        "shape": "d12"
+      }
+    ],
+    "PHONE | PHONE format +d4.d3.d4": [
+      {
+        "id": "5369949",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d4.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d1 d2 d3-d4": [
+      {
+        "id": "5748134",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d2 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d3-d3-d4": [
+      {
+        "id": "5842489",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3-d3-d4"
+      },
+      {
+        "id": "5652989",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3-d3-d4"
+      },
+      {
+        "id": "5319463",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3 d3.d4": [
+      {
+        "id": "5645766",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3 d3.d4"
+      },
+      {
+        "id": "5591266",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3 d3.d4"
+      },
+      {
+        "id": "5557710",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3 d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad12": [
+      {
+        "id": "5823174",
+        "lang": "en",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad12"
+      }
+    ],
+    "PHONE | PHONE format +d4.d3-d4": [
+      {
+        "id": "5538235",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "+d4.d3-d4"
+      },
+      {
+        "id": "5735673",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d4.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d3 d4": [
+      {
+        "id": "5927779",
+        "lang": "en",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d3 d2.d3-d4": [
+      {
+        "id": "5843994",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d2.d3-d4"
+      },
+      {
+        "id": "5604471",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d2.d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad7A": [
+      {
+        "id": "5562041",
+        "lang": "es",
+        "label": "TAXNUM",
+        "shape": "Ad7A"
+      },
+      {
+        "id": "5481351",
+        "lang": "es",
+        "label": "TAXNUM",
+        "shape": "Ad7A"
+      },
+      {
+        "id": "5959450",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "Ad7A"
+      }
+    ],
+    "PHONE | PHONE format d3.d3-d4": [
+      {
+        "id": "5536162",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3-d4"
+      },
+      {
+        "id": "5705908",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d3-d3-d4": [
+      {
+        "id": "5806870",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d5 d3-d4": [
+      {
+        "id": "5901765",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d5 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d7-d3-d4": [
+      {
+        "id": "5549883",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d7-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d8": [
+      {
+        "id": "5872645",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d8"
+      },
+      {
+        "id": "5655427",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d8"
+      },
+      {
+        "id": "5719471",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d8"
+      }
+    ],
+    "PHONE | PHONE format d5 d5 ": [
+      {
+        "id": "5787144",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d5 "
+      },
+      {
+        "id": "5894277",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d5 "
+      },
+      {
+        "id": "5701095",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d5 "
+      }
+    ],
+    "PHONE | PHONE format d9-d4": [
+      {
+        "id": "5522014",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d9-d4"
+      },
+      {
+        "id": "5857709",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d9-d4"
+      },
+      {
+        "id": "5643607",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d9-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad1Ad1Ad1A": [
+      {
+        "id": "5356530",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1Ad1A"
+      },
+      {
+        "id": "5334810",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1Ad1A"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2-d3-d4": [
+      {
+        "id": "5580163",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2-d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad6": [
+      {
+        "id": "5879933",
+        "lang": "es",
+        "label": "PASSPORTNUM",
+        "shape": "Ad6"
+      },
+      {
+        "id": "5435856",
+        "lang": "es",
+        "label": "PASSPORTNUM",
+        "shape": "Ad6"
+      },
+      {
+        "id": "5437234",
+        "lang": "es",
+        "label": "PASSPORTNUM",
+        "shape": "Ad6"
+      }
+    ],
+    "PHONE | PHONE format +d3-d3.d3-d4": [
+      {
+        "id": "5374786",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3.d3-d4"
+      },
+      {
+        "id": "5956501",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3.d3-d4"
+      },
+      {
+        "id": "5347985",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d3-d7 ": [
+      {
+        "id": "5630159",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d7 "
+      },
+      {
+        "id": "5521612",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d7 "
+      }
+    ],
+    "GOV_ID | GOV_ID format d8A": [
+      {
+        "id": "5547426",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d8A"
+      },
+      {
+        "id": "5572537",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d8A"
+      },
+      {
+        "id": "5300334",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d8A"
+      }
+    ],
+    "PHONE | PHONE format +d3-d2.d3-d4": [
+      {
+        "id": "5854758",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d2.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d1-d3.d3 d4": [
+      {
+        "id": "5910306",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3.d3 d4"
+      },
+      {
+        "id": "5572544",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d3-d3 d3.d4": [
+      {
+        "id": "5814843",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d3 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d3.d2 d3.d4": [
+      {
+        "id": "5399931",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d2 d3.d4"
+      },
+      {
+        "id": "6015133",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d3 d2 d3 d4": [
+      {
+        "id": "5572537",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d2 d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad1Ad1Ad2": [
+      {
+        "id": "5289567",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad1Ad1Ad2"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad1Ad1Ad1": [
+      {
+        "id": "5385176",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d2Ad1Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format d4 d2 d3 d4": [
+      {
+        "id": "5461214",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2 d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad1A": [
+      {
+        "id": "5563516",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1A"
+      },
+      {
+        "id": "5614517",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1A"
+      },
+      {
+        "id": "5356616",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1A"
+      }
+    ],
+    "PHONE | PHONE format +d1 d3.d3.d4": [
+      {
+        "id": "5535673",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d3.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d5.d4": [
+      {
+        "id": "5755281",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d5.d4"
+      },
+      {
+        "id": "5531176",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d5.d4"
+      }
+    ],
+    "PHONE | PHONE format d5-d3 d3-d4": [
+      {
+        "id": "5755736",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d3 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d2-d3 d4": [
+      {
+        "id": "5778656",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2-d3 d4"
+      },
+      {
+        "id": "5276625",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2-d3 d4"
+      }
+    ],
+    "SSN | SSN format d12": [
+      {
+        "id": "5522449",
+        "lang": "es",
+        "label": "SOCIALNUM",
+        "shape": "d12"
+      },
+      {
+        "id": "5363885",
+        "lang": "es",
+        "label": "SOCIALNUM",
+        "shape": "d12"
+      },
+      {
+        "id": "5458353",
+        "lang": "es",
+        "label": "SOCIALNUM",
+        "shape": "d12"
+      }
+    ],
+    "PHONE | PHONE format d4 d8": [
+      {
+        "id": "5513072",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d8"
+      },
+      {
+        "id": "5761317",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d8"
+      },
+      {
+        "id": "5932033",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d8"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2-d3 d4": [
+      {
+        "id": "5938290",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3 d4"
+      },
+      {
+        "id": "5453801",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3 d4"
+      },
+      {
+        "id": "5855417",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d4.d3 d4": [
+      {
+        "id": "5725763",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d4.d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad1Ad1Ad2": [
+      {
+        "id": "5506463",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1Ad1Ad2"
+      }
+    ],
+    "PHONE | PHONE format d4 d3.d4": [
+      {
+        "id": "5877587",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3.d4"
+      },
+      {
+        "id": "5614279",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3.d4"
+      },
+      {
+        "id": "5376222",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d9 d4": [
+      {
+        "id": "5900380",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d9 d4"
+      },
+      {
+        "id": "5490777",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d9 d4"
+      },
+      {
+        "id": "5725095",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d9 d4"
+      }
+    ],
+    "PHONE | PHONE format d5.d2 d3.d4": [
+      {
+        "id": "5824367",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d1-d3-d3-d4": [
+      {
+        "id": "5853636",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3-d3-d4"
+      },
+      {
+        "id": "5780738",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format (d2)-d4-d4": [
+      {
+        "id": "5379121",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "(d2)-d4-d4"
+      }
+    ],
+    "PHONE | PHONE format +d1.d3-d3 d4": [
+      {
+        "id": "5686700",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d3-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2-d3-d4": [
+      {
+        "id": "5610664",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3-d4"
+      },
+      {
+        "id": "5501564",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3-d4"
+      },
+      {
+        "id": "5581857",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d1-d2 d3 d4": [
+      {
+        "id": "5247038",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d2 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d2-d2.d2 d2-d2": [
+      {
+        "id": "5699673",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d2-d2.d2 d2-d2"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad4A": [
+      {
+        "id": "5508101",
+        "lang": "es",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad4A"
+      }
+    ],
+    "PHONE | PHONE format d2 d2.d2-d2-d2": [
+      {
+        "id": "5881419",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d2 d2.d2-d2-d2"
+      }
+    ],
+    "PHONE | PHONE format +d1 d2 d3.d4": [
+      {
+        "id": "6014084",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d7 d3.d4": [
+      {
+        "id": "5348493",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d7 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d2.d3.d4": [
+      {
+        "id": "5614517",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d3-d3-d3-d4": [
+      {
+        "id": "6024078",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d3 d3-d3.d4": [
+      {
+        "id": "5504298",
+        "lang": "es",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3-d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad13": [
+      {
+        "id": "5540378",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "Ad13"
+      },
+      {
+        "id": "5875467",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "Ad13"
+      },
+      {
+        "id": "5489804",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "Ad13"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3-d3.d4": [
+      {
+        "id": "5999653",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3-d3.d4"
+      },
+      {
+        "id": "5965491",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3-d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2 d2 d3 d3 d3": [
+      {
+        "id": "5353675",
+        "lang": "fr",
+        "label": "TAXNUM",
+        "shape": "d2 d2 d3 d3 d3"
+      },
+      {
+        "id": "5916669",
+        "lang": "fr",
+        "label": "TAXNUM",
+        "shape": "d2 d2 d3 d3 d3"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad1Ad1A": [
+      {
+        "id": "6008714",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "d2Ad1Ad1A"
+      },
+      {
+        "id": "5476705",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "d2Ad1Ad1A"
+      },
+      {
+        "id": "6011630",
+        "lang": "hi",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d2Ad1Ad1A"
+      }
+    ],
+    "PHONE | PHONE format +d3 d2.d3 d4": [
+      {
+        "id": "5573702",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d2.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d3-d3 d3-d4": [
+      {
+        "id": "5822607",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3 d3-d4"
+      },
+      {
+        "id": "5699989",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format (d2) d4 d4": [
+      {
+        "id": "5869219",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "(d2) d4 d4"
+      },
+      {
+        "id": "5256488",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "(d2) d4 d4"
+      },
+      {
+        "id": "5858891",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "(d2) d4 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d5.d4": [
+      {
+        "id": "5725628",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d5.d4"
+      },
+      {
+        "id": "5601929",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d5.d4"
+      },
+      {
+        "id": "5408418",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d5.d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d3 d3.d4": [
+      {
+        "id": "5866842",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2.d3 d4": [
+      {
+        "id": "5501387",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3 d4"
+      },
+      {
+        "id": "5599548",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3 d4"
+      },
+      {
+        "id": "5904104",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d1.d2-d3 d4": [
+      {
+        "id": "5548132",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2-d3 d4"
+      },
+      {
+        "id": "5671576",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2-d3 d4"
+      },
+      {
+        "id": "5687005",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2-d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad5": [
+      {
+        "id": "5548998",
+        "lang": "fr",
+        "label": "PASSPORTNUM",
+        "shape": "d2Ad5"
+      },
+      {
+        "id": "5768947",
+        "lang": "fr",
+        "label": "PASSPORTNUM",
+        "shape": "d2Ad5"
+      },
+      {
+        "id": "5321980",
+        "lang": "fr",
+        "label": "PASSPORTNUM",
+        "shape": "d2Ad5"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1.A.d2.A.d4.d1.d6.A": [
+      {
+        "id": "5875467",
+        "lang": "fr",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1.A.d2.A.d4.d1.d6.A"
+      }
+    ],
+    "PHONE | PHONE format +d2-d3-d3 d4": [
+      {
+        "id": "5753892",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3-d3 d4"
+      },
+      {
+        "id": "5312656",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3-d3 d4"
+      },
+      {
+        "id": "5649109",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d9.d4": [
+      {
+        "id": "5770668",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d9.d4"
+      },
+      {
+        "id": "5902955",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d9.d4"
+      },
+      {
+        "id": "5277932",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d9.d4"
+      }
+    ],
+    "PHONE | PHONE format d3 d3 d4": [
+      {
+        "id": "5710048",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3 d4"
+      },
+      {
+        "id": "5434838",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3 d4"
+      },
+      {
+        "id": "5266414",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d3 d4"
+      }
+    ],
+    "SSN | SSN format d13": [
+      {
+        "id": "5710048",
+        "lang": "fr",
+        "label": "SOCIALNUM",
+        "shape": "d13"
+      }
+    ],
+    "PHONE | PHONE format d3-d3.d3-d4": [
+      {
+        "id": "5273344",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d3.d3-d4"
+      },
+      {
+        "id": "5352664",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d3.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3-d3 d4": [
+      {
+        "id": "5954408",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3-d3 d4"
+      },
+      {
+        "id": "5344198",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3-d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad1": [
+      {
+        "id": "5392300",
+        "lang": "fr",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d1Ad1"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2.d2.d3.d3.d3": [
+      {
+        "id": "5321980",
+        "lang": "fr",
+        "label": "TAXNUM",
+        "shape": "d2.d2.d3.d3.d3"
+      }
+    ],
+    "PHONE | PHONE format +d3 d3-d3.d4": [
+      {
+        "id": "5663804",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3-d3.d4"
+      },
+      {
+        "id": "5737385",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d3-d3 d3-d4": [
+      {
+        "id": "5524647",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d3 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d3 d3-d4": [
+      {
+        "id": "5349175",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3 d3-d4"
+      },
+      {
+        "id": "5456498",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3 d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1 A d2 A d4 d1 d6 A": [
+      {
+        "id": "5856328",
+        "lang": "fr",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1 A d2 A d4 d1 d6 A"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2.d3 d4": [
+      {
+        "id": "5805829",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2.d3 d4"
+      },
+      {
+        "id": "5473352",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2.d3 d4"
+      },
+      {
+        "id": "5587573",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d5.d4": [
+      {
+        "id": "5352943",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d5.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2.d5.d4": [
+      {
+        "id": "5400757",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d5.d4"
+      },
+      {
+        "id": "6005002",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d5.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1-A-d2-A-d4-d1-d6-A": [
+      {
+        "id": "5261307",
+        "lang": "fr",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1-A-d2-A-d4-d1-d6-A"
+      }
+    ],
+    "PHONE | PHONE format d5-d3 d3.d4": [
+      {
+        "id": "5870115",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d3 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d4 d3.d4": [
+      {
+        "id": "5790730",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d4 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d5.d4": [
+      {
+        "id": "5804799",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d5.d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d3.d3.d4": [
+      {
+        "id": "5435805",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d3.d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2": [
+      {
+        "id": "5254787",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "Ad2"
+      },
+      {
+        "id": "5726338",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad2"
+      }
+    ],
+    "PHONE | PHONE format d4.d3.d3.d4": [
+      {
+        "id": "5787099",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d5-d2 d3 d4": [
+      {
+        "id": "5564713",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d2 d3 d4"
+      },
+      {
+        "id": "5893724",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d2 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d3 d4-d4": [
+      {
+        "id": "5699053",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d4-d4"
+      },
+      {
+        "id": "5511348",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d4-d4"
+      },
+      {
+        "id": "5727517",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d4-d4"
+      }
+    ],
+    "PHONE | PHONE format +d1-d2-d3.d4": [
+      {
+        "id": "5784407",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d2-d3.d4"
+      },
+      {
+        "id": "5751491",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d2-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d2 d3 d4": [
+      {
+        "id": "5718389",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2 d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad1Ad3A": [
+      {
+        "id": "5365585",
+        "lang": "fr",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1Ad3A"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2-d2-d3-d3-d3": [
+      {
+        "id": "5938764",
+        "lang": "fr",
+        "label": "TAXNUM",
+        "shape": "d2-d2-d3-d3-d3"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2 d3 d4": [
+      {
+        "id": "5709645",
+        "lang": "fr",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2 d3 d4"
+      },
+      {
+        "id": "5494385",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d2.d2 d2-d2-d2": [
+      {
+        "id": "5653384",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d2.d2 d2-d2-d2"
+      },
+      {
+        "id": "5280240",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d2.d2 d2-d2-d2"
+      }
+    ],
+    "PHONE | PHONE format d5.d3 d3-d4": [
+      {
+        "id": "5702675",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d3 d3-d4"
+      },
+      {
+        "id": "5356616",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d5.d3 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d3 d3-d3-d4": [
+      {
+        "id": "5663385",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3-d3-d4"
+      },
+      {
+        "id": "5456413",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3-d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad2Ad2": [
+      {
+        "id": "5279543",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2Ad2"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad3Ad1": [
+      {
+        "id": "5395459",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad3Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d3-d2-d3 d4": [
+      {
+        "id": "5434487",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d2-d3 d4"
+      },
+      {
+        "id": "5446901",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d2-d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad1A": [
+      {
+        "id": "5238148",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "d2Ad1A"
+      },
+      {
+        "id": "5390820",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "d2Ad1A"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2-d3.d4": [
+      {
+        "id": "5809015",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3.d4"
+      },
+      {
+        "id": "5395457",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3.d4"
+      },
+      {
+        "id": "5797300",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d2.d3 d4": [
+      {
+        "id": "5844354",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2 d3-d4": [
+      {
+        "id": "5814092",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3-d4"
+      },
+      {
+        "id": "5497629",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3-d4"
+      },
+      {
+        "id": "5928863",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2 d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad2Ad1": [
+      {
+        "id": "5271623",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2Ad1"
+      },
+      {
+        "id": "5442139",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2Ad1"
+      },
+      {
+        "id": "5808437",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2.d3.d4": [
+      {
+        "id": "5390614",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2.d3.d4"
+      },
+      {
+        "id": "5786414",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2.d3.d4"
+      },
+      {
+        "id": "5316141",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2.d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad1Ad3A": [
+      {
+        "id": "5901368",
+        "lang": "hi",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d2Ad1Ad3A"
+      }
+    ],
+    "PHONE | PHONE format +d3-d2 d3.d4": [
+      {
+        "id": "5896845",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d2.d3-d4": [
+      {
+        "id": "5357716",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2.d3-d4"
+      },
+      {
+        "id": "5914201",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d2.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d1 d2-d3.d4": [
+      {
+        "id": "5524109",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d2-d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad1Ad2A": [
+      {
+        "id": "5714387",
+        "lang": "hi",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad2Ad1Ad2A"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad1Ad4A": [
+      {
+        "id": "5833018",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1Ad4A"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1A": [
+      {
+        "id": "5833018",
+        "lang": "hi",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d1A"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad3A": [
+      {
+        "id": "5594882",
+        "lang": "hi",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad3A"
+      },
+      {
+        "id": "5264712",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad3A"
+      }
+    ],
+    "PHONE | PHONE format +d3.d3-d3-d4": [
+      {
+        "id": "5707958",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d3-d3-d4"
+      },
+      {
+        "id": "5500376",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d3-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d2-d3.d4": [
+      {
+        "id": "5239220",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d2-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d5 d3.d3.d4": [
+      {
+        "id": "5661868",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d3.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format (d2) d4.d4": [
+      {
+        "id": "5522805",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "(d2) d4.d4"
+      }
+    ],
+    "PHONE | PHONE format +d3 d3.d3.d4": [
+      {
+        "id": "5398262",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d3.d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad1Ad1": [
+      {
+        "id": "5340122",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad1Ad1"
+      },
+      {
+        "id": "5265563",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad1Ad1"
+      },
+      {
+        "id": "5986956",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad1Ad1"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad3": [
+      {
+        "id": "5584347",
+        "lang": "hi",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad1Ad3"
+      }
+    ],
+    "PHONE | PHONE format +d1.d2 d3 d4": [
+      {
+        "id": "5265740",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2 d3 d4"
+      },
+      {
+        "id": "5859599",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2 d3 d4"
+      },
+      {
+        "id": "5830862",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3 d3-d4": [
+      {
+        "id": "5291461",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d2-d3 d4": [
+      {
+        "id": "5664816",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2-d3 d4"
+      },
+      {
+        "id": "5385163",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d3 d3 d4": [
+      {
+        "id": "5986937",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3 d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad1Ad1": [
+      {
+        "id": "5238969",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "d2Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format (d2)-d4.d4": [
+      {
+        "id": "5507113",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "(d2)-d4.d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d2-d3-d4": [
+      {
+        "id": "5290548",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2-d3-d4"
+      },
+      {
+        "id": "6001951",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2-d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad1Ad1Ad1Ad1": [
+      {
+        "id": "5385163",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1Ad1Ad1Ad1"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad2Ad2A": [
+      {
+        "id": "5680423",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2Ad2A"
+      },
+      {
+        "id": "5451379",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2Ad2A"
+      }
+    ],
+    "PHONE | PHONE format +d1.d3 d3.d4": [
+      {
+        "id": "5812585",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d3 d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad1Ad1": [
+      {
+        "id": "5606781",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad1Ad1"
+      },
+      {
+        "id": "5394500",
+        "lang": "nl",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d1Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format d4 d2.d3.d4": [
+      {
+        "id": "5912658",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2.d3.d4"
+      },
+      {
+        "id": "6020543",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d3.d3.d3 d4": [
+      {
+        "id": "5386557",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d3.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d4-d2-d3-d4": [
+      {
+        "id": "5734212",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2-d3-d4"
+      },
+      {
+        "id": "5314806",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d4-d2-d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad1": [
+      {
+        "id": "5851009",
+        "lang": "hi",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad2Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d1-d2.d3.d4": [
+      {
+        "id": "5662978",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d2.d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d5Ad1A": [
+      {
+        "id": "5280240",
+        "lang": "hi",
+        "label": "IDCARDNUM",
+        "shape": "d5Ad1A"
+      }
+    ],
+    "PHONE | PHONE format d4.d3 d4": [
+      {
+        "id": "5501959",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format (d2).d4.d4": [
+      {
+        "id": "5458024",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "(d2).d4.d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d3 d3-d4": [
+      {
+        "id": "5463722",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2.d3.d4": [
+      {
+        "id": "5487485",
+        "lang": "hi",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3.d4"
+      },
+      {
+        "id": "5966701",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3.d4"
+      },
+      {
+        "id": "5363985",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2.d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad6A": [
+      {
+        "id": "5405873",
+        "lang": "it",
+        "label": "IDCARDNUM",
+        "shape": "Ad6A"
+      },
+      {
+        "id": "5302305",
+        "lang": "it",
+        "label": "IDCARDNUM",
+        "shape": "Ad6A"
+      },
+      {
+        "id": "5983339",
+        "lang": "it",
+        "label": "IDCARDNUM",
+        "shape": "Ad6A"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad11": [
+      {
+        "id": "5828532",
+        "lang": "it",
+        "label": "TAXNUM",
+        "shape": "Ad11"
+      },
+      {
+        "id": "5255909",
+        "lang": "it",
+        "label": "TAXNUM",
+        "shape": "Ad11"
+      },
+      {
+        "id": "5439228",
+        "lang": "it",
+        "label": "TAXNUM",
+        "shape": "Ad11"
+      }
+    ],
+    "PHONE | PHONE format +d3.d2.d3.d4": [
+      {
+        "id": "5536514",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d3.d2.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d5 d2.d3-d4": [
+      {
+        "id": "5895664",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d2.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d2 d2.d2 d2.d2": [
+      {
+        "id": "5789356",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d2 d2.d2 d2.d2"
+      }
+    ],
+    "PHONE | PHONE format +d2.d3-d3-d4": [
+      {
+        "id": "5413314",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d3-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d6 d3 d4": [
+      {
+        "id": "5475584",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d6 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d3 d2 d3.d4": [
+      {
+        "id": "5937556",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d2 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d3-d3 d3.d4": [
+      {
+        "id": "5648978",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d3.d3 d4": [
+      {
+        "id": "5644762",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d3.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d5-d3.d3 d4": [
+      {
+        "id": "5551310",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d5-d3.d3 d4"
+      }
+    ],
+    "SSN | SSN format Aa Aa d2 A d2 d1 A": [
+      {
+        "id": "5335357",
+        "lang": "it",
+        "label": "SOCIALNUM",
+        "shape": "Aa Aa d2 A d2 d1 A"
+      }
+    ],
+    "PHONE | PHONE format +d2.d2 d3-d4": [
+      {
+        "id": "5688073",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2.d2 d3-d4"
+      }
+    ],
+    "SSN | SSN format Aa-Aa-d2-A-d2-d1-A": [
+      {
+        "id": "5382187",
+        "lang": "it",
+        "label": "SOCIALNUM",
+        "shape": "Aa-Aa-d2-A-d2-d1-A"
+      },
+      {
+        "id": "6015047",
+        "lang": "it",
+        "label": "SOCIALNUM",
+        "shape": "Aa-Aa-d2-A-d2-d1-A"
+      }
+    ],
+    "PHONE | PHONE format +d5-d3-d4": [
+      {
+        "id": "5755889",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d5-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d2 d5-d4": [
+      {
+        "id": "5847109",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "+d2 d5-d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d2.d3-d4": [
+      {
+        "id": "5926563",
+        "lang": "it",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2.d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad6Ad2": [
+      {
+        "id": "5443023",
+        "lang": "nl",
+        "label": "PASSPORTNUM",
+        "shape": "Ad6Ad2"
+      },
+      {
+        "id": "5980399",
+        "lang": "nl",
+        "label": "PASSPORTNUM",
+        "shape": "Ad6Ad2"
+      },
+      {
+        "id": "5257543",
+        "lang": "nl",
+        "label": "PASSPORTNUM",
+        "shape": "Ad6Ad2"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad2Ad3Ad1": [
+      {
+        "id": "5501357",
+        "lang": "nl",
+        "label": "DRIVERLICENSENUM",
+        "shape": "d1Ad2Ad3Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d2-d2 d3-d4": [
+      {
+        "id": "5938219",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2 d3-d4"
+      },
+      {
+        "id": "5679525",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2 d3-d4"
+      },
+      {
+        "id": "5723233",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d2 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d2-d2 d2 d2 d2": [
+      {
+        "id": "5904822",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d2-d2 d2 d2 d2"
+      }
+    ],
+    "PHONE | PHONE format +d2-d3.d3-d4": [
+      {
+        "id": "5551470",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3.d3-d4"
+      },
+      {
+        "id": "5438076",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3.d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d5 d2 d3-d4": [
+      {
+        "id": "5380667",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d5 d2 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format +d3-d3-d3 d4": [
+      {
+        "id": "5588781",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3-d3 d4"
+      },
+      {
+        "id": "5521379",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d3 d2 d3-d4": [
+      {
+        "id": "5794991",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d2 d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d2 d4.d4": [
+      {
+        "id": "5384607",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d2 d4.d4"
+      }
+    ],
+    "PHONE | PHONE format +d3 d2-d3-d4": [
+      {
+        "id": "5286862",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d3 d2-d3-d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d3 d4": [
+      {
+        "id": "5877754",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d3-d3 d4": [
+      {
+        "id": "5649114",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d3 d4"
+      },
+      {
+        "id": "5273015",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d3 d4"
+      }
+    ],
+    "PHONE | PHONE format d4.d3.d3 d4": [
+      {
+        "id": "5459892",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d5.d3 d4": [
+      {
+        "id": "5814493",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d5.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d5 d3 d4": [
+      {
+        "id": "5732055",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d5 d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d3-d3.d3 d4": [
+      {
+        "id": "5788194",
+        "lang": "nl",
+        "label": "TELEPHONENUM",
+        "shape": "+d3-d3.d3 d4"
+      }
+    ],
+    "PHONE | PHONE format +d2-d3 d3 d4": [
+      {
+        "id": "5317046",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3 d3 d4"
+      },
+      {
+        "id": "5989219",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d2-d3 d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad2Ad1A": [
+      {
+        "id": "5485176",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2Ad1A"
+      },
+      {
+        "id": "5550043",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2Ad1A"
+      }
+    ],
+    "CREDIT_CARD | CREDIT_CARD format d15": [
+      {
+        "id": "5304915",
+        "lang": "te",
+        "label": "CREDITCARDNUMBER",
+        "shape": "d15"
+      }
+    ],
+    "PHONE | PHONE format d4 d2.d3 d4": [
+      {
+        "id": "5384309",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d2.d3 d4"
+      }
+    ],
+    "EMAIL | EMAIL A@a.a": [
+      {
+        "id": "5384309",
+        "lang": "te",
+        "label": "EMAIL",
+        "shape": "A@a.a"
+      },
+      {
+        "id": "5488756",
+        "lang": "te",
+        "label": "EMAIL",
+        "shape": "A@a.a"
+      },
+      {
+        "id": "5474593",
+        "lang": "te",
+        "label": "EMAIL",
+        "shape": "A@a.a"
+      }
+    ],
+    "EMAIL | EMAIL d2A@a.a": [
+      {
+        "id": "5617833",
+        "lang": "te",
+        "label": "EMAIL",
+        "shape": "d2A@a.a"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad3Ad1A": [
+      {
+        "id": "5990131",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad3Ad1A"
+      }
+    ],
+    "PHONE | PHONE format d3.d3-d3.d4": [
+      {
+        "id": "5679063",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d3.d3-d3.d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad4A": [
+      {
+        "id": "5273015",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad4A"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad2A": [
+      {
+        "id": "5327729",
+        "lang": "te",
+        "label": "DRIVERLICENSENUM",
+        "shape": "Ad2Ad2A"
+      }
+    ],
+    "GOV_ID | GOV_ID format d3Ad1Ad1": [
+      {
+        "id": "5359910",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "d3Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d1-d3 d3-d4": [
+      {
+        "id": "5833720",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d1-d3 d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad2Ad1": [
+      {
+        "id": "5344198",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad2Ad1"
+      },
+      {
+        "id": "5790849",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad2Ad1"
+      }
+    ],
+    "PHONE | PHONE format +d1 d3-d3-d4": [
+      {
+        "id": "5414401",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d1 d3-d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d1Ad2A": [
+      {
+        "id": "5861004",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "d1Ad2A"
+      }
+    ],
+    "PHONE | PHONE format +d1.d2.d3.d4": [
+      {
+        "id": "5704281",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "+d1.d2.d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d2-d2 d2-d2-d2": [
+      {
+        "id": "5372894",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d2-d2 d2-d2-d2"
+      }
+    ],
+    "PHONE | PHONE format d4 d3.d3-d4": [
+      {
+        "id": "5915363",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3.d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad1Ad2Ad1": [
+      {
+        "id": "5285290",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad1Ad2Ad1"
+      }
+    ],
+    "EMAIL | EMAIL Ad2@a.a": [
+      {
+        "id": "5456498",
+        "lang": "te",
+        "label": "EMAIL",
+        "shape": "Ad2@a.a"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad2": [
+      {
+        "id": "5433657",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2"
+      },
+      {
+        "id": "5316960",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad2"
+      }
+    ],
+    "PHONE | PHONE format d3 d2-d3.d4": [
+      {
+        "id": "5798963",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d3 d2-d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d3-d2.d3 d4": [
+      {
+        "id": "5632760",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d3-d2.d3 d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad2Ad1Ad1Ad1": [
+      {
+        "id": "5561483",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad2Ad1Ad1Ad1"
+      }
+    ],
+    "PHONE | PHONE format (d2).d4 d4": [
+      {
+        "id": "5316960",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "(d2).d4 d4"
+      }
+    ],
+    "PHONE | PHONE format d2 d2-d2 d2 d2": [
+      {
+        "id": "5341876",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d2 d2-d2 d2 d2"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad1Ad3A": [
+      {
+        "id": "5262390",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad1Ad3A"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad4Ad1A": [
+      {
+        "id": "5312414",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "Ad4Ad1A"
+      }
+    ],
+    "EMAIL | EMAIL d4A@a.a": [
+      {
+        "id": "5914299",
+        "lang": "te",
+        "label": "EMAIL",
+        "shape": "d4A@a.a"
+      }
+    ],
+    "PHONE | PHONE format d4.d3 d3.d4": [
+      {
+        "id": "5491454",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4.d3 d3.d4"
+      }
+    ],
+    "PHONE | PHONE format d4 d3-d4": [
+      {
+        "id": "5874688",
+        "lang": "te",
+        "label": "TELEPHONENUM",
+        "shape": "d4 d3-d4"
+      }
+    ],
+    "GOV_ID | GOV_ID format d3Ad2Ad1A": [
+      {
+        "id": "5385665",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "d3Ad2Ad1A"
+      }
+    ],
+    "EMAIL | EMAIL a@a.a": [
+      {
+        "id": "5385665",
+        "lang": "te",
+        "label": "EMAIL",
+        "shape": "a@a.a"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2Ad1Ad1Ad1A": [
+      {
+        "id": "5364132",
+        "lang": "te",
+        "label": "IDCARDNUM",
+        "shape": "d2Ad1Ad1Ad1A"
+      }
+    ]
+  },
+  "false_positive_types": {
+    "PERSON": {
+      "PERSON on no label": 942,
+      "PERSON on CITY": 210,
+      "PERSON on STREET": 121,
+      "PERSON on TITLE": 29,
+      "PERSON on GENDER": 13,
+      "PERSON on SEX": 8,
+      "PERSON on DATE": 1,
+      "PERSON on GENDER/SEX": 1
+    },
+    "LOCATION": {
+      "LOCATION on no label": 215,
+      "LOCATION on GIVENNAME": 145,
+      "LOCATION on SURNAME": 30,
+      "LOCATION on TITLE": 11,
+      "LOCATION on SEX": 6,
+      "LOCATION on GIVENNAME/SURNAME": 6,
+      "LOCATION on GENDER": 1,
+      "LOCATION on DRIVERLICENSENUM": 1
+    },
+    "UK_NHS": {
+      "UK_NHS on TELEPHONENUM": 3
+    },
+    "PHONE_NUMBER": {
+      "PHONE_NUMBER on SOCIALNUM": 1
+    }
+  },
+  "false_positive_examples": {
+    "PERSON on no label": [
+      {
+        "id": "5848383",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5922431",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5984659",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "PERSON on STREET": [
+      {
+        "id": "5669419",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5890945",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5317853",
+        "lang": "de",
+        "shape": "Aa a Aa-Aa"
+      }
+    ],
+    "LOCATION on no label": [
+      {
+        "id": "5984659",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5532271",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5821020",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "LOCATION on GIVENNAME": [
+      {
+        "id": "5522252",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5433457",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5994108",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "PERSON on CITY": [
+      {
+        "id": "5353452",
+        "lang": "de",
+        "shape": "Aa a Aa"
+      },
+      {
+        "id": "5318115",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5392514",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "LOCATION on SURNAME": [
+      {
+        "id": "5848221",
+        "lang": "de",
+        "shape": "Aa Aa Aa"
+      },
+      {
+        "id": "5671942",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5906402",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "PERSON on DATE": [
+      {
+        "id": "5689755",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "PERSON on SEX": [
+      {
+        "id": "5913190",
+        "lang": "de",
+        "shape": "Aa a A"
+      },
+      {
+        "id": "5765546",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5519606",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "LOCATION on GENDER": [
+      {
+        "id": "5913190",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "LOCATION on TITLE": [
+      {
+        "id": "5421486",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5960146",
+        "lang": "en",
+        "shape": "Aa."
+      },
+      {
+        "id": "5471902",
+        "lang": "es",
+        "shape": "Aa"
+      }
+    ],
+    "PERSON on TITLE": [
+      {
+        "id": "5791681",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5349305",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5997214",
+        "lang": "de",
+        "shape": "Aa a Aa"
+      }
+    ],
+    "UK_NHS on TELEPHONENUM": [
+      {
+        "id": "5349305",
+        "lang": "de",
+        "shape": "d3 d3 d4"
+      },
+      {
+        "id": "5496635",
+        "lang": "en",
+        "shape": "d3-d3-d4"
+      },
+      {
+        "id": "5917112",
+        "lang": "te",
+        "shape": "d3-d3-d4"
+      }
+    ],
+    "LOCATION on DRIVERLICENSENUM": [
+      {
+        "id": "5911755",
+        "lang": "de",
+        "shape": "Aa Ad3Ad1Ad1 a"
+      }
+    ],
+    "PERSON on GENDER": [
+      {
+        "id": "5241209",
+        "lang": "de",
+        "shape": "a Aa"
+      },
+      {
+        "id": "5816324",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5321382",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "LOCATION on SEX": [
+      {
+        "id": "5816324",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5238385",
+        "lang": "fr",
+        "shape": "Aa"
+      },
+      {
+        "id": "5238385",
+        "lang": "fr",
+        "shape": "Aa"
+      }
+    ],
+    "LOCATION on GIVENNAME/SURNAME": [
+      {
+        "id": "5975450",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5643450",
+        "lang": "en",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "5804437",
+        "lang": "es",
+        "shape": "Aa Aa"
+      }
+    ],
+    "PHONE_NUMBER on SOCIALNUM": [
+      {
+        "id": "5882728",
+        "lang": "en",
+        "shape": "d10"
+      }
+    ],
+    "PERSON on GENDER/SEX": [
+      {
+        "id": "5289320",
+        "lang": "te",
+        "shape": "Aa Aa-aX\u0c3e"
+      }
+    ]
+  },
+  "checksum": {
+    "CREDIT_CARD": {
+      "invalid": 87,
+      "invalid_hit": 0,
+      "valid": 14,
+      "valid_hit": 6
+    }
+  },
+  "latency": {
+    "detect_text_ms": {
+      "200-999 chars": {
+        "n": 172,
+        "p50": 4.014397500213818,
+        "p95": 5.459201800840674,
+        "p99": 7.116651478718251,
+        "mean": 4.193043802314246
+      },
+      "<200 chars": {
+        "n": 3828,
+        "p50": 2.8119529997638892,
+        "p95": 4.160488697743858,
+        "p99": 4.91949097115139,
+        "mean": 2.8459623327784387
+      }
+    },
+    "chars_per_second": 37613.03596514724,
+    "ms_per_kb_mean": 26.586527099982405
+  },
+  "seconds": 11.8,
+  "wrapped_latency": {
+    "200-999 chars": {
+      "n": 21,
+      "p50": 8.365845002117567,
+      "p95": 11.405943001591368,
+      "p99": 15.328728598979072
+    },
+    "<200 chars": {
+      "n": 279,
+      "p50": 5.65373199788155,
+      "p95": 8.025685098982647,
+      "p99": 9.004383999927086
+    },
+    "all": {
+      "n": 300,
+      "p50": 5.756189497333253,
+      "p95": 8.477748398945552,
+      "p99": 10.403113019565353
+    }
+  },
+  "source": {
+    "name": "ai4privacy",
+    "repo": "ai4privacy/open-pii-masking-500k-ai4privacy",
+    "revision": "506996d625ed970a0063432daf6007cf4a3a48e3",
+    "split": "data/validation/test.jsonl",
+    "license": "CC-BY-4.0 + Llama 3.1/3.3 community license"
+  },
+  "per_language_sample": 500,
+  "seed": 1337,
+  "clean_stats": {},
+  "label_map": {
+    "GIVENNAME": "PERSON",
+    "SURNAME": "PERSON",
+    "EMAIL": "EMAIL",
+    "TELEPHONENUM": "PHONE",
+    "CREDITCARDNUMBER": "CREDIT_CARD",
+    "SOCIALNUM": "SSN",
+    "IDCARDNUM": "GOV_ID",
+    "PASSPORTNUM": "GOV_ID",
+    "DRIVERLICENSENUM": "GOV_ID",
+    "TAXNUM": "GOV_ID",
+    "STREET": "ADDRESS",
+    "BUILDINGNUM": "ADDRESS",
+    "CITY": "ADDRESS",
+    "ZIPCODE": "ADDRESS",
+    "DATE": null,
+    "TIME": null,
+    "AGE": null,
+    "SEX": null,
+    "GENDER": null,
+    "TITLE": null,
+    "USERNAME": null
+  },
+  "accept": {
+    "PERSON": [
+      "PERSON"
+    ],
+    "EMAIL": [
+      "EMAIL_ADDRESS"
+    ],
+    "PHONE": [
+      "PHONE_NUMBER"
+    ],
+    "CREDIT_CARD": [
+      "CREDIT_CARD"
+    ],
+    "IBAN": [
+      "IBAN_CODE"
+    ],
+    "SSN": [
+      "IN_AADHAAR",
+      "UK_NHS",
+      "USA_SSN",
+      "US_ITIN",
+      "US_SSN"
+    ],
+    "GOV_ID": [
+      "IN_AADHAAR",
+      "IN_PAN",
+      "UK_NHS",
+      "US_DRIVER_LICENSE",
+      "US_ITIN",
+      "US_PASSPORT",
+      "US_SSN"
+    ],
+    "ADDRESS": [
+      "LOCATION",
+      "STREET_ADDRESS"
+    ],
+    "IP_ADDRESS": [
+      "IP_ADDRESS"
+    ],
+    "SECRET": [
+      "AWS_ACCESS_KEY",
+      "GENERIC_API_KEY",
+      "GITHUB_TOKEN",
+      "JWT",
+      "PRIVATE_KEY"
+    ]
+  }
+}

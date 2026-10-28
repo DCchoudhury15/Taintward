@@ -214,6 +214,13 @@ Detection quality and the time added to a tool call, from
 | false alarms on clean payloads that look sensitive | 48% to 52% | **0%** |
 | example-level recall | 0.94 | 0.94 |
 
+These are on the synthetic benchmark, which was written together with the
+rules. On two public datasets written by other people, example-level recall
+is 0.68 and 0.93, emails are still found 95% to 97% of the time, but names,
+non-US phone numbers and addresses are found much less often, and false
+alarms on German, Dutch and Italian text are high. See "Results on outside
+data" in [`docs/benchmark.md`](docs/benchmark.md).
+
 Collector throughput, from [`docs/scaling.md`](docs/scaling.md):
 
 | spans | spans/s per core |
@@ -236,6 +243,7 @@ has gateway numbers and a sizing guide.
 | throughput and sizing | [`docs/scaling.md`](docs/scaling.md) |
 | detection benchmark | [`docs/benchmark.md`](docs/benchmark.md) |
 | tokens, FF1 and the vault | [`docs/redaction-crypto.md`](docs/redaction-crypto.md) |
+| threat model, known bypasses, hardening checklist | [`docs/threat-model.md`](docs/threat-model.md) |
 | changes per release | [`CHANGELOG.md`](CHANGELOG.md) |
 
 ## Status
@@ -260,7 +268,7 @@ On top of that, v0.2 adds what is needed to use it for real:
 - FF1 encryption checked against the NIST sample vectors, and a token vault (in memory, SQLite, Postgres or Redis, encrypted at rest) with per-subject erasure for GDPR ([`docs/redaction-crypto.md`](docs/redaction-crypto.md))
 - a compliance report and a sharded evidence log with Ed25519 signed checkpoints and RFC 9162 proofs ([`docs/evidence-report.md`](docs/evidence-report.md))
 - a Helm chart for the collector and the gateway ([`docs/deploy-kubernetes.md`](docs/deploy-kubernetes.md)) and load tests ([`docs/scaling.md`](docs/scaling.md))
-- detection about 60 times faster with no false alarms on the benchmark ([`docs/benchmark.md`](docs/benchmark.md))
+- detection about 60 times faster with no false alarms on the synthetic benchmark ([`docs/benchmark.md`](docs/benchmark.md))
 - CI for GitLab and GitHub
 
 The full list is in [`CHANGELOG.md`](CHANGELOG.md).

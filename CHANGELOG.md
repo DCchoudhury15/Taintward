@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `docs/threat-model.md`: trust boundaries, assets, what is prevented,
+  detected or not handled for each attacker, known detection bypasses,
+  STRIDE per component, 11 open gaps (G1 to G11) and a deployment hardening
+  checklist. Every claim points to the code and test behind it.
+- `bench/external/`: detection measured on two public labeled PII datasets
+  (ai4privacy, gretel finance multilingual). Results in
+  `bench/results/external_*` show value shapes only, never dataset text.
+  Summary in "Results on outside data" in `docs/benchmark.md`.
+
+### Changed
+
+- README and SECURITY.md say that the 0% false alarm and 0.94 recall numbers
+  are from the synthetic benchmark, and link the outside-data results and
+  the threat model.
+
 ## 0.2.0
 
 First release under the name Taintward. The project was called AgentWard
