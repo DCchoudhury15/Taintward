@@ -31,6 +31,10 @@ Configuration (see get_vault()):
                            "redis://host:6379/0" (rediss:// for TLS)
     TAINTWARD_VAULT_KEY    hex AES key (16/24/32 bytes). Required for every
                            backend except memory. Must differ from the FPE key.
+                           Or a vault key ring from TAINTWARD_KEYS (see
+                           taintward/sdk/keys.py), which allows rotation:
+                           rows name the key that sealed them, and reseal()
+                           moves old rows to the active key.
 
 psycopg and redis are optional dependencies: they are imported only when a
 PostgresVault or RedisVault is created.
@@ -49,7 +53,10 @@ from contextlib import contextmanager
 from typing import Any, Iterator, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+from taintward.sdk.keys import KeyRing, key_id_for, load_keys, parse_hex_key
 
 
 @runtime_checkable
@@ -108,13 +115,7 @@ class MemoryVault:
 
 
 def _parse_key(key_hex: str, what: str) -> bytes:
-    try:
-        key = bytes.fromhex(key_hex)
-    except ValueError:
-        raise ValueError(f"{what} must be hex") from None
-    if len(key) not in (16, 24, 32):
-        raise ValueError(f"{what} must be 16, 24 or 32 bytes (32, 48 or 64 hex chars)")
-    return key
+    return parse_hex_key(key_hex, what)
 
 
 class VaultError(RuntimeError):
@@ -123,6 +124,13 @@ class VaultError(RuntimeError):
 
 
 _SUBJECT_INDEX_LABEL = b"taintward-vault-subject-index-v1"
+# A sealed row's nonce field is MAGIC + len(kid) + kid + 12 byte nonce, so
+# each row names the vault key that sealed it, and its plaintext is
+# len(subject) (2 bytes) + subject + original, so reseal() can rebuild the
+# subject index under a new key. Rows from before key rings have a bare 12
+# byte nonce and only the original as plaintext; they are opened by trying
+# each key in the ring (the GCM tag tells which one is right).
+_MAGIC = b"tw1"
 
 
 class _Sealer:
@@ -132,33 +140,118 @@ class _Sealer:
     The token is the associated data, so a ciphertext copied to another
     token's row fails the tag check. The subject index is HMAC-SHA256 under a
     key derived from the vault key.
+
+    Keys come from a key ring (taintward/sdk/keys.py): new rows are sealed
+    with the active key, older rows are opened with the key they name.
     """
 
     def __init__(self, key_hex: str | None, backend: str) -> None:
-        key_hex = key_hex or os.environ.get("TAINTWARD_VAULT_KEY")
-        if not key_hex:
-            raise ValueError(
-                f"{backend} needs an encryption key: set TAINTWARD_VAULT_KEY "
-                "(hex, 32/48/64 chars), separate from TAINTWARD_FPE_KEY"
-            )
-        key = _parse_key(key_hex, "TAINTWARD_VAULT_KEY")
-        fpe = os.environ.get("TAINTWARD_FPE_KEY")
-        if fpe and fpe.strip().lower() == key_hex.strip().lower():
+        if key_hex:
+            key = _parse_key(key_hex, "TAINTWARD_VAULT_KEY")
+            ring = KeyRing("vault", key_id_for(key), {key_id_for(key): key})
+            keyset = load_keys("env")
+        else:
+            keyset = load_keys()
+            ring = keyset.vault
+            if ring is None:
+                raise ValueError(
+                    f"{backend} needs an encryption key: set TAINTWARD_VAULT_KEY "
+                    "(hex, 32/48/64 chars), separate from TAINTWARD_FPE_KEY, "
+                    "or a vault key ring in TAINTWARD_KEYS"
+                )
+        fpe_keys = set(keyset.fpe.keys.values()) if keyset.fpe else set()
+        if fpe_keys & set(ring.keys.values()):
             raise ValueError("TAINTWARD_VAULT_KEY must not be the same as TAINTWARD_FPE_KEY")
-        self.aead = AESGCM(key)
-        self.index_key = hmac.new(key, _SUBJECT_INDEX_LABEL, hashlib.sha256).digest()
+        self.ring = ring
+        self._aeads = {kid: AESGCM(k) for kid, k in ring.keys.items()}
+        self._index_keys = {kid: self._index_key(k) for kid, k in ring.keys.items()}
+        self.aead = self._aeads[ring.active]
+        self.index_key = self._index_keys[ring.active]
 
-    def seal(self, token: str, original: str) -> tuple[bytes, bytes]:
+    @staticmethod
+    def _index_key(key: bytes) -> bytes:
+        return hmac.new(key, _SUBJECT_INDEX_LABEL, hashlib.sha256).digest()
+
+    @property
+    def active(self) -> str:
+        return self.ring.active
+
+    def seal(self, token: str, original: str,
+             subject: str | None = None) -> tuple[bytes, bytes]:
         nonce = os.urandom(12)
-        return nonce, self.aead.encrypt(nonce, original.encode(), token.encode())
+        kid = self.ring.active.encode()
+        sub = (subject or "").encode()
+        if len(sub) > 0xFFFF:
+            raise ValueError("subject is longer than 65535 bytes")
+        plain = len(sub).to_bytes(2, "big") + sub + original.encode()
+        ct = self.aead.encrypt(nonce, plain, token.encode())
+        return _MAGIC + bytes([len(kid)]) + kid + nonce, ct
+
+    @staticmethod
+    def sealed_by(nonce_field: bytes) -> str | None:
+        """Key id named by a nonce field, or None for a legacy bare nonce."""
+        nf = bytes(nonce_field)
+        if len(nf) > 12 and nf[:3] == _MAGIC and len(nf) == 4 + nf[3] + 12:
+            return nf[4:4 + nf[3]].decode(errors="replace")
+        return None
 
     def open(self, token: str, nonce: bytes, ct: bytes) -> str:
-        return self.aead.decrypt(bytes(nonce), bytes(ct), token.encode()).decode()
+        return self.open_row(token, nonce, ct)[0]
+
+    def open_row(self, token: str, nonce: bytes, ct: bytes) -> tuple[str, str | None, bool]:
+        """(original, subject, subject known). Legacy rows do not hold the
+        subject, so for them the last value is False."""
+        nf, ct, aad = bytes(nonce), bytes(ct), token.encode()
+        kid = self.sealed_by(nf)
+        if kid is not None:
+            aead = self._aeads.get(kid)
+            if aead is None:
+                raise VaultError(f"vault row sealed with key {kid!r}, which is not in "
+                                 "the vault key ring")
+            plain = aead.decrypt(nf[-12:], ct, aad)
+            n = int.from_bytes(plain[:2], "big")
+            return plain[2 + n:].decode(), plain[2:2 + n].decode() or None, True
+        for aead in [self.aead, *self._aeads.values()]:
+            try:
+                return aead.decrypt(nf, ct, aad).decode(), None, False
+            except InvalidTag:
+                continue
+        raise InvalidTag("no vault key in the ring opens this row")
+
+    def resealed(self, token: str, nonce: bytes, ct: bytes,
+                 old_idx: str | None) -> tuple[bytes, bytes, str | None]:
+        """A row sealed again under the active key, with its subject index
+        rebuilt when the subject is known (kept as is for legacy rows)."""
+        original, subject, known = self.open_row(token, nonce, ct)
+        nonce2, ct2 = self.seal(token, original, subject)
+        return nonce2, ct2, self.subject_idx(subject) if known else old_idx
+
+    def needs_reseal(self, nonce: bytes) -> bool:
+        return self.sealed_by(nonce) != self.ring.active
+
+    def split_blob(self, blob: bytes) -> tuple[bytes, bytes]:
+        """Split Redis's nonce field || ciphertext."""
+        blob = bytes(blob)
+        if blob[:3] == _MAGIC and len(blob) > 4:
+            n = 4 + blob[3] + 12
+            if self.sealed_by(blob[:n]) in self._aeads:
+                return blob[:n], blob[n:]
+        return blob[:12], blob[12:]
 
     def subject_idx(self, subject: str | None) -> str | None:
         if subject is None:
             return None
         return hmac.new(self.index_key, subject.encode(), hashlib.sha256).hexdigest()
+
+    def subject_idxs(self, subject: str) -> list[str]:
+        """The subject's index under every key in the ring (active first), so
+        erasure also finds rows written before a rotation."""
+        out = [self.subject_idx(subject)]
+        for k in self._index_keys.values():
+            idx = hmac.new(k, subject.encode(), hashlib.sha256).hexdigest()
+            if idx not in out:
+                out.append(idx)
+        return out
 
 
 def _safe_url(url: str) -> str:
@@ -218,7 +311,7 @@ class SQLiteVault:
         return self._sealer.subject_idx(subject)
 
     def put(self, token, original, *, ttl=None, subject=None, key_id=None):
-        nonce, ct = self._sealer.seal(token, original)
+        nonce, ct = self._sealer.seal(token, original, subject)
         exp = time.time() + ttl if ttl is not None else None
         with self._conn() as c:
             c.execute(
@@ -249,9 +342,10 @@ class SQLiteVault:
             return c.execute("DELETE FROM tokens WHERE token = ?", (token,)).rowcount > 0
 
     def forget_subject(self, subject):
+        idxs = self._sealer.subject_idxs(subject)
         with self._conn() as c:
             return c.execute(
-                "DELETE FROM tokens WHERE subject_idx = ?", (self._subject_idx(subject),)
+                f"DELETE FROM tokens WHERE subject_idx IN ({','.join('?' * len(idxs))})", idxs
             ).rowcount
 
     def purge_expired(self) -> int:
@@ -260,6 +354,27 @@ class SQLiteVault:
                 "DELETE FROM tokens WHERE expires_at IS NOT NULL AND expires_at <= ?",
                 (time.time(),),
             ).rowcount
+
+    def reseal(self) -> int:
+        """Re-encrypt every row not sealed with the active vault key.
+
+        Run it after rotating the vault key; then the old key can be retired.
+        The subject index is rebuilt under the active key too. Rows written
+        before key rings do not hold their subject, so their index is kept;
+        erasure finds them while the key that wrote them is in the ring.
+        """
+        rows = self._conn().execute(
+            "SELECT token, nonce, ct, subject_idx FROM tokens").fetchall()
+        n = 0
+        for token, nonce, ct, idx in rows:
+            if not self._sealer.needs_reseal(nonce):
+                continue
+            nonce2, ct2, idx2 = self._sealer.resealed(token, nonce, ct, idx)
+            with self._conn() as c:
+                n += c.execute("UPDATE tokens SET nonce = ?, ct = ?, subject_idx = ?"
+                               " WHERE token = ? AND nonce = ?",
+                               (nonce2, ct2, idx2, token, nonce)).rowcount
+        return n
 
     def close(self) -> None:
         conn = getattr(self._local, "conn", None)
@@ -418,7 +533,7 @@ class PostgresVault:
     _NOW = "extract(epoch FROM now())::float8"
 
     def put(self, token, original, *, ttl=None, subject=None, key_id=None):
-        nonce, ct = self._sealer.seal(token, original)
+        nonce, ct = self._sealer.seal(token, original, subject)
         t = self.table
         self._run(lambda c: c.execute(
             f"INSERT INTO {t} (token, nonce, ct, key_id, subject_idx, expires_at)"
@@ -458,9 +573,27 @@ class PostgresVault:
 
     def forget_subject(self, subject):
         t = self.table
-        idx = self._sealer.subject_idx(subject)
+        idxs = self._sealer.subject_idxs(subject)
         return self._run(lambda c: c.execute(
-            f"DELETE FROM {t} WHERE subject_idx = %s", (idx,)).rowcount)
+            f"DELETE FROM {t} WHERE subject_idx = ANY(%s)", (idxs,)).rowcount)
+
+    def reseal(self) -> int:
+        """Re-encrypt every row not sealed with the active vault key (see
+        SQLiteVault.reseal). An update only lands if the row was not
+        rewritten in the meantime."""
+        t = self.table
+        rows = self._run(lambda c: c.execute(
+            f"SELECT token, nonce, ct, subject_idx FROM {t}").fetchall())
+        n = 0
+        for token, nonce, ct, idx in rows:
+            if not self._sealer.needs_reseal(nonce):
+                continue
+            nonce2, ct2, idx2 = self._sealer.resealed(token, nonce, ct, idx)
+            n += self._run(lambda c: c.execute(
+                f"UPDATE {t} SET nonce = %s, ct = %s, subject_idx = %s"
+                " WHERE token = %s AND nonce = %s",
+                (nonce2, ct2, idx2, token, nonce)).rowcount)
+        return n
 
     def purge_expired(self) -> int:
         t = self.table
@@ -517,6 +650,28 @@ redis.call('DEL', KEYS[1])
 return n
 """
 
+# reseal: replace the sealed value and subject index only if the value is
+# still the one we read, and list the token in its (new) subject set. HSET
+# keeps the token's TTL; the set lives at least as long as the token.
+# KEYS[1] token hash, KEYS[2] subject set; ARGV[1] old sealed value,
+# ARGV[2] new sealed value, ARGV[3] subject index or "", ARGV[4] token
+_REDIS_SWAP = """
+if redis.call('HGET', KEYS[1], 'ct') ~= ARGV[1] then return 0 end
+redis.call('HSET', KEYS[1], 'ct', ARGV[2], 'sub', ARGV[3])
+if ARGV[3] ~= '' then
+  local existed = redis.call('EXISTS', KEYS[2])
+  redis.call('SADD', KEYS[2], ARGV[4])
+  local ttl = redis.call('PTTL', KEYS[1])
+  if ttl < 0 then
+    redis.call('PERSIST', KEYS[2])
+  else
+    local cur = redis.call('PTTL', KEYS[2])
+    if existed == 0 or (cur >= 0 and cur < ttl) then redis.call('PEXPIRE', KEYS[2], ttl) end
+  end
+end
+return 1
+"""
+
 
 class RedisVault:
     """Vault in Redis, shared by any number of replicas.
@@ -557,6 +712,7 @@ class RedisVault:
         self._r = redis.Redis(connection_pool=pool)
         self._put = self._r.register_script(_REDIS_PUT)
         self._forget = self._r.register_script(_REDIS_FORGET)
+        self._swap = self._r.register_script(_REDIS_SWAP)
         self._call(self._r.ping)  # fail fast with a clear error
 
     def _call(self, fn, *args, **kwargs):
@@ -572,7 +728,7 @@ class RedisVault:
         return f"{self.prefix}s:{idx}"
 
     def put(self, token, original, *, ttl=None, subject=None, key_id=None):
-        nonce, ct = self._sealer.seal(token, original)
+        nonce, ct = self._sealer.seal(token, original, subject)
         idx = self._sealer.subject_idx(subject) or ""
         ttl_ms = 0 if ttl is None else max(1, int(ttl * 1000))
         self._call(self._put, keys=[self._tkey(token), self._skey(idx or "-")],
@@ -582,7 +738,7 @@ class RedisVault:
         blob = self._call(self._r.hget, self._tkey(token), "ct")
         if blob is None:
             return None
-        return self._sealer.open(token, blob[:12], blob[12:])
+        return self._sealer.open(token, *self._sealer.split_blob(blob))
 
     def key_id(self, token):
         kid = self._call(self._r.hget, self._tkey(token), "kid")
@@ -593,12 +749,31 @@ class RedisVault:
         return self._call(self._r.delete, self._tkey(token)) > 0
 
     def forget_subject(self, subject):
-        idx = self._sealer.subject_idx(subject)
-        return int(self._call(self._forget, keys=[self._skey(idx)],
-                              args=[f"{self.prefix}t:", idx]))
+        return sum(int(self._call(self._forget, keys=[self._skey(idx)],
+                                  args=[f"{self.prefix}t:", idx]))
+                   for idx in self._sealer.subject_idxs(subject))
 
     def purge_expired(self) -> int:
         return 0  # Redis expires keys by itself
+
+    def reseal(self) -> int:
+        """Re-encrypt every token not sealed with the active vault key (see
+        SQLiteVault.reseal). HSET keeps the key's TTL; the swap only lands if
+        the value did not change since it was read."""
+        n = 0
+        for key in self._call(lambda: list(self._r.scan_iter(f"{self.prefix}t:*", count=500))):
+            blob, sub = self._call(self._r.hmget, key, "ct", "sub")
+            if blob is None:
+                continue
+            nonce, ct = self._sealer.split_blob(blob)
+            if not self._sealer.needs_reseal(nonce):
+                continue
+            token = key.decode()[len(f"{self.prefix}t:"):]
+            old_idx = sub.decode() if sub else None
+            nonce2, ct2, idx = self._sealer.resealed(token, nonce, ct, old_idx)
+            n += int(self._call(self._swap, keys=[key, self._skey(idx or "-")],
+                                args=[blob, nonce2 + ct2, idx or "", token]))
+        return n
 
     def close(self) -> None:
         self._r.close()

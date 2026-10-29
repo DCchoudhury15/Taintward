@@ -49,7 +49,13 @@ runs after `import taintward`.
 | `TAINTWARD_VAULT` | URL | `memory` | where token to value mappings are kept: `memory`, `sqlite:///abs/path.db`, `postgresql://user:pass@host:5432/db`, `redis://host:6379/0` (`rediss://` for TLS) | `taintward/sdk/vault.py` |
 | `TAINTWARD_VAULT_KEY` | hex, 32, 48 or 64 chars | unset | AES-256-GCM key that encrypts originals at rest. Required by the SQLite, Postgres and Redis vaults, which refuse to start without it or with a value equal to `TAINTWARD_FPE_KEY` | `taintward/sdk/vault.py` |
 
-Details: [Key management and the vault](../redaction-crypto.md).
+| `TAINTWARD_VAULT_KEY_ID` | string | a short hash of the key | id stored in each sealed vault row | `taintward/sdk/keys.py` |
+| `TAINTWARD_VAULT_KEY_PREVIOUS` | comma list of hex keys | empty | older vault keys, used only to open rows during a rotation | `taintward/sdk/keys.py` |
+| `TAINTWARD_KEYS` | `env`, `file:<path>` or `vault-kv:<mount>/<path>` | `env` | key ring source. Its active keys are used when `TAINTWARD_FPE_KEY` / `TAINTWARD_VAULT_KEY` are unset; its other keys stay readable. Keys in it can be wrapped by AWS KMS, GCP KMS or Vault Transit | `taintward/sdk/keys.py` |
+| `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_TOKEN_FILE`, `VAULT_NAMESPACE`, `VAULT_CACERT` | standard HashiCorp Vault settings | unset | used by `vault-kv:` rings and `vault-transit:` wrapped keys | `taintward/sdk/keys.py` |
+
+Details: [Redaction crypto and the vault](../redaction-crypto.md),
+[Key management and rotation](../key-management.md).
 
 ### MCP gateway
 

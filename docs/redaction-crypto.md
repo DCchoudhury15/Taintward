@@ -138,6 +138,8 @@ redactor can use, or rotate it.
 | `TAINTWARD_FPE_KEY_ID` | optional label (e.g. `2026-10`) stored next to each token in the vault. Default: a short hash of the key. |
 | `TAINTWARD_ALLOW_DEMO_KEY=1` | use the public demo key from the code. Demos only. |
 | `TAINTWARD_VAULT_KEY` | hex AES-GCM key for the SQLite, Postgres and Redis vaults. Must differ from the FPE key. |
+| `TAINTWARD_VAULT_KEY_PREVIOUS` | comma separated older vault keys, still used to open rows during a rotation. |
+| `TAINTWARD_KEYS` | a key ring instead of single keys: a file, HashiCorp Vault KV, and keys wrapped by AWS KMS, GCP KMS or Vault Transit. See [Key management and rotation](key-management.md). |
 
 If `TAINTWARD_FPE_KEY` is unset and the demo key is not allowed, the Redactor
 generates a **random key once per process** and logs a loud warning. Things
@@ -150,13 +152,13 @@ Generate keys with:
 python -c "import os; print(os.urandom(32).hex())"
 ```
 
-**Rotation.** Set a new `TAINTWARD_FPE_KEY` (and a new `TAINTWARD_FPE_KEY_ID`).
-New values get tokens under the new key. Old tokens still reverse through the
-vault, because the vault stores the original, not something derived from the
-key; the key id on each row tells you which key made it. The same value will
-get a different token after rotation, so correlation across the rotation
-point is lost. Rotating `TAINTWARD_VAULT_KEY` needs a re-encrypt of the file
-and is not automated.
+**Rotation.** Both keys can be rotated with key rings and the
+`taintward-keys` command (`rotate`, `reseal`, `retire`); see
+[Key management and rotation](key-management.md). In short: old tokens
+still reverse through the vault after an FPE key rotation, but the same
+value gets a different token, so correlation across the rotation point is
+lost. Vault rows name the key that sealed them, and `reseal` moves them to
+the new vault key.
 
 ## Limits (be honest about these)
 
@@ -175,9 +177,13 @@ and is not automated.
 - `SQLiteVault` is single host. For several hosts use `PostgresVault` or
   `RedisVault`, or a managed tokenization service behind the same `Vault`
   protocol.
-- The vault key is the same on every replica and is not rotated
-  automatically. Anyone with the vault key and read access to the table
-  or Redis can decrypt every stored original.
+- The vault key is the same on every replica. Rotation is a command you
+  run (`taintward-keys rotate` then `reseal`), not a schedule. Anyone with
+  the vault key and read access to the table or Redis can decrypt every
+  stored original.
+- With a wrapped key ring, the keys are unwrapped once at start and live
+  in process memory. A KMS keeps them out of files and env vars, not out
+  of a memory dump of the running process.
 
 ## Code
 

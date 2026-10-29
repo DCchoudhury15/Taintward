@@ -20,7 +20,7 @@ export TAINTWARD_FPE_KEY=$(python -c "import os; print(os.urandom(32).hex())")
 
 Store the key in your secret manager. Tokens written to your CRM can only be
 reversed with this key, and they change if the key changes. See
-[Key management](../redaction-crypto.md).
+[Key management](../key-management.md).
 
 ## 2. List your tools and pick a destination for each
 

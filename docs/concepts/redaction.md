@@ -27,7 +27,8 @@ truly needed. The store never holds the raw value.
 - Persistent vaults encrypt the original at rest with
   `TAINTWARD_VAULT_KEY` and support per-subject erasure for GDPR.
 
-Full details: [Key management and the vault](../redaction-crypto.md).
+Full details: [Redaction crypto and the vault](../redaction-crypto.md) and
+[Key management and rotation](../key-management.md).
 
 ## Placeholders (LLM)
 

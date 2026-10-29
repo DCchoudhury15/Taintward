@@ -128,7 +128,8 @@ nav:
       - Policy collector: guides/collector.md
       - Kubernetes and Helm: deploy-kubernetes.md
       - Compliance report and evidence log: evidence-report.md
-      - Key management and the vault: redaction-crypto.md
+      - Redaction crypto and the vault: redaction-crypto.md
+      - Key management and rotation: key-management.md
       - Scaling: scaling.md
   - Recipes:
       - recipes/index.md

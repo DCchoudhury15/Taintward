@@ -89,7 +89,10 @@ mcp = ["mcp>=2.3", "PyYAML>=6", "uvicorn>=0.30"]
 # Shared state for running several replicas (vault and gateway sessions).
 postgres = ["psycopg[binary]>=3.2"]
 redis = ["redis>=5"]
-# New key / secret store extras go here (for example hvac, boto3).
+# Key rings with KMS wrapped keys (taintward/sdk/keys.py). HashiCorp Vault
+# needs no extra: it is called over plain HTTP.
+aws = ["boto3>=1.34"]
+gcp = ["google-cloud-kms>=3"]
 
 # --- Framework adapters (taintward/sdk/integrations/) ----------------------
 langchain = ["langchain-core>=1.7", "langchain>=1.4", "langgraph>=1.2"]
@@ -108,6 +111,7 @@ Changelog = "https://gitlab.com/divyanshuchoudhury51/taintward/-/blob/main/CHANG
 taintward-evidence = "taintward.evidence.log:main"
 taintward-fix = "taintward.fix_suggester.suggest:main"
 taintward-gateway = "taintward.gateway.__main__:main"
+taintward-keys = "taintward.sdk.keys:main"
 taintward-report = "taintward.evidence.report:main"
 
 [tool.setuptools.dynamic]

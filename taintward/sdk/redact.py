@@ -27,9 +27,12 @@ radix-36 token). Values too short for FF1's minimum domain size
 (radix**len >= 1,000,000, so fewer than 6 digits or 4 letters/digits) are
 masked instead of tokenized.
 
-Keys (details in docs/redaction-crypto.md):
+Keys (details in docs/redaction-crypto.md and docs/key-management.md):
     TAINTWARD_FPE_KEY        hex AES key (32/48/64 hex chars). Keep it secret.
     TAINTWARD_FPE_KEY_ID     optional label stored with each token in the vault
+    TAINTWARD_KEYS           key ring source (file, HashiCorp Vault, KMS
+                             wrapped keys); its active FPE key is used when
+                             TAINTWARD_FPE_KEY is unset
     TAINTWARD_ALLOW_DEMO_KEY =1 to use the built-in demo key (demos only)
 If no key is set and the demo key is not allowed, a random key is generated
 once per process and a warning is logged: tokens then differ after a restart.
@@ -37,7 +40,6 @@ once per process and a warning is logged: tokens then differ after a restart.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import re
@@ -49,6 +51,7 @@ from taintward.core.doe import Sensitivity
 from taintward.sdk import _walk
 from taintward.sdk.destinations import DEST_INTERNAL, DEST_LLM
 from taintward.sdk.ff1 import FF1
+from taintward.sdk.keys import key_id_for, load_keys
 from taintward.sdk.vault import MemoryVault, Vault, get_vault
 
 log = logging.getLogger("taintward.redact")
@@ -71,12 +74,23 @@ _ALPHA_RE = re.compile(r"[0-9A-Za-z]")
 _PROCESS_KEY: str | None = None  # random fallback key, generated once per process
 
 
-def _resolve_key(key_hex: str | None) -> str:
-    """Explicit key > TAINTWARD_FPE_KEY > demo key (opt-in) > random per process."""
-    global _PROCESS_KEY
+def _resolve_key(key_hex: str | None) -> tuple[str, str | None]:
+    """(hex key, key id from a ring or None).
+
+    Explicit key > TAINTWARD_FPE_KEY > active key of the TAINTWARD_KEYS ring
+    > demo key (opt-in) > random per process.
+    """
     key = key_hex or os.environ.get("TAINTWARD_FPE_KEY")
     if key:
-        return key.strip()
+        return key.strip(), None
+    ring = load_keys().fpe
+    if ring is not None:
+        return ring.active_key.hex(), ring.active
+    return _fallback_key(), None
+
+
+def _fallback_key() -> str:
+    global _PROCESS_KEY
     if os.environ.get("TAINTWARD_ALLOW_DEMO_KEY") == "1":
         log.warning("taintward: using the PUBLIC demo FPE key (TAINTWARD_ALLOW_DEMO_KEY=1). "
                     "Do not use this outside demos.")
@@ -87,7 +101,7 @@ def _resolve_key(key_hex: str | None) -> str:
                "FPE key. Tokens will NOT be stable across restarts or between processes. "
                "Set TAINTWARD_FPE_KEY for real use.")
         log.warning(msg)
-        warnings.warn(msg, RuntimeWarning, stacklevel=3)
+        warnings.warn(msg, RuntimeWarning, stacklevel=4)
     return _PROCESS_KEY
 
 
@@ -138,15 +152,15 @@ class Redactor:
     def __init__(self, key_hex: str | None = None, tweak_hex: str | None = None, *,
                  vault: Vault | None = None, structural_fallback: bool | None = None,
                  ttl: float | None = None, key_id: str | None = None):
-        self.key = _resolve_key(key_hex)
+        self.key, ring_kid = _resolve_key(key_hex)
         try:
             key = bytes.fromhex(self.key)
         except ValueError:
             raise ValueError("TAINTWARD_FPE_KEY must be hex") from None
         if len(key) not in (16, 24, 32):
             raise ValueError("TAINTWARD_FPE_KEY must be 32, 48 or 64 hex chars")
-        self.key_id = (key_id or os.environ.get("TAINTWARD_FPE_KEY_ID")
-                       or "k" + hashlib.sha256(b"taintward-key-id" + key).hexdigest()[:8])
+        self.key_id = (key_id or ring_kid or os.environ.get("TAINTWARD_FPE_KEY_ID")
+                       or key_id_for(key))
         self.tweak = bytes.fromhex(tweak_hex) if tweak_hex else b""
         self._ciphers = {10: FF1(key, 10), 36: FF1(key, 36)}
         self._vault: Vault = vault if vault is not None else get_vault()

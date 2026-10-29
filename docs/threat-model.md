@@ -98,8 +98,8 @@ Trust levels, from most to least trusted:
 | raw sensitive values (SSN, card, email, phone, name, address, API key, private key) | agent memory, tool inputs and outputs | the thing being protected |
 | placeholder map (`<SSN_1>` to the real value) | agent memory for one run; optionally the vault per conversation | anyone with it reads every value sent to the LLM in that run |
 | token vault (token to original) | memory, SQLite, Postgres or Redis, AES-256-GCM at rest | reverses every internal token |
-| FPE key | env var of the SDK / gateway | decrypts digit-only tokens without the vault, and lets an attacker test guesses for any token |
-| vault key | env var | decrypts every vault row |
+| FPE key | env var, or a key ring (file or HashiCorp Vault KV, optionally wrapped by a KMS) | decrypts digit-only tokens without the vault, and lets an attacker test guesses for any token |
+| vault key | env var or key ring, same as the FPE key | decrypts every vault row |
 | evidence signing key (Ed25519) | file, mode 0600, or env | signs checkpoints; a thief can sign new checkpoints (but cannot rewrite old history without the consistency proof failing) |
 | taint labels | OTel baggage, span attributes, session store | wrong labels mean missed or false violations |
 | span data | collector, then SigNoz / ClickHouse | must never contain raw values |
@@ -200,7 +200,9 @@ Someone with the FPE key, the vault key, or database access to the vault.
 | not handled | **a key holder can reverse FF1 tokens.** With the FPE key, digit-only tokens decrypt without the vault, and any token can be checked against guesses. This is how FF1 works; it is not a bug. Erasure is not cryptographically final while the FPE key exists | `ff1.py`, `redact.py` | documented in `docs/redaction-crypto.md` |
 | not handled | vault key plus read access to the table decrypts every original | | |
 | not handled | `ff1.py` is our own implementation. It matches the 9 NIST sample vectors but has **no outside audit and is not constant time** | `taintward/sdk/ff1.py` | `tests/test_ff1.py` |
-| not handled | keys are plain env vars; no KMS or HSM integration, no automatic rotation of the vault key | | |
+| prevented | keys can stay out of files and env vars: a key ring holds them wrapped by AWS KMS, GCP KMS or Vault Transit, and a wrapped key is bound to its purpose | `taintward/sdk/keys.py` | `tests/test_keys.py::test_wrapped_key_is_bound_to_its_purpose`, `tests/test_keys_services.py` |
+| prevented | the vault key can be rotated: rows name their key, `reseal` moves them to the new one, and erasure finds rows under every key in the ring | `keys.py`, `vault.py` (`_Sealer`, `reseal`) | `tests/test_keys.py::test_vault_rotation_reseal_and_retire`, `::test_erasure_finds_rows_from_before_rotation`, `tests/test_vault_backends.py::test_vault_key_rotation_reseal` |
+| not handled | unwrapped keys live in process memory; there is no HSM mode where the key never leaves the KMS, and rotation is run by hand, not on a schedule | | |
 
 ### 7. Someone tampering with evidence
 
@@ -379,7 +381,11 @@ change; they are listed so they can be planned.
 Keys and crypto
 
 - [ ] Set `TAINTWARD_FPE_KEY` (64 hex chars) from a secret manager, never a
-      committed `.env`. Never set `TAINTWARD_ALLOW_DEMO_KEY` outside demos.
+      committed `.env`, or better, a key ring with KMS wrapped keys
+      (`TAINTWARD_KEYS`, see `docs/key-management.md`). Never set
+      `TAINTWARD_ALLOW_DEMO_KEY` outside demos.
+- [ ] Give the Taintward process KMS decrypt only, and rotate the vault
+      key with `taintward-keys rotate` and `reseal` on a schedule you set.
 - [ ] Use a persistent vault (`postgresql://` for several replicas) with its
       own `TAINTWARD_VAULT_KEY`, different from the FPE key.
 - [ ] Limit who can read the vault table and who holds each key. Treat the

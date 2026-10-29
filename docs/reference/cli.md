@@ -1,6 +1,6 @@
 # Command line
 
-The package installs four commands. Each one can also be run as a module
+The package installs five commands. Each one can also be run as a module
 (`python -m ...`), which is handy in a virtualenv that is not on `PATH`.
 
 | command | module | does |
@@ -9,6 +9,7 @@ The package installs four commands. Each one can also be run as a module
 | `taintward-report` | `taintward.evidence.report` | compliance report from spans |
 | `taintward-evidence` | `taintward.evidence.log` | tamper-evident evidence log and checkpoints |
 | `taintward-fix` | `taintward.fix_suggester.suggest` | finds unguarded egress calls in Python source |
+| `taintward-keys` | `taintward.sdk.keys` | makes and rotates key rings, reseals the vault |
 
 Options below are taken from each command's `--help` output for version
 0.2.0, with the defaults from the code.
@@ -141,3 +142,22 @@ There are no options yet; `--help` is not supported.
 ```bash
 taintward-fix taintward/fix_suggester/sample_buggy_agent.py
 ```
+
+## taintward-keys
+
+```text
+taintward-keys {rotate,retire,generate,show,reseal} ...
+```
+
+| subcommand | options | does |
+|---|---|---|
+| `rotate` | `--file` (required), `--purpose fpe\|vault` (required), `--id` (default `v1`, `v2`, ...), `--kms SPEC` (default: the ring's `kms`) | add a new key and make it active; old keys stay. The first `--kms` becomes the ring's default. Writes the file with mode `0600` |
+| `retire` | `--file`, `--purpose`, `--id` (all required) | remove an inactive key; refuses the active one |
+| `generate` | `--purpose` (required), `--kms SPEC` | print one new key entry as JSON |
+| `show` | `--keys SPEC` (default `$TAINTWARD_KEYS`) | list key ids per purpose, never key bytes |
+| `reseal` | `--vault SPEC` (default `$TAINTWARD_VAULT`) | seal every vault row that is not on the active vault key again |
+
+Exit codes: `0` done, `1` the ring or KMS failed (message on stderr), `2`
+bad arguments.
+
+Walkthrough: [Key management and rotation](../key-management.md).

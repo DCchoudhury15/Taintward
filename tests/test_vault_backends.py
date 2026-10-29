@@ -460,3 +460,28 @@ def test_clear_errors_without_password():
     assert "hunter2pw" not in str(e2.value)
     with pytest.raises(ValueError):
         PostgresVault(f"postgresql://127.0.0.1:{port}/x", table="bad; DROP TABLE x")
+
+
+def test_vault_key_rotation_reseal(backend):
+    """Rotate the vault key: old rows still open, erasure still finds them,
+    reseal moves them to the new key, then the old key can go."""
+    new_key = os.urandom(32).hex()
+    v = backend.make()
+    v.put("tok-old", SSN, subject=SUBJECT, ttl=3600)
+    v.put("tok-keep", "kept")
+    v.close()
+    with mock.patch.dict(os.environ, {"TAINTWARD_VAULT_KEY": new_key,
+                                      "TAINTWARD_VAULT_KEY_PREVIOUS": VAULT_KEY}):
+        v = backend.make()
+        assert v.get("tok-old") == SSN
+        v.put("tok-new", "fresh", subject=SUBJECT)
+        assert v.reseal() == 2
+        assert v.reseal() == 0
+        v.close()
+    with mock.patch.dict(os.environ, {"TAINTWARD_VAULT_KEY": new_key,
+                                      "TAINTWARD_VAULT_KEY_PREVIOUS": ""}):
+        v = backend.make()
+        assert [v.get(t) for t in ("tok-old", "tok-keep", "tok-new")] == [SSN, "kept", "fresh"]
+        assert v.forget_subject(SUBJECT) == 2
+        assert v.get("tok-keep") == "kept"
+        v.close()

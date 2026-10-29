@@ -94,6 +94,20 @@ use, so `import taintward.core.doe` does not load Presidio or spaCy.
         - RedisVault
         - VaultError
 
+## Key rings
+
+::: taintward.sdk.keys
+    options:
+      show_root_heading: false
+      members:
+        - load_keys
+        - reload_keys
+        - KeySet
+        - KeyRing
+        - KeyConfigError
+        - wrap
+        - unwrap
+
 ## Placeholders
 
 ::: taintward.sdk.placeholders

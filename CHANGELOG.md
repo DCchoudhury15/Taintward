@@ -4,6 +4,14 @@
 
 ### Added
 
+- Key rings and rotation (`taintward/sdk/keys.py`, `docs/key-management.md`):
+  `TAINTWARD_KEYS` loads FPE and vault keys from a JSON file or HashiCorp
+  Vault KV, with keys optionally wrapped by AWS KMS, GCP KMS or Vault
+  Transit. Vault rows now name the key that sealed them; old rows still
+  open. New `taintward-keys` command: `rotate`, `reseal` (re-encrypt vault
+  rows under the active key, SQLite, Postgres and Redis), `retire`,
+  `generate`, `show`. Erasure finds rows under every key in the ring.
+  New extras `aws` and `gcp`. Tested against real Vault and LocalStack.
 - TypeScript SDK in `packages/taintward-js` (npm name `taintward`):
   `taintwardMiddleware()` for the Vercel AI SDK sends placeholders to the
   model and restores real values in text, reasoning and tool call
