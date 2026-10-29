@@ -100,6 +100,17 @@ python-tests:
     - python -m build -o dist .
     - python -m twine check --strict dist/*
 
+# The CrewAI, LlamaIndex, Pydantic AI, Google ADK and LiteLLM adapters, run
+# against the real frameworks. They have their own pinned set because their
+# pins clash with constraints.txt.
+adapter-tests:
+  extends: .python
+  stage: test
+  script:
+    - python -m pip install -c constraints-adapters.txt -e ".[dev,crewai,llamaindex,pydantic-ai,google-adk,litellm]"
+    - python -m spacy download en_core_web_sm
+    - python -m pytest -q tests/test_integrations_frameworks.py tests/test_integrations.py tests/test_placeholders.py
+
 ruff:
   extends: .python
   stage: test

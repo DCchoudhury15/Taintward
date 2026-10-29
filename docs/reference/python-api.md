@@ -37,6 +37,20 @@ use, so `import taintward.core.doe` does not load Presidio or spaCy.
         - wrap_function_tools
         - protect_openai
         - protect_anthropic
+        - wrap_crewai_tools
+        - protect_crewai_llm
+        - wrap_llamaindex_tools
+        - protect_llamaindex_llm
+        - wrap_pydantic_ai_tools
+        - wrap_pydantic_ai_toolset
+        - protect_pydantic_ai_model
+        - wrap_adk_tools
+        - protect_adk_model
+        - protect_litellm
+
+The framework modules (`taintward.sdk.integrations.crewai`, `.llamaindex`,
+`.pydanticai`, `.google_adk`, `.litellm`) import their framework, so they
+are described in [SDK integrations](../integrations.md) instead of here.
 
 ## Decorator and low-level tracing
 

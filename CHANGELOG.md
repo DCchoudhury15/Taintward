@@ -4,6 +4,17 @@
 
 ### Added
 
+- Adapters for CrewAI (`wrap_crewai_tools`, `protect_crewai_llm`),
+  LlamaIndex (`wrap_llamaindex_tools`, `protect_llamaindex_llm`), Pydantic AI
+  (`wrap_pydantic_ai_tools`, `wrap_pydantic_ai_toolset`,
+  `protect_pydantic_ai_model`), Google ADK (`wrap_adk_tools`,
+  `protect_adk_model`) and LiteLLM (`protect_litellm` for the SDK,
+  `TaintwardGuardrail` for the proxy). Same gate as the other adapters:
+  tools get what their destination allows, the model gets placeholders and
+  its answer is restored. Extras `crewai`, `llamaindex`, `pydantic-ai`,
+  `google-adk`, `litellm`; tests run each framework's own agent loop with a
+  scripted model, in a new `adapter-tests` CI job pinned by
+  `constraints-adapters.txt`.
 - Key rings and rotation (`taintward/sdk/keys.py`, `docs/key-management.md`):
   `TAINTWARD_KEYS` loads FPE and vault keys from a JSON file or HashiCorp
   Vault KV, with keys optionally wrapped by AWS KMS, GCP KMS or Vault

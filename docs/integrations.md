@@ -7,6 +7,26 @@ adapter. The adapters use the same gate as `@instrument_tool`
 (`taintward.sdk.instrumentation.GuardedCall`, which calls `taintward.sdk.detect` and
 `taintward.sdk.redact.redact_payload`), so detection and redaction behave the same.
 
+## Install
+
+| framework | extra | tools | model |
+|---|---|---|---|
+| LangChain, LangGraph | `langchain` | `wrap_langchain_tools` | `protect_langchain_model` |
+| OpenAI Agents SDK | `openai-agents` | `wrap_function_tools` | `protect_openai` |
+| CrewAI | `crewai` | `wrap_crewai_tools` | `protect_crewai_llm` |
+| LlamaIndex | `llamaindex` | `wrap_llamaindex_tools` | `protect_llamaindex_llm` |
+| Pydantic AI | `pydantic-ai` | `wrap_pydantic_ai_tools`, `wrap_pydantic_ai_toolset` | `protect_pydantic_ai_model` |
+| Google ADK | `google-adk` | `wrap_adk_tools` | `protect_adk_model` |
+| LiteLLM | `litellm` | | `protect_litellm`, proxy `TaintwardGuardrail` |
+| OpenAI, Anthropic clients | `llm` | | `protect_openai`, `protect_anthropic` |
+
+```bash
+pip install "taintward[crewai]"      # or any extra above
+python -m spacy download en_core_web_sm
+```
+
+Every name above is also on the top level package (`taintward.wrap_crewai_tools`).
+
 ## Setup
 
 ```python
@@ -263,6 +283,130 @@ image data are left as they are, so requests stay valid. The span records the
 redacted request, the masked response, `gen_ai.provider.name`,
 `gen_ai.request.model` and token usage.
 
+## CrewAI
+
+```python
+from crewai import LLM, Agent
+
+agent = Agent(role="support", goal="...", backstory="...",
+              llm=taintward.protect_crewai_llm(LLM(model="gpt-4.1")),
+              tools=taintward.wrap_crewai_tools([search_db, send_email]))
+with taintward.run("support.run"):
+    crew.kickoff()
+```
+
+- `wrap_crewai_tools(tools, mapping=None)` returns protected copies of CrewAI
+  tools (`BaseTool` subclasses and `@tool` functions). Only `_run` / `_arun`
+  change, which CrewAI calls for every tool use, so the args schema,
+  caching, usage limits and `result_as_answer` stay the same.
+- `protect_crewai_llm(llm)` returns a protected copy of `crewai.LLM` or any
+  `BaseLLM`. `call` / `acall` send the messages redacted and restore the
+  answer before CrewAI parses it, so `Action Input` reaches the wrapped tool
+  with real values. Tools that CrewAI runs inside `call` (native function
+  calling) see the same placeholder map.
+
+## LlamaIndex
+
+```python
+from llama_index.core.agent.workflow import FunctionAgent
+from llama_index.llms.openai import OpenAI
+
+agent = FunctionAgent(tools=taintward.wrap_llamaindex_tools([search_tool, email_tool]),
+                      llm=taintward.protect_llamaindex_llm(OpenAI(model="gpt-4.1")))
+with taintward.run("support.run"):
+    await agent.run(user_msg="...")
+```
+
+- `wrap_llamaindex_tools(tools, mapping=None)` protects `FunctionTool`,
+  `QueryEngineTool` or any LlamaIndex tool through `call` / `acall`. A
+  workflow `Context` argument is passed through untouched.
+- `protect_llamaindex_llm(llm)` covers `chat`, `achat`, `complete`,
+  `acomplete` and their `stream_*` versions, and so also
+  `chat_with_tools` and the agents. Text blocks, tool call blocks and
+  `additional_kwargs` (OpenAI style tool calls) are redacted and restored.
+  In a stream each chunk's message (the text so far) is restored, so the
+  last chunk is complete. `response.raw` keeps the provider's own
+  response, with placeholders.
+
+## Pydantic AI
+
+```python
+from pydantic_ai import Agent
+
+agent = Agent(taintward.protect_pydantic_ai_model("openai:gpt-4.1"),
+              toolsets=[taintward.wrap_pydantic_ai_tools([search_db, send_email])])
+with taintward.run("support.run"):
+    result = await agent.run("...")
+```
+
+- `protect_pydantic_ai_model(model)` returns a `TaintwardModel`, a Pydantic
+  AI `WrapperModel` around a model object or name. Prompts, instructions,
+  tool results, retry prompts and earlier responses are redacted; the
+  response is restored (text, thinking, tool call arguments). One
+  instruction line is added to the request's `instructions`.
+- `wrap_pydantic_ai_tools(tools)` builds a `FunctionToolset` and wraps it;
+  `wrap_pydantic_ai_toolset(toolset)` wraps any toolset, MCP servers
+  included. Each call goes through the gate after Pydantic AI validated the
+  arguments.
+- Tools added with `@agent.tool` are in the agent's own toolset and are not
+  covered. Pass them to `wrap_pydantic_ai_tools` instead.
+
+## Google ADK
+
+```python
+from google.adk.agents import LlmAgent
+
+agent = LlmAgent(name="support",
+                 model=taintward.protect_adk_model("gemini-2.5-flash"),
+                 tools=taintward.wrap_adk_tools([search_db, send_email, mcp_toolset]))
+with taintward.run("support.run"):
+    async for event in runner.run_async(...):
+        ...
+```
+
+- `wrap_adk_tools(tools, mapping=None)` takes what `LlmAgent(tools=...)`
+  takes: functions (made into `FunctionTool`), `BaseTool` objects and
+  toolsets such as `McpToolset`, whose tools are wrapped as they are listed.
+  The `ToolContext` is passed through untouched.
+- `protect_adk_model(model)` takes a `BaseLlm` or a model name and covers
+  `generate_content_async`: text parts, function call arguments, function
+  responses and the system instruction are redacted, and every response is
+  restored, streamed chunks included.
+
+## LiteLLM
+
+SDK:
+
+```python
+import litellm
+
+taintward.protect_litellm()          # patches litellm.completion and acompletion
+resp = litellm.completion(model="gpt-4.1", messages=[...])
+```
+
+Call them as `litellm.completion(...)`: a name imported with `from litellm
+import completion` before the patch is not covered. The response is
+restored like the OpenAI client's.
+
+Proxy: add the guardrail to the proxy config and install `taintward` in the
+proxy's environment.
+
+```yaml
+guardrails:
+  - guardrail_name: taintward
+    litellm_params:
+      guardrail: taintward.sdk.integrations.litellm.TaintwardGuardrail
+      mode: [pre_call, post_call]
+      default_on: true
+```
+
+`pre_call` redacts `messages` before the provider gets them and records the
+span; `post_call` puts the real values back into the answer for the client.
+The placeholder map of each request stays in the proxy's memory between the
+two hooks (at most 10,000 requests in flight, oldest dropped first) and is
+never sent anywhere. Streaming requests get masks instead of placeholders,
+because the guardrail does not restore a stream.
+
 ## What the spans carry
 
 | attribute | meaning |
@@ -335,6 +479,19 @@ gateway refuses those calls.
   or to another tool by its own gate.
 - Streaming responses: the request is redacted and recorded, but the streamed
   output is not scanned (and not restored, see above).
+- Streaming in the newer adapters: LlamaIndex and Google ADK restore
+  streamed chunks (a placeholder split across two chunks is complete in
+  the last one); Pydantic AI `run_stream` and LiteLLM `stream=True` keep
+  placeholders in the stream (the proxy guardrail sends masks instead).
+- Google ADK writes model requests, responses and tool arguments onto its
+  own spans (`gcp.vertex.agent.*`) as ADK sees them, which is after
+  Taintward restored them, so with real values. ADK 1.14 has no setting to
+  turn this off. If you export ADK's own traces, drop those attributes in
+  your collector.
+- CrewAI, LlamaIndex and LiteLLM have their own callbacks and logging
+  (LiteLLM success callbacks, LlamaIndex callback handlers, CrewAI events)
+  that run inside the model call. They see the redacted request and the
+  model's answer with placeholders. Tool callbacks see what the tool got.
 - Not covered: LangChain `generate()` called directly with message lists,
   OpenAI `with_raw_response` / `with_streaming_response`, OpenAI and Anthropic
   `beta` endpoints, embeddings, other LLM providers, and other clients you
@@ -353,3 +510,10 @@ gateway refuses those calls.
 `openai-agents 0.24.0`, `openai 3.6.0`, `anthropic 1.2.0`. The tests in
 `tests/test_integrations.py` run offline with fake models and mocked HTTP, and
 skip a framework that is not installed.
+
+`crewai 1.15.33`, `llama-index-core 0.14.25`, `pydantic-ai-slim 2.63.0`,
+`google-adk 1.14.1`, `litellm 1.106.6`, pinned in `constraints-adapters.txt`.
+`tests/test_integrations_frameworks.py` runs each framework's own agent loop
+(a Crew, a `ReActAgent`, a Pydantic AI `Agent`, an ADK `InMemoryRunner`) or
+`litellm.completion` with a scripted model, offline. The `adapter-tests` CI
+job installs them.

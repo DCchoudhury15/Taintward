@@ -70,7 +70,7 @@ on. How: [benchmark](docs/benchmark.md) ·
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/deploy-dark.svg">
-  <img alt="Three ways in: SDK in your code, gateway in front of MCP servers, collector next to your traces; all feed a signed evidence log" src=".github/assets/deploy-light.svg" width="100%">
+  <img alt="Three ways in: SDK in your code (LangChain, CrewAI, LlamaIndex, Pydantic AI, Google ADK, LiteLLM and more), gateway in front of MCP servers, collector next to your traces; all feed a signed evidence log" src=".github/assets/deploy-light.svg" width="100%">
 </picture>
 
 ## See it work
@@ -86,7 +86,8 @@ calls show up flagged, and the real values are nowhere in the traces.
 
 ## Add it to your agent
 
-**Python** · LangChain, LangGraph, OpenAI Agents SDK, OpenAI, Anthropic
+**Python** · LangChain, LangGraph, OpenAI Agents SDK, CrewAI, LlamaIndex,
+Pydantic AI, Google ADK, LiteLLM, OpenAI, Anthropic
 
 ```bash
 pip install "taintward[langchain] @ git+https://github.com/DCchoudhury15/Taintward"
@@ -104,6 +105,11 @@ with tw.run():
     agent.invoke(...)
 ```
 
+Every framework gets the same two calls, one for its tools and one for its
+model: `tw.wrap_crewai_tools(...)` and `tw.protect_crewai_llm(...)`,
+`tw.wrap_adk_tools(...)` and `tw.protect_adk_model(...)`, and so on
+([the full table](docs/integrations.md#install)).
+
 **TypeScript** · Vercel AI SDK, `generateText` and `streamText`
 
 ```ts
@@ -118,6 +124,11 @@ const model = wrapLanguageModel({
 
 **MCP** · no code changes: put `taintward-gateway --config gateway.yaml` in
 your MCP client config in place of the real server.
+
+**LiteLLM proxy** · no code changes: add
+`taintward.sdk.integrations.litellm.TaintwardGuardrail` as a guardrail. The
+model providers get placeholders, and the apps behind the proxy still get
+answers with real values.
 
 More: [Python integrations](docs/integrations.md) ·
 [TypeScript SDK](packages/taintward-js/README.md) ·

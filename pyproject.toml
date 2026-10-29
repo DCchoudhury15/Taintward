@@ -81,7 +81,8 @@ dev = ["pytest>=8", "ruff>=0.5"]
 # --- LLM clients -----------------------------------------------------------
 # Only needed for `--llm real` (the default demo/tests use the stub LLM).
 llm = ["openai", "anthropic"]
-# New LLM client / proxy extras go here (for example litellm).
+# LiteLLM SDK and proxy guardrail (taintward/sdk/integrations/litellm.py).
+litellm = ["litellm>=1.100"]
 
 # --- MCP gateway and shared state ------------------------------------------
 # MCP gateway (taintward/gateway/).
@@ -97,8 +98,10 @@ gcp = ["google-cloud-kms>=3"]
 # --- Framework adapters (taintward/sdk/integrations/) ----------------------
 langchain = ["langchain-core>=1.7", "langchain>=1.4", "langgraph>=1.2"]
 openai-agents = ["openai-agents>=0.24"]
-# New framework extras go here (for example crewai, llama-index,
-# pydantic-ai, google-adk).
+crewai = ["crewai>=1.15"]
+llamaindex = ["llama-index-core>=0.14"]
+pydantic-ai = ["pydantic-ai-slim>=2.60"]
+google-adk = ["google-adk>=1.14"]
 
 [project.urls]
 Homepage = "https://taintward.vercel.app"

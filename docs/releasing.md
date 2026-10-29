@@ -121,6 +121,12 @@ cosign verify-attestation --type spdxjson \
   { sed -n '1,5p' constraints.txt; pip freeze --exclude-editable | grep -v -e ' @ ' -e '^setuptools==' -e '^pip=='; } > constraints.new && mv constraints.new constraints.txt
   ```
 
+* `constraints-adapters.txt` pins the set for the framework adapter
+  tests (CrewAI, LlamaIndex, Pydantic AI, Google ADK, LiteLLM), whose pins
+  clash with `constraints.txt`. Regenerate it the same way, from a fresh
+  venv with `pip install -e ".[dev,crewai,llamaindex,pydantic-ai,google-adk,litellm]"`
+  where `tests/test_integrations_frameworks.py` passes, keeping its header
+  (`sed -n '1,7p'`).
 * `deploy/requirements/runtime.txt` and `gateway.txt` are hashed lock
   files for the Docker images, installed with `pip install
   --require-hashes --only-binary=:all:`. Rebuild them from `constraints.txt`

@@ -15,6 +15,13 @@ objects to an adapter::
     client = ward.protect_openai(OpenAI())        # plain OpenAI client
     agent_tools = ward.wrap_function_tools(tools) # OpenAI Agents SDK
 
+The same pair (tools + model) exists for CrewAI (``wrap_crewai_tools``,
+``protect_crewai_llm``), LlamaIndex (``wrap_llamaindex_tools``,
+``protect_llamaindex_llm``), Pydantic AI (``wrap_pydantic_ai_tools``,
+``protect_pydantic_ai_model``) and Google ADK (``wrap_adk_tools``,
+``protect_adk_model``). ``protect_litellm()`` covers ``litellm.completion``;
+the LiteLLM proxy uses ``taintward.sdk.integrations.litellm.TaintwardGuardrail``.
+
 Unmapped tools default to ``external``. That is the safe choice: an unknown
 tool may send data anywhere, so it gets the non-reversible mask and its span
 is flagged when a tainted chain reaches it. Marking a tool ``internal`` is an
@@ -217,6 +224,46 @@ class Ward:
         from taintward.sdk.integrations.llm_clients import protect_anthropic
         return protect_anthropic(client, ward=self)
 
+    def wrap_crewai_tools(self, tools, mapping=None):
+        from taintward.sdk.integrations.crewai import wrap_tools
+        return wrap_tools(tools, mapping, ward=self)
+
+    def protect_crewai_llm(self, llm):
+        from taintward.sdk.integrations.crewai import protect_llm
+        return protect_llm(llm, ward=self)
+
+    def wrap_llamaindex_tools(self, tools, mapping=None):
+        from taintward.sdk.integrations.llamaindex import wrap_tools
+        return wrap_tools(tools, mapping, ward=self)
+
+    def protect_llamaindex_llm(self, llm):
+        from taintward.sdk.integrations.llamaindex import protect_llm
+        return protect_llm(llm, ward=self)
+
+    def wrap_pydantic_ai_tools(self, tools, mapping=None):
+        from taintward.sdk.integrations.pydanticai import wrap_tools
+        return wrap_tools(tools, mapping, ward=self)
+
+    def wrap_pydantic_ai_toolset(self, toolset, mapping=None):
+        from taintward.sdk.integrations.pydanticai import wrap_toolset
+        return wrap_toolset(toolset, mapping, ward=self)
+
+    def protect_pydantic_ai_model(self, model):
+        from taintward.sdk.integrations.pydanticai import protect_model
+        return protect_model(model, ward=self)
+
+    def wrap_adk_tools(self, tools, mapping=None):
+        from taintward.sdk.integrations.google_adk import wrap_tools
+        return wrap_tools(tools, mapping, ward=self)
+
+    def protect_adk_model(self, model):
+        from taintward.sdk.integrations.google_adk import protect_model
+        return protect_model(model, ward=self)
+
+    def protect_litellm(self, module=None):
+        from taintward.sdk.integrations.litellm import protect_litellm
+        return protect_litellm(module, ward=self)
+
 
 _GLOBAL: Ward | None = None
 
@@ -325,8 +372,58 @@ def protect_anthropic(client):
     return get_ward().protect_anthropic(client)
 
 
+def wrap_crewai_tools(tools, mapping=None):
+    return get_ward().wrap_crewai_tools(tools, mapping)
+
+
+def protect_crewai_llm(llm):
+    return get_ward().protect_crewai_llm(llm)
+
+
+def wrap_llamaindex_tools(tools, mapping=None):
+    return get_ward().wrap_llamaindex_tools(tools, mapping)
+
+
+def protect_llamaindex_llm(llm):
+    return get_ward().protect_llamaindex_llm(llm)
+
+
+def wrap_pydantic_ai_tools(tools, mapping=None):
+    return get_ward().wrap_pydantic_ai_tools(tools, mapping)
+
+
+def wrap_pydantic_ai_toolset(toolset, mapping=None):
+    return get_ward().wrap_pydantic_ai_toolset(toolset, mapping)
+
+
+def protect_pydantic_ai_model(model):
+    return get_ward().protect_pydantic_ai_model(model)
+
+
+def wrap_adk_tools(tools, mapping=None):
+    return get_ward().wrap_adk_tools(tools, mapping)
+
+
+def protect_adk_model(model):
+    return get_ward().protect_adk_model(model)
+
+
+def protect_litellm(module=None):
+    return get_ward().protect_litellm(module)
+
+
 __all__ = [
     "DEFAULT_DESTINATION", "ToolPolicy", "Ward", "init", "get_ward", "run", "restore",
     "wrap_langchain_tools", "protect_langchain_model", "wrap_function_tools",
     "protect_openai", "protect_anthropic",
+    "wrap_crewai_tools",
+    "protect_crewai_llm",
+    "wrap_llamaindex_tools",
+    "protect_llamaindex_llm",
+    "wrap_pydantic_ai_tools",
+    "wrap_pydantic_ai_toolset",
+    "protect_pydantic_ai_model",
+    "wrap_adk_tools",
+    "protect_adk_model",
+    "protect_litellm",
 ]

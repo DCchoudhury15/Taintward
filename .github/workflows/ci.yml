@@ -32,6 +32,23 @@ jobs:
       - run: python -m build -o dist .
       - run: python -m twine check --strict dist/*
 
+  adapter-tests:
+    # CrewAI, LlamaIndex, Pydantic AI, Google ADK and LiteLLM, against the
+    # real frameworks; their pins clash with constraints.txt.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            constraints-adapters.txt
+      - run: python -m pip install -c constraints-adapters.txt -e ".[dev,crewai,llamaindex,pydantic-ai,google-adk,litellm]"
+      - run: python -m spacy download en_core_web_sm
+      - run: python -m pytest -q tests/test_integrations_frameworks.py tests/test_integrations.py tests/test_placeholders.py
+
   ruff:
     runs-on: ubuntu-latest
     steps:
