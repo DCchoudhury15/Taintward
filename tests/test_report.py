@@ -241,6 +241,51 @@ class TestNeverOverclaims(unittest.TestCase):
         self.assertEqual(scan_text("card 4111 1111 1111 1111")[0]["type"], "CREDIT_CARD")
 
 
+class TestFingerprints(unittest.TestCase):
+    """Gap G6: finding fingerprints are keyed, not a plain SHA-256."""
+
+    SSN = "234-12-1234"
+
+    def _fp(self, **kw):
+        leak = _tool(TRACE_A, "9" * 16, "ask_llm", "llm", 50, violation=True,
+                     reasons="pii_egress", args=json.dumps({"args": [f"ssn {self.SSN}"]}))
+        data = report(clean_spans() + spans_from_otlp(_doc([leak])), **kw)
+        return data, data["raw_check"]["findings"][0]["fingerprints"][0]
+
+    def test_not_a_plain_sha256(self):
+        import hashlib
+        _, fp = self._fp()
+        self.assertNotIn(fp, hashlib.sha256(self.SSN.encode()).hexdigest())
+
+    def test_random_key_per_report_by_default(self):
+        data, a = self._fp()
+        _, b = self._fp()
+        self.assertNotEqual(a, b)
+        self.assertEqual(data["raw_check"]["fingerprint"]["key_scope"], "report")
+        self.assertIn("this report only", render_html(data))
+
+    def test_deployment_key_matches_across_reports(self):
+        data, a = self._fp(fingerprint_key=b"k1")
+        _, b = self._fp(fingerprint_key=b"k1")
+        _, c = self._fp(fingerprint_key=b"k2")
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertEqual(data["raw_check"]["fingerprint"]["key_scope"], "deployment")
+
+    def test_env_key(self):
+        import os
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"TAINTWARD_REPORT_KEY": "k1"}):
+            _, a = self._fp()
+        _, b = self._fp(fingerprint_key=b"k1")
+        self.assertEqual(a, b)
+
+    def test_scan_text_key(self):
+        a = scan_text(f"ssn {self.SSN}", key=b"k")[0]["fingerprint"]
+        self.assertEqual(a, scan_text(f"ssn {self.SSN}", key=b"k")[0]["fingerprint"])
+        self.assertEqual(len(a), 12)
+
+
 class TestOutput(unittest.TestCase):
     def test_html_is_self_contained_and_embeds_data(self):
         page = render_html(report(clean_spans()))

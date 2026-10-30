@@ -67,6 +67,7 @@ environment variables:
 |---|---|---|
 | `policy_path` | empty: the policy built into the binary | load the Rego file from disk at startup; restart to reload |
 | `decision_cache_size` | `4096` | number of distinct policy inputs whose decision is cached; `0` evaluates Rego on every span (only needed for a policy that is not a pure function of its input) |
+| `drop_attributes` | Google ADK's `gcp.vertex.agent.llm_request`, `llm_response`, `tool_call_args`, `tool_response` and `data` | span attributes removed before export; a name ending in `*` is a prefix. A list you set replaces the default; `[]` keeps everything. The span gets `taintward.policy.dropped_attributes` with the count. ADK writes those attributes after Taintward restored the placeholders, so they hold real values |
 
 Keep `taint_policy` before `batch` in the pipeline. To use TLS to the
 backend, or an OTLP/HTTP backend, edit the `exporters` section of a copy of
@@ -86,9 +87,11 @@ By default the SDK masks tool input and output on spans in the process. That
 is the safe choice and you can keep it with a collector.
 
 If the collector runs as a sidecar on the same host (traffic never crosses
-a network you do not trust) and you want the collector to be the only place
-that masks, set `TAINTWARD_MASK_IN_SDK=0` in the agent. The SDK then sends raw
-tool I/O to the sidecar, and the sidecar masks it before export. Do not do
+a network you do not trust) and you want the collector to mask tool inputs,
+set `TAINTWARD_MASK_IN_SDK=0` in the agent. The SDK then sends tool inputs
+to the sidecar unmasked, and the sidecar masks them before export. Tool
+outputs are still masked in the process: the collector only knows regex
+types, so names, addresses and IBANs in an output would pass it. Do not do
 this when the collector is reached over a shared network.
 
 The SDK marks redacted tool arguments with `taintward.args_redacted=true`.

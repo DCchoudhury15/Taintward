@@ -153,6 +153,20 @@ def _view(resp) -> Any:
     return to_plain(content) if content is not None else None
 
 
+def _restore_partial(pmap, content, seen: str) -> str:
+    """Restore one streamed chunk in place. ``seen`` is the text of the
+    earlier chunks, so a link address that started there still blocks
+    restore (gap G1). Returns the new ``seen``."""
+    for part in content.parts or []:
+        if part.text:
+            raw = part.text
+            part.text = pmap.restore_text(raw, before=seen)
+            seen += raw
+        elif part.function_call is not None:
+            pmap.restore_inplace(part.function_call)
+    return seen
+
+
 def _model_class(base: type) -> type:
     class Protected(base):  # type: ignore[misc, valid-type]
         def generate_content_async(self, llm_request, stream: bool = False):
@@ -175,6 +189,7 @@ def _model_class(base: type) -> type:
                 request = _rebuild(llm_request, slots, call.kwargs["parts"],
                                    call.kwargs.get("system"), line)
                 last = None
+                seen = ""
                 restore = pmap is not None and len(pmap) > 0
                 async for resp in super().generate_content_async(request, stream):
                     if not getattr(resp, "partial", False):
@@ -182,7 +197,7 @@ def _model_class(base: type) -> type:
                         if finish_llm(call, ward, pmap, last) and resp.content is not None:
                             resp.content = pmap.restore_inplace(resp.content)
                     elif restore and resp.content is not None:
-                        resp.content = pmap.restore_inplace(resp.content)
+                        seen = _restore_partial(pmap, resp.content, seen)
                     yield resp
 
     return Protected

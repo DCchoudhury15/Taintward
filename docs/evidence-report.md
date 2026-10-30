@@ -116,8 +116,11 @@ Taintward collector does not rewrite this attribute, so it is stored as sent.
 The input is scanned for: US SSN, AWS access key, GitHub token, email
 address, phone number, card number (Luhn checked) and private key blocks.
 These are the collector's redaction patterns plus two more. Masks such as
-`[PII]` do not match. Findings show the type and a short SHA-256 fingerprint,
-never the value.
+`[PII]` do not match. Findings show the type and a short fingerprint, never
+the value. The fingerprint is an HMAC-SHA256 with a secret key, so it cannot
+be brute forced back to a short value such as an SSN. Set
+`TAINTWARD_REPORT_KEY` to get the same fingerprint for the same value in
+every report; without it each report uses its own random key.
 
 Limits you should state to a customer:
 

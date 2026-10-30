@@ -133,16 +133,26 @@ def _messages_redactor(pmap):
     return redact
 
 
+def _restore_delta(delta: str, full: Any, pmap) -> str:
+    # A streamed chunk carries the text so far: the part before the delta
+    # tells whether the delta continues a link address (gap G1).
+    before = full[:-len(delta)] if isinstance(full, str) and delta and full.endswith(delta) \
+        else ""
+    return pmap.restore_text(delta, before=before)
+
+
 def _restore_response(resp: Any, pmap) -> Any:
     if isinstance(resp, ChatResponse):
+        full = resp.message.content
         resp.message = _map_message(resp.message, pmap.restore_inplace)
         if isinstance(resp.delta, str):
-            resp.delta = pmap.restore_text(resp.delta)
+            resp.delta = _restore_delta(resp.delta, full, pmap)
         resp.additional_kwargs = pmap.restore_inplace(resp.additional_kwargs)
     elif isinstance(resp, CompletionResponse):
+        full = resp.text
         resp.text = pmap.restore_text(resp.text)
         if isinstance(resp.delta, str):
-            resp.delta = pmap.restore_text(resp.delta)
+            resp.delta = _restore_delta(resp.delta, full, pmap)
         resp.additional_kwargs = pmap.restore_inplace(resp.additional_kwargs)
     return resp
 

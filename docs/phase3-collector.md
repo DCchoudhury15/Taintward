@@ -25,10 +25,12 @@ SDK  --OTLP/HTTP :4319-->  taintward-collector
 ```
 
 - SDK `configure_tracing(endpoint=http://localhost:4319/v1/traces)`.
-- `TAINTWARD_MASK_IN_SDK=0` makes the SDK send **raw** tool I/O to the trusted
-  local sidecar, and the **collector** applies Rego and redacts before SigNoz
-  stores anything. (With the flag on, the SDK masks in-process instead, which
-  is the Phase 2 backstop for when no sidecar is present.)
+- `TAINTWARD_MASK_IN_SDK=0` makes the SDK send **raw** tool inputs to the
+  trusted local sidecar, and the **collector** applies Rego and redacts
+  before SigNoz stores anything. Tool outputs are masked in the SDK either
+  way, because the collector only has regex patterns. (With the flag on, the
+  SDK masks inputs in-process too, which is the Phase 2 backstop for when no
+  sidecar is present.)
 - The collector exports to SigNoz via gRPC `:4317` (the `otlpexporter` is gRPC;
   `:4318` is SigNoz's HTTP port).
 

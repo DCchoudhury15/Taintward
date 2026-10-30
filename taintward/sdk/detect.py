@@ -30,6 +30,11 @@ Entity types that fire on almost everything (``DATE_TIME``, ``ORGANIZATION``,
 ``URL``, ``NRP``, ``MEDICAL_LICENSE``) are not treated as sensitive by
 default. ``TAINTWARD_PII_EXTRA_TYPES=DATE_TIME,URL`` (or
 :func:`set_pii_types`) turns any of them back on.
+
+Values longer than ``TAINTWARD_DETECT_MAX_CHARS`` (default 500000
+characters; 0 turns the limit off) are not scanned: the whole value is
+treated as one secret (entity type ``OVERSIZE_VALUE``), so it is masked
+instead of holding the call for seconds (gap G10).
 """
 
 from __future__ import annotations
@@ -734,6 +739,25 @@ def is_degraded() -> bool:
 # ---------------------------------------------------------------------------
 
 _CACHE_SIZE = int(os.environ.get("TAINTWARD_DETECT_CACHE_SIZE", "4096") or 0)
+
+# Size limit per value (gap G10). Above it the value is not scanned and is
+# treated as one secret: fail closed instead of a multi-second scan.
+OVERSIZE = "OVERSIZE_VALUE"
+_MAX_CHARS_DEFAULT = 500_000
+
+
+def max_chars() -> int:
+    """The per-value size limit (TAINTWARD_DETECT_MAX_CHARS, 0 = none)."""
+    try:
+        return int(os.environ.get("TAINTWARD_DETECT_MAX_CHARS", "") or _MAX_CHARS_DEFAULT)
+    except ValueError:
+        return _MAX_CHARS_DEFAULT
+
+
+def _oversize(text: str) -> list[Detection]:
+    log.warning("taintward: a value of %d characters is over TAINTWARD_DETECT_MAX_CHARS "
+                "(%d); it is masked whole instead of scanned", len(text), max_chars())
+    return [Detection(OVERSIZE, 0, len(text), 1.0, Sensitivity.SECRET, "")]
 _cache: "OrderedDict[tuple, tuple]" = OrderedDict()
 _cache_lock = threading.Lock()
 
@@ -820,9 +844,13 @@ def _analyze(items: list[tuple[str, str]], threshold: float) -> list[list[Detect
     out: list[list[Detection] | None] = [None] * len(items)
     todo: list[tuple[int, _Segment, tuple]] = []
     noise_tag = tuple(sorted(_noise_types))
+    limit = max_chars()
     for i, (text, key) in enumerate(items):
         if not text:
             out[i] = []
+            continue
+        if limit > 0 and len(text) > limit:
+            out[i] = _oversize(text)
             continue
         kctx = _key_context(key)
         ck = (_vhash(text), kctx, threshold, noise_tag)

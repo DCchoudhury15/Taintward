@@ -72,6 +72,7 @@ itself, then writes them from its own decision.
 | `taintward.policy.redacted` | bool | the policy asked for redaction (every sensitive span), or the policy failed |
 | `taintward.policy.decision_engine` | string | `rego` |
 | `taintward.policy.masked_values` | int | how many values the collector masked on this span (only when more than 0) |
+| `taintward.policy.dropped_attributes` | int | how many attributes the collector removed with `drop_attributes` (only when more than 0) |
 | `taintward.policy.error` | string | the policy could not be evaluated; the span was masked anyway |
 
 ## GenAI semantic conventions
@@ -91,6 +92,13 @@ itself, then writes them from its own decision.
 | `taintward.placeholders.repaired` | model spans | placeholders the model wrote in another form (`[PERSON_1]`, `Person 1`) that were still restored |
 | `taintward.placeholders.lost` | model spans | placeholders the model broke so they could not be restored |
 | `taintward.placeholders.unknown` | model spans | placeholder-like text that matches nothing in the run |
+| `taintward.placeholders.blocked` | model spans | known placeholders the model wrote inside a link or image address; left as placeholders on purpose. Often a sign of prompt injection |
+
+## Span events
+
+| event | where | attributes |
+|---|---|---|
+| `taintward.reverse` | the span that is current when `Redactor.reverse` or `tw.restore` runs, or a `taintward.reverse` span of its own when none is | `taintward.reverse.kind` (`token` or `placeholder`), `taintward.reverse.found` (how many values were found), `taintward.reverse.caller` (`module:function:line` of the calling code), `taintward.key_id` (tokens only). Never the value or the token. The same line goes to the `taintward.audit` logger |
 
 ## Useful filters
 

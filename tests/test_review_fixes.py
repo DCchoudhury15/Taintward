@@ -555,6 +555,21 @@ def test_args_redacted_marker_absent_without_sdk_masking(monkeypatch):
     assert instr.ATTR_ARGS_REDACTED not in _span(exporter, "send").attributes
 
 
+def test_output_masked_without_sdk_masking(monkeypatch):
+    # gap G5: the collector only knows regex types, so a name in a tool
+    # output must be masked in the process even with TAINTWARD_MASK_IN_SDK=0
+    monkeypatch.setattr(instr, "MASK_IN_PROCESS", False)
+    tracer, exporter = _tracer()
+
+    @instr.instrument_tool("lookup", destination=instr.DEST_INTERNAL, tracer=tracer)
+    def lookup(x):
+        return f"Employee Alice Lee, ssn {SSN}"
+
+    lookup("1")
+    _no_raw([_span(exporter, "lookup")], SSN)
+    assert "Alice Lee" not in str(dict(_span(exporter, "lookup").attributes))
+
+
 def test_args_redacted_marker_not_on_llm_message_spans():
     tracer, exporter = _tracer()
     with instr.GuardedCall("chat m", destination=instr.DEST_LLM, tracer=tracer,

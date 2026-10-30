@@ -182,7 +182,7 @@ class TaintwardGuardrail(CustomGuardrail):
         if not isinstance(messages, list):
             return data
         ward = self.ward
-        pmap = None if data.get("stream") or not ward.placeholders else ph.PlaceholderMap()
+        pmap = None if data.get("stream") or not ward.placeholders else ward.new_placeholder_map()
         with llm_call(ward, _model(data), "litellm-proxy", "litellm",
                       {"messages": messages}, pmap) as call:
             line = instruction(pmap, ward, call.kwargs["messages"])

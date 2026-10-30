@@ -80,9 +80,10 @@ ATTR_TOOL_ERROR = "taintward.tool.error"
 _TOOL_ARGS_ATTR = "gen_ai.tool.call.arguments"
 
 # When a Phase 3 sidecar collector applies the authoritative Rego redaction,
-# set TAINTWARD_MASK_IN_SDK=0 so the SDK sends raw tool I/O to the trusted
-# local sidecar (which redacts before SigNoz). Default "1" masks in-process
-# (the Phase 2 behavior, for when no sidecar is present).
+# TAINTWARD_MASK_IN_SDK=0 leaves the tool input masking to the trusted local
+# sidecar. Tool outputs are masked in the process either way (gap G5): the
+# collector only knows regex types, so names, addresses and IBANs in an
+# output would reach the backend raw. Default "1" masks inputs in-process too.
 MASK_IN_PROCESS = env_flag("TAINTWARD_MASK_IN_SDK", True)
 # DLP simulation mode (Phase 6): log the violation but DON'T redact args, an
 # audit/dry-run for safe rollout (see what would be flagged before enforcing).
@@ -330,7 +331,8 @@ class GuardedCall:
                 out_detections,
                 source_span_id=format(self.span.get_span_context().span_id, "016x"),
             )
-            stored = mask_value(seen) if MASK_IN_PROCESS else seen
+            # always masked here, also with TAINTWARD_MASK_IN_SDK=0 (gap G5)
+            stored = mask_value(seen)
         self.merged_out = self.merged_in.merge(output_label)
         self.span.set_attribute(self._output_attr, _jsonable(stored))
 

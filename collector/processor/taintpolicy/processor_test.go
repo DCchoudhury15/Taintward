@@ -134,3 +134,67 @@ func TestProcessor_CleanSpanUntouched(t *testing.T) {
 		t.Error("clean span result was modified")
 	}
 }
+
+// Google ADK writes model requests and tool arguments on its own spans after
+// Taintward restored the placeholders. The default config drops them.
+func TestDropAttributes_ADKDefault(t *testing.T) {
+	s := &sink{}
+	p, err := newProcessor(createDefaultConfig().(*Config), s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	td := ptrace.NewTraces()
+	span := newSpan(td, "call_llm")
+	a := span.Attributes()
+	a.PutStr("gcp.vertex.agent.llm_request", `{"contents":"Alice Lee lives at 1 Main St"}`)
+	a.PutStr("gcp.vertex.agent.tool_call_args", `{"name":"Alice Lee"}`)
+	a.PutStr("gcp.vertex.agent.invocation_id", "e-123")
+	if err := p.ConsumeTraces(context.Background(), td); err != nil {
+		t.Fatal(err)
+	}
+	got := s.got.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0).Attributes()
+	for _, k := range []string{"gcp.vertex.agent.llm_request", "gcp.vertex.agent.tool_call_args"} {
+		if _, ok := got.Get(k); ok {
+			t.Fatalf("%s was not dropped", k)
+		}
+	}
+	if strAttr(got, "gcp.vertex.agent.invocation_id") != "e-123" {
+		t.Fatal("ADK ids must stay")
+	}
+	if v, _ := got.Get(attPolicyDropped); v.Int() != 2 {
+		t.Fatalf("dropped count = %v, want 2", v.AsString())
+	}
+}
+
+func TestDropAttributes_PrefixAndEmpty(t *testing.T) {
+	run := func(drop []string) pcommon.Map {
+		s := &sink{}
+		p, err := newProcessor(&Config{DecisionCacheSize: 16, DropAttributes: drop}, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		td := ptrace.NewTraces()
+		a := newSpan(td, "x").Attributes()
+		a.PutStr("vendor.raw.prompt", "hello")
+		a.PutStr("vendor.raw.answer", "hi")
+		a.PutStr("gcp.vertex.agent.llm_request", "hello")
+		if err := p.ConsumeTraces(context.Background(), td); err != nil {
+			t.Fatal(err)
+		}
+		return s.got.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0).Attributes()
+	}
+	got := run([]string{"vendor.raw.*"})
+	if _, ok := got.Get("vendor.raw.prompt"); ok {
+		t.Fatal("prefix entry did not drop vendor.raw.prompt")
+	}
+	if _, ok := got.Get("gcp.vertex.agent.llm_request"); !ok {
+		t.Fatal("an explicit list replaces the default")
+	}
+	got = run([]string{})
+	if _, ok := got.Get("vendor.raw.prompt"); !ok {
+		t.Fatal("empty list must keep everything")
+	}
+	if _, ok := got.Get(attPolicyDropped); ok {
+		t.Fatal("no dropped count when nothing was dropped")
+	}
+}

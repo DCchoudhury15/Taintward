@@ -37,9 +37,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import html
 import json
+import os
 import re
+import secrets
 import sys
 import time
 from collections import Counter
@@ -107,25 +110,46 @@ def _luhn_ok(s: str) -> bool:
     return total % 10 == 0
 
 
-def _fp(value: str) -> str:
-    """Short one-way fingerprint, so a finding can be traced without the value."""
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:8]
+# Fingerprints are keyed (gap G6): a plain SHA-256 of a 9-digit SSN can be
+# brute forced back to the SSN. With TAINTWARD_REPORT_KEY set, the same value
+# gets the same fingerprint in every report of the deployment; without it
+# each report uses a new random key, so fingerprints match only inside one
+# report.
+REPORT_KEY_ENV = "TAINTWARD_REPORT_KEY"
+_FP_LEN = 12  # hex characters
 
 
-def scan_text(text: str, *, deep: bool = False) -> list[dict]:
-    """Find raw sensitive values in ``text``. Returns types and fingerprints
-    only, never the values."""
+def report_key() -> tuple[bytes, str]:
+    """(key, scope): the deployment key from TAINTWARD_REPORT_KEY, or a new
+    random key for one report."""
+    env = os.environ.get(REPORT_KEY_ENV, "")
+    if env:
+        return env.encode("utf-8"), "deployment"
+    return secrets.token_bytes(32), "report"
+
+
+def _fp(value: str, key: bytes) -> str:
+    """Short keyed fingerprint, so a finding can be traced without the value."""
+    return hmac.new(key, value.encode("utf-8"), hashlib.sha256).hexdigest()[:_FP_LEN]
+
+
+def scan_text(text: str, *, deep: bool = False, key: bytes | None = None) -> list[dict]:
+    """Find raw sensitive values in ``text``. Returns types and keyed
+    fingerprints only, never the values. ``key`` defaults to a new random
+    key, so pass one to match fingerprints across calls."""
+    key = key if key is not None else secrets.token_bytes(32)
     found: list[dict] = []
     for kind, rx in RAW_PATTERNS:
         for m in rx.finditer(text):
             if kind == "CREDIT_CARD" and not _luhn_ok(m.group(0)):
                 continue
-            found.append({"type": kind, "fingerprint": _fp(m.group(0))})
+            found.append({"type": kind, "fingerprint": _fp(m.group(0), key)})
     if deep:
         from taintward.sdk.detect import detect_text
 
         for d in detect_text(text):
-            found.append({"type": d.entity_type, "fingerprint": _fp(text[d.start:d.end])})
+            found.append({"type": d.entity_type,
+                          "fingerprint": _fp(text[d.start:d.end], key)})
     # one entry per (type, fingerprint)
     uniq = {(f["type"], f["fingerprint"]): f for f in found}
     return list(uniq.values())
@@ -355,9 +379,16 @@ def build_report(spans: Iterable[Span], *, start_ns: int, end_ns: int,
                  deep_scan: bool = False, truncated: bool = False,
                  evidence_dir: str | None = None, log_file: str | None = None,
                  public_key: str | None = None, max_rows: int = 500,
-                 generated_ns: int | None = None) -> dict:
+                 generated_ns: int | None = None,
+                 fingerprint_key: bytes | None = None) -> dict:
     """Compute every number in the report. Pure: no network, no clock unless
-    ``generated_ns`` is left out."""
+    ``generated_ns`` is left out.
+
+    ``fingerprint_key``: HMAC key for the finding fingerprints; default
+    ``report_key()`` (TAINTWARD_REPORT_KEY, or a random per-report key).
+    """
+    fp_key, fp_scope = (fingerprint_key, "deployment") if fingerprint_key is not None \
+        else report_key()
     spans = sorted(spans, key=lambda s: (s.start_ns, s.trace_id, s.span_id))
     calls = [s for s in spans if is_tool_call(s)]
     runs = {s.trace_id for s in calls}
@@ -448,7 +479,7 @@ def build_report(spans: Iterable[Span], *, start_ns: int, end_ns: int,
             row["not_measured"] += 1
             continue
         row["measured"] += 1
-        hits = scan_text(text, deep=deep_scan)
+        hits = scan_text(text, deep=deep_scan, key=fp_key)
         if hits:
             row["calls_with_raw"] += 1
             row["raw_values"] += len(hits)
@@ -527,6 +558,10 @@ def build_report(spans: Iterable[Span], *, start_ns: int, end_ns: int,
             "deep_scan": deep_scan,
             "by_destination": raw_by_dest,
             "findings": findings,
+            # deployment: TAINTWARD_REPORT_KEY, same value -> same fingerprint
+            # in every report; report: random key, matches only in this report
+            "fingerprint": {"method": f"HMAC-SHA256, first {_FP_LEN} hex characters",
+                            "key_scope": fp_scope},
             "claim": claim,
         },
         "decided_by": dict(sorted(decided.items())),
@@ -825,9 +860,14 @@ def render_html(data: dict) -> str:
               "Audit only, sensitive", "Calls with raw values", "Raw values found"],
              rows, {1, 2, 3, 4, 5, 6, 7}))
     if rc["findings"]:
+        fp = rc.get("fingerprint", {})
+        across = ("calls and across reports made with the same TAINTWARD_REPORT_KEY"
+                  if fp.get("key_scope") == "deployment" else
+                  "calls in this report only (a new random key is used per report)")
         w("<h3>Findings</h3><p class='explain'>Values are never shown. The fingerprint is "
-          "the first 8 hex characters of SHA-256 of the value, so the same value can be "
-          "matched across calls.</p>")
+          f"the first {_FP_LEN} hex characters of an HMAC-SHA256 of the value with a secret "
+          f"key, so it cannot be brute forced back to the value without the key. The same "
+          f"value can be matched across {across}.</p>")
         rows = [[f["time"], _Raw(f"<code>{_e(f['tool'])}</code>"), f["destination"],
                  ", ".join(f["types"]), _Raw(f"<code>{_e(', '.join(f['fingerprints']))}</code>"),
                  _Raw(f"<code>{_e(f['trace_id'])}</code>")]

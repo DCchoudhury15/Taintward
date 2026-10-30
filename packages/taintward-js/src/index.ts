@@ -26,9 +26,11 @@ export {
   PlaceholderMap,
   PlaceholderRestoreError,
   StreamRestorer,
+  inUrl,
   instructionFor,
   labelFor,
   type KnownSpan,
+  type PlaceholderMapOptions,
   type RestoreReport,
 } from "./placeholders.js";
 export { maskPayload, redactPayload, redactString, redactText, redactValue, type InternalMode, type RedactOptions } from "./redact.js";

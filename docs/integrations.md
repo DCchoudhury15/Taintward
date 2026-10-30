@@ -486,8 +486,9 @@ gateway refuses those calls.
 - Google ADK writes model requests, responses and tool arguments onto its
   own spans (`gcp.vertex.agent.*`) as ADK sees them, which is after
   Taintward restored them, so with real values. ADK 1.14 has no setting to
-  turn this off. If you export ADK's own traces, drop those attributes in
-  your collector.
+  turn this off. The Taintward collector drops those attributes by default
+  (`drop_attributes`, see [Collector](guides/collector.md)); if ADK's traces
+  go to a backend some other way, drop them there.
 - CrewAI, LlamaIndex and LiteLLM have their own callbacks and logging
   (LiteLLM success callbacks, LlamaIndex callback handlers, CrewAI events)
   that run inside the model call. They see the redacted request and the

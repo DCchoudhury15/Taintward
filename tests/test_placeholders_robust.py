@@ -107,7 +107,7 @@ class TestBrackets:
     def test_template_slots_are_left_alone(self, m):
         text = "[Your Name] [Recipient's Full Name] [Step 3] (2) [Date]"
         assert m.restore_text(text) == text
-        assert m.diagnose(text) == {"repaired": [], "lost": [], "unknown": []}
+        assert m.diagnose(text) == {"repaired": [], "lost": [], "unknown": [], "blocked": []}
 
 
 class TestBare:
@@ -206,7 +206,8 @@ class TestStrictOff:
 class TestDiagnose:
     def test_kinds(self, m):
         d = m.diagnose("<PERSON_1> [EMAIL_1] <PERSON_7> <SSN>")
-        assert d == {"repaired": ["[EMAIL_1]"], "lost": ["<SSN>"], "unknown": ["<PERSON_7>"]}
+        assert d == {"repaired": ["[EMAIL_1]"], "lost": ["<SSN>"], "unknown": ["<PERSON_7>"],
+                     "blocked": []}
 
     def test_never_returns_values(self, m):
         d = m.diagnose(f"[PERSON_1] <PERSON_5> {NAME}")

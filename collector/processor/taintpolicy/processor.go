@@ -44,6 +44,7 @@ const (
 	attPolicyDecision   = "taintward.policy.decision_engine"
 	attPolicyError      = "taintward.policy.error"
 	attPolicyMasked     = "taintward.policy.masked_values"
+	attPolicyDropped    = "taintward.policy.dropped_attributes"
 	decisionEngine      = "rego"
 )
 
@@ -51,7 +52,7 @@ const (
 var ownedAttrs = map[string]struct{}{
 	attPolicyRedact: {}, attPolicyViolation: {}, attPolicyTransfer: {},
 	attPolicyViolations: {}, attPolicyReasons: {}, attPolicyDecision: {},
-	attPolicyError: {}, attPolicyMasked: {},
+	attPolicyError: {}, attPolicyMasked: {}, attPolicyDropped: {},
 }
 
 // taintPolicyProcessor is a traces processor that:
@@ -68,6 +69,7 @@ type taintPolicyProcessor struct {
 	cfg    *Config
 	next   consumer.Traces
 	policy *policy
+	drop   attrMatcher
 }
 
 var _ processor.Traces = (*taintPolicyProcessor)(nil)
@@ -88,7 +90,8 @@ func newProcessor(cfg *Config, next consumer.Traces) (*taintPolicyProcessor, err
 	if err != nil {
 		return nil, err
 	}
-	return &taintPolicyProcessor{cfg: cfg, next: next, policy: pol}, nil
+	return &taintPolicyProcessor{cfg: cfg, next: next, policy: pol,
+		drop: newAttrMatcher(cfg.DropAttributes)}, nil
 }
 
 // Capabilities: mutates span data.
@@ -142,6 +145,7 @@ func (p *taintPolicyProcessor) processSpan(ctx context.Context, span ptrace.Span
 		})
 	}
 
+	dropped := p.drop.removeFrom(attrs)
 	masked := redactSpan(span)
 
 	if err != nil {
@@ -160,6 +164,56 @@ func (p *taintPolicyProcessor) processSpan(ctx context.Context, span ptrace.Span
 	if masked > 0 {
 		attrs.PutInt(attPolicyMasked, int64(masked))
 	}
+	if dropped > 0 {
+		attrs.PutInt(attPolicyDropped, int64(dropped))
+	}
+}
+
+// attrMatcher matches attribute names exactly or, for entries ending in
+// "*", by prefix.
+type attrMatcher struct {
+	names    map[string]struct{}
+	prefixes []string
+}
+
+func newAttrMatcher(entries []string) attrMatcher {
+	m := attrMatcher{names: map[string]struct{}{}}
+	for _, e := range entries {
+		if p, ok := strings.CutSuffix(e, "*"); ok {
+			m.prefixes = append(m.prefixes, p)
+		} else if e != "" {
+			m.names[e] = struct{}{}
+		}
+	}
+	return m
+}
+
+func (m attrMatcher) match(k string) bool {
+	if _, ok := m.names[k]; ok {
+		return true
+	}
+	for _, p := range m.prefixes {
+		if strings.HasPrefix(k, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// removeFrom drops the matching attributes and returns how many it dropped.
+func (m attrMatcher) removeFrom(attrs pcommon.Map) int {
+	if len(m.names) == 0 && len(m.prefixes) == 0 {
+		return 0
+	}
+	n := 0
+	attrs.RemoveIf(func(k string, _ pcommon.Value) bool {
+		if m.match(k) {
+			n++
+			return true
+		}
+		return false
+	})
+	return n
 }
 
 // redactSpan runs the backstop over every string on the span and returns

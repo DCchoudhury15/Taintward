@@ -44,6 +44,7 @@ import logging
 import os
 import re
 import string
+import sys
 import warnings
 from typing import Mapping
 
@@ -54,7 +55,46 @@ from taintward.sdk.ff1 import FF1
 from taintward.sdk.keys import key_id_for, load_keys
 from taintward.sdk.vault import MemoryVault, Vault, get_vault
 
+# detect.OVERSIZE: a value too large to scan (gap G10). Not imported: detect
+# is loaded lazily here.
+_OVERSIZE = "OVERSIZE_VALUE"
+
 log = logging.getLogger("taintward.redact")
+# One line per reversal (gap G11): who turned a token back into a value.
+audit_log = logging.getLogger("taintward.audit")
+
+
+def _caller() -> str:
+    """module:function:line of the first frame outside the taintward package."""
+    f = sys._getframe(1)
+    while f is not None and f.f_globals.get("__name__", "").startswith("taintward."):
+        f = f.f_back
+    if f is None:
+        return "unknown"
+    return f"{f.f_globals.get('__name__', '?')}:{f.f_code.co_name}:{f.f_lineno}"
+
+
+def record_reversal(kind: str, *, found: int, key_id: str | None = None) -> None:
+    """Record that real values were read back (gap G11): a
+    ``taintward.reverse`` event on the current span (or a span of its own
+    when none is recording) and an INFO line on the ``taintward.audit``
+    logger. Holds the kind (``token`` or ``placeholder``), how many values
+    were found, the key id and the caller; never a value or a token."""
+    from opentelemetry import trace
+
+    attrs = {"taintward.reverse.kind": kind, "taintward.reverse.found": found,
+             "taintward.reverse.caller": _caller()}
+    if key_id:
+        attrs["taintward.key_id"] = key_id
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.add_event("taintward.reverse", attrs)
+    else:
+        with trace.get_tracer("taintward").start_as_current_span(
+                "taintward.reverse", attributes=attrs) as own:
+            own.add_event("taintward.reverse", attrs)
+    audit_log.info("taintward reverse kind=%s found=%d key_id=%s caller=%s", kind, found,
+                   key_id or "-", attrs["taintward.reverse.caller"])
 
 # Reversible redaction is only for trusted internal sinks. Everything else
 # (external/llm/log/rag) gets a non-reversible mask.
@@ -281,6 +321,9 @@ class Redactor:
             if placeholders is not None and destination == DEST_LLM:
                 redacted = placeholders.placeholder_for(
                     original, getattr(d, "entity_type", None), d.sensitivity)
+            elif getattr(d, "entity_type", None) == _OVERSIZE:
+                # too large to scan (gap G10): masked, never FF1 over the whole value
+                redacted = _MASK_TOKEN[Sensitivity.SECRET]
             else:
                 redacted = self.redact_value(original, d.sensitivity, destination,
                                              subject=subject)
@@ -292,15 +335,15 @@ class Redactor:
 
         Returns None for masks or unknown tokens. Masks are non-reversible by
         construction, that's the whole point of the external/llm/log path.
+        Every call is recorded with ``record_reversal`` (gap G11).
         """
         if token in _MASK_TOKEN.values():
             return None
         original = self._vault.get(token)
-        if original is not None:
-            return original
-        if self.structural_fallback:
-            return self._fpe_decrypt(token)  # digit-only tokens only
-        return None
+        if original is None and self.structural_fallback:
+            original = self._fpe_decrypt(token)  # digit-only tokens only
+        record_reversal("token", found=int(original is not None), key_id=self.key_id)
+        return original
 
     def forget(self, token: str) -> bool:
         """Erase one token mapping from the vault."""
