@@ -63,7 +63,8 @@ Details: [Redaction crypto and the vault](../redaction-crypto.md),
 
 | variable | type | default | meaning | read in |
 |---|---|---|---|---|
-| `TAINTWARD_GATEWAY_TOKEN` | string | unset: no auth | HTTP mode: every request except `/healthz` needs `Authorization: Bearer <token>`. Without it the gateway logs a warning when it listens on anything other than localhost | `taintward/gateway/__main__.py` |
+| `TAINTWARD_GATEWAY_TOKEN` | string | unset: no auth | HTTP mode: every request except `/healthz` needs `Authorization: Bearer <token>`. Without it (and without `TAINTWARD_GATEWAY_TOKENS`) the gateway logs a warning when it listens on anything other than localhost | `taintward/gateway/__main__.py` |
+| `TAINTWARD_GATEWAY_TOKENS` | `name:token` comma list | unset | HTTP mode: one token per client. The gateway names the client from its token and keeps its taint per client as well as per session | `taintward/gateway/__main__.py`, `taintward/gateway/http.py` |
 | `TAINTWARD_SESSION_STORE` | `memory` or Redis URL | the config's `session_store` (`memory`) | where session taint is kept; overrides the config file. Use Redis with more than one replica | `taintward/gateway/server.py` |
 | `TAINTWARD_OTLP_ENDPOINT` | URL | unset: no spans exported | OTLP/HTTP traces endpoint, the default of `--otlp-endpoint` | `taintward/gateway/__main__.py` |
 | `TAINTWARD_HR_OUTBOX` | path | unset | example HR server only: also append each `send_email` call to this file, so tests can see what reached the tool | `taintward/gateway/examples/hr_server.py` |

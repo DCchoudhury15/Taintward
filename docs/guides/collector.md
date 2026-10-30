@@ -67,11 +67,38 @@ environment variables:
 |---|---|---|
 | `policy_path` | empty: the policy built into the binary | load the Rego file from disk at startup; restart to reload |
 | `decision_cache_size` | `4096` | number of distinct policy inputs whose decision is cached; `0` evaluates Rego on every span (only needed for a policy that is not a pure function of its input) |
+| `trusted_services` | empty: every producer is trusted | `service.name` values whose spans are trusted. A span from another service is treated as sensitive whatever its `taintward.sensitive` says, its `taintward.args_redacted` marker is ignored (so the backstop masks its arguments), and it gets `taintward.policy.untrusted_producer=true`. `service.name` is set by the producer, so use it together with producer auth |
 | `drop_attributes` | Google ADK's `gcp.vertex.agent.llm_request`, `llm_response`, `tool_call_args`, `tool_response` and `data` | span attributes removed before export; a name ending in `*` is a prefix. A list you set replaces the default; `[]` keeps everything. The span gets `taintward.policy.dropped_attributes` with the count. ADK writes those attributes after Taintward restored the placeholders, so they hold real values |
 
 Keep `taint_policy` before `batch` in the pipeline. To use TLS to the
 backend, or an OTLP/HTTP backend, edit the `exporters` section of a copy of
 the config and mount it at `/etc/taintward/config.yaml`.
+
+## Who can send spans
+
+Anything that can reach the receiver can send spans with any
+`taintward.*` attributes, for example `taintward.sensitive=false`. So:
+
+- The sidecar config (`collector/config.yaml`) listens on `127.0.0.1:4319`
+  only, and `docker-compose.yml` publishes the collector and Jaeger ports on
+  the host loopback only.
+- `config.docker.yaml` and the Helm chart listen on all interfaces of the
+  container or pod with no auth. Keep them on a private network.
+- When other hosts send spans, start from `collector/config.secure.yaml`.
+  Every producer needs `Authorization: Bearer <token>` (the
+  `bearertokenauth` extension, token in `TAINTWARD_COLLECTOR_TOKEN`), the
+  receiver and the export use TLS, and `trusted_services` lists the services
+  whose `taintward.*` claims are believed. For the Python SDK and the
+  gateway set:
+
+  ```bash
+  export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20<token>"
+  ```
+
+- In Helm, set `collector.auth.enabled=true` with
+  `collector.auth.existingSecret` (a Secret holding the token) and
+  `collector.trustedServices`. The routing tier and the gateway in the chart
+  then send the token too.
 
 ## Change the policy
 

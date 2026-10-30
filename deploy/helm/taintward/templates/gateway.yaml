@@ -66,6 +66,11 @@ spec:
           env:
             - name: TAINTWARD_OTLP_ENDPOINT
               value: {{ $otlp | quote }}
+            {{- if and .Values.collector.auth.enabled (not $g.otlpEndpoint) }}
+            {{- include "taintward.collectorTokenEnv" $ | nindent 12 }}
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              value: "Authorization=Bearer%20$(TAINTWARD_COLLECTOR_TOKEN)"
+            {{- end }}
             {{- range $envName, $key := $g.secretKeys }}
             - name: {{ $envName }}
               valueFrom:

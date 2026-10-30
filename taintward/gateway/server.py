@@ -19,10 +19,16 @@ Per ``tools/call`` the gateway:
 7. scans the result, merges its taint into the session, and masks
    sensitive values in the result before the agent sees it,
 8. emits one OTel span with the same attribute names the SDK uses.
+
+Tool listing is checked too: two upstreams exposing the same name is an
+error (gap G3), and a tool whose description or schema changes after it was
+first seen, or differs from its pin in ``tool_pins``, is reported and with
+``on_tool_change: hide`` no longer exposed (gap G2).
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -43,6 +49,8 @@ from opentelemetry.trace import Status, StatusCode
 from taintward.gateway.config import (
     MODE_AUDIT,
     MODE_BLOCK,
+    TOOL_CHANGE_HIDE,
+    ConfigError,
     GatewayConfig,
     ToolPolicy,
     UpstreamConfig,
@@ -76,6 +84,11 @@ BLOCKED_ERROR_CODE = -32001
 
 # HTTP header that carries the MCP session id (lower case, as in ASGI).
 MCP_SESSION_HEADER = "mcp-session-id"
+# Set by GatewayHTTPApp after auth to the client name of the token; a value
+# sent by the client itself is removed first.
+CLIENT_HEADER = "x-taintward-client"
+# Session store key prefix for taint kept per client (gap G4).
+CLIENT_TAINT_PREFIX = "client:"
 
 # Span attribute keys. The ones shared with the SDK are imported above; these
 # are gateway specific.
@@ -95,6 +108,23 @@ ATTR_ARGS_STORED_REDACTED = SDK_ATTR_ARGS_REDACTED
 ATTR_RESULT_REDACTED = "taintward.result.redacted"
 ATTR_UPSTREAM = "taintward.gateway.upstream"
 ATTR_TOOL_ERROR = "taintward.tool.error"
+ATTR_CLIENT = "taintward.gateway.client"
+ATTR_TOOL_FP = "taintward.gateway.tool.fingerprint"
+ATTR_TOOL_FP_EXPECTED = "taintward.gateway.tool.expected_fingerprint"
+ATTR_TOOL_HIDDEN = "taintward.gateway.tool.hidden"
+
+
+_CLASH = "offered by several upstreams"
+
+
+def tool_fingerprint(tool: types.Tool) -> str:
+    """SHA-256 over what the agent's model reads about a tool: description,
+    title, input and output schema (gap G2). The exposed name is the key it
+    is stored under, not part of the hash."""
+    data = tool.model_dump(mode="json", by_alias=True, exclude_none=True)
+    shown = {k: data.get(k) for k in ("description", "title", "inputSchema", "outputSchema")}
+    raw = json.dumps(shown, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _jsonable(obj: Any) -> str:
@@ -168,14 +198,27 @@ class GatewaySession:
         self.clients: dict[str, Client] = {}
         self.routes: dict[str, _Route] = {}
         self.default_session_id = new_session_id()
+        # Gap G2: fingerprint first seen per exposed tool, and tools hidden
+        # because they changed (on_tool_change: hide) or clash (gap G3).
+        self.seen: dict[str, str] = {}
+        self.hidden: dict[str, str] = {}
+        self._reported: set[tuple[str, str]] = set()
 
     async def taint(self, session_id: str | None = None) -> tnt.TaintLabel:
         """The current taint of a session (the default one when None)."""
         return await self.gateway.store.get(session_id or self.default_session_id)
 
-    async def _merge_taint(self, sid: str, label: tnt.TaintLabel) -> tnt.TaintLabel:
+    async def _merge_taint(self, sid: str, label: tnt.TaintLabel,
+                           client: str | None = None) -> tnt.TaintLabel:
+        """Merge into the session taint and, for a named client, into the
+        client's taint too (gap G4), so ending the session does not clear
+        it. Returns the union of both."""
         try:
-            return await self.gateway.store.merge(sid, label)
+            merged = await self.gateway.store.merge(sid, label)
+            if client:
+                merged = merged.merge(
+                    await self.gateway.store.merge(CLIENT_TAINT_PREFIX + client, label))
+            return merged
         except SessionStoreError as exc:
             # Fail closed: without the session taint the policy cannot decide.
             logger.error("session store error: %s", exc)
@@ -197,47 +240,122 @@ class GatewaySession:
         for u in self.gateway.config.upstreams:
             client = await stack.enter_async_context(self._client_for(u))
             self.clients[u.name] = client
-        await self.refresh_tools()
+        await self.refresh_tools(startup=True)
 
-    async def refresh_tools(self) -> list[types.Tool]:
-        """List every upstream's tools and rebuild the routing table. On a
-        name clash the first upstream in config order wins."""
+    async def _list_upstream(self, u: UpstreamConfig) -> list[types.Tool]:
+        client = self.clients[u.name]
+        tools: list[types.Tool] = []
+        cursor: str | None = None
+        while True:
+            page = await client.list_tools(cursor=cursor)
+            tools.extend(page.tools)
+            cursor = page.next_cursor
+            if not cursor:
+                return tools
+
+    async def refresh_tools(self, *, startup: bool = False) -> list[types.Tool]:
+        """List every upstream's tools and rebuild the routing table.
+
+        Two upstreams exposing the same name is an error (gap G3): at
+        startup the gateway refuses to start, later both tools are hidden.
+        Use ``prefix:`` per upstream to tell them apart. A tool that differs
+        from its pin or from the version first seen is reported, and with
+        ``on_tool_change: hide`` not exposed (gap G2)."""
+        cfg = self.gateway.config
+        found: dict[str, list[tuple[UpstreamConfig, types.Tool]]] = {}
+        for u in cfg.upstreams:
+            for tool in await self._list_upstream(u):
+                found.setdefault(u.prefix + tool.name, []).append((u, tool))
+
+        clashes = {n: [u.name for u, _ in v] for n, v in found.items() if len(v) > 1}
+        if clashes and startup:
+            detail = "; ".join(f"{n!r} from {', '.join(ups)}" for n, ups in sorted(clashes.items()))
+            raise ConfigError(f"tool name clash between upstreams: {detail}. "
+                              "Give the upstreams a prefix.")
+
         exposed: list[types.Tool] = []
         routes: dict[str, _Route] = {}
-        for u in self.gateway.config.upstreams:
-            client = self.clients[u.name]
-            cursor: str | None = None
-            while True:
-                page = await client.list_tools(cursor=cursor)
-                for tool in page.tools:
-                    name = u.prefix + tool.name
-                    if name in routes:
-                        logger.warning("tool %r from upstream %r hidden by upstream %r",
-                                       name, u.name, routes[name].upstream)
-                        continue
-                    routes[name] = _Route(upstream=u.name, client=client, tool_name=tool.name)
-                    exposed.append(tool if name == tool.name
-                                   else tool.model_copy(update={"name": name}))
-                cursor = page.next_cursor
-                if not cursor:
-                    break
+        for name, entries in found.items():
+            if name in clashes:
+                if (name, "clash") not in self._reported:
+                    self._reported.add((name, "clash"))
+                    self._tool_event(name, ",".join(clashes[name]), "clash")
+                self.hidden[name] = _CLASH
+                continue
+            if self.hidden.get(name) == _CLASH:  # the clash is gone
+                del self.hidden[name]
+            u, tool = entries[0]
+            if not self._tool_ok(name, u.name, tool):
+                continue
+            routes[name] = _Route(upstream=u.name, client=self.clients[u.name],
+                                  tool_name=tool.name)
+            exposed.append(tool if name == tool.name
+                           else tool.model_copy(update={"name": name}))
         self.routes = routes
         return exposed
+
+    def _tool_ok(self, name: str, upstream: str, tool: types.Tool) -> bool:
+        """Gap G2: compare the tool with its pin or first seen version."""
+        cfg = self.gateway.config
+        fp = tool_fingerprint(tool)
+        expected = cfg.tool_pins.get(name) or self.seen.setdefault(name, fp)
+        if name in self.hidden:
+            return False
+        if fp == expected:
+            return True
+        hide = cfg.on_tool_change == TOOL_CHANGE_HIDE
+        if (name, fp) not in self._reported:  # once per new version, not per tools/list
+            self._reported.add((name, fp))
+            self._tool_event(name, upstream, "changed", fp=fp, expected=expected, hidden=hide)
+        if hide:
+            self.hidden[name] = "its description or schema changed"
+        return not hide
+
+    def _tool_event(self, name: str, upstream: str, kind: str, *, fp: str = "",
+                    expected: str = "", hidden: bool = True) -> None:
+        if kind == "clash":
+            logger.error("tool %r is offered by several upstreams (%s); it is hidden. "
+                         "Give the upstreams a prefix.", name, upstream)
+        else:
+            logger.warning("tool %r from upstream %r changed (%s, expected %s)%s", name,
+                           upstream, fp, expected, "; it is hidden" if hidden else "")
+        attrs = {ATTR_TOOL_NAME: name, ATTR_UPSTREAM: upstream, ATTR_TOOL_HIDDEN: hidden}
+        if fp:
+            attrs[ATTR_TOOL_FP] = fp
+            attrs[ATTR_TOOL_FP_EXPECTED] = expected
+        with self.gateway.tracer.start_as_current_span(
+                f"taintward.gateway tool_{kind}", kind=trace.SpanKind.INTERNAL,
+                attributes={ATTR_MCP_METHOD: "tools/list", **attrs}) as span:
+            span.set_status(Status(StatusCode.ERROR, f"tool {kind}"))
+
+    async def fingerprints(self) -> dict[str, str]:
+        """Exposed tool name -> fingerprint, for ``tool_pins``."""
+        out: dict[str, str] = {}
+        for u in self.gateway.config.upstreams:
+            for tool in await self._list_upstream(u):
+                out.setdefault(u.prefix + tool.name, tool_fingerprint(tool))
+        return dict(sorted(out.items()))
 
     # --- tools/call ---
 
     async def call_tool(self, name: str, arguments: dict[str, Any],
-                        session_id: str | None = None) -> types.CallToolResult:
+                        session_id: str | None = None,
+                        client: str | None = None) -> types.CallToolResult:
         gw = self.gateway
         if session_id is None:
             if gw.require_session_id:
                 raise MCPError(types.INVALID_REQUEST, "missing Mcp-Session-Id")
             session_id = self.default_session_id
+        client = client or gw.config.client
         route = self.routes.get(name)
         if route is None:
             await self.refresh_tools()
             route = self.routes.get(name)
         if route is None:
+            if name in self.hidden:
+                raise MCPError(BLOCKED_ERROR_CODE,
+                               f"Taintward hid tool {name}: {self.hidden[name]}",
+                               data={"tool": name, "reason": self.hidden[name]})
             raise MCPError(types.INVALID_PARAMS, f"Unknown tool: {name}")
 
         policy: ToolPolicy = gw.config.policy_for(name, route.upstream)
@@ -261,7 +379,7 @@ class GatewaySession:
         # The agent's context now holds whatever it sent, so the session
         # keeps it. The store merge is atomic and returns the whole session
         # taint, including classes other replicas added.
-        merged_in = await self._merge_taint(session_id, args_label)
+        merged_in = await self._merge_taint(session_id, args_label, client)
 
         pre = evaluate(PolicyInput(
             sensitive=merged_in.is_tainted,
@@ -307,6 +425,7 @@ class GatewaySession:
                     ATTR_OPERATION: "execute_tool",
                     ATTR_MCP_METHOD: "tools/call",
                     ATTR_UPSTREAM: route.upstream,
+                    **({ATTR_CLIENT: client} if client else {}),
                     ATTR_MODE: policy.mode,
                     ATTR_DEST: policy.destination,
                     ATTR_JURISDICTION: policy.jurisdiction,
@@ -345,7 +464,7 @@ class GatewaySession:
                     out_dets,
                     source_span_id=format(span.get_span_context().span_id, "016x"),
                 )
-                stored = await self._merge_taint(session_id, out_label)
+                stored = await self._merge_taint(session_id, out_label, client)
                 merged_out = merged_in.merge(out_label).merge(stored)
                 if merged_out.is_tainted:
                     span.set_attributes(merged_out.to_span_attrs())
@@ -401,6 +520,12 @@ def _http_session_id(ctx) -> str | None:
     return headers.get(MCP_SESSION_HEADER) or None
 
 
+def _http_client(ctx) -> str | None:
+    """The client name GatewayHTTPApp set from the bearer token, if any."""
+    headers = getattr(getattr(ctx, "request", None), "headers", None)
+    return headers.get(CLIENT_HEADER) or None if headers is not None else None
+
+
 class Gateway:
     """Build a proxy MCP :class:`~mcp.server.Server` for a config.
 
@@ -436,6 +561,22 @@ class Gateway:
             await session.connect(stack)
             yield session
 
+    async def tool_pins(self) -> dict[str, str]:
+        """Connect to the upstreams once and return the ``tool_pins`` for
+        the tools they offer now (``--print-tool-pins``)."""
+        session = GatewaySession(self)
+        try:
+            async with AsyncExitStack() as stack:
+                await session.connect(stack)
+                return await session.fingerprints()
+        except BaseExceptionGroup as group:  # the MCP client's task group wraps it
+            config = group.subgroup(ConfigError)
+            if config is None:
+                raise
+            while isinstance(config, BaseExceptionGroup):
+                config = config.exceptions[0]
+            raise config from None
+
     def build_server(self) -> Server:
         async def on_list_tools(ctx, params) -> types.ListToolsResult:
             session: GatewaySession = ctx.lifespan_context
@@ -444,7 +585,8 @@ class Gateway:
         async def on_call_tool(ctx, params: types.CallToolRequestParams) -> types.CallToolResult:
             session: GatewaySession = ctx.lifespan_context
             return await session.call_tool(params.name, dict(params.arguments or {}),
-                                           session_id=_http_session_id(ctx))
+                                           session_id=_http_session_id(ctx),
+                                           client=_http_client(ctx))
 
         return Server(
             "taintward-gateway",

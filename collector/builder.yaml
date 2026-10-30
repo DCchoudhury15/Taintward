@@ -31,6 +31,9 @@ exporters:
 extensions:
   # HTTP health endpoint (default :13133) for Kubernetes probes.
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.160.0
+  # Producer auth on the OTLP receiver, and the token on exports to the
+  # policy tier (config.secure.yaml, Helm collector.auth).
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension v0.160.0
 
 replaces:
   - github.com/DCchoudhury15/taintward/collector/processor/taintpolicy => /home/divyanshu/taintward/collector/processor/taintpolicy

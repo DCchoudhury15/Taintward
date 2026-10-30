@@ -103,6 +103,21 @@ collector:
   affinity: {}
   # Spread replicas over nodes when possible.
   topologySpread: true
+
+  # Producer auth (gap G7). Every span sender needs
+  # "Authorization: Bearer <token>"; for the Python SDK set
+  # OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer%20<token>. The token is
+  # read from a Secret you create; the routing tier and the gateway in this
+  # chart send it too.
+  auth:
+    enabled: false
+    existingSecret: ""
+    secretKey: token
+  # service.name values whose spans are trusted (gap G7). Empty trusts every
+  # producer. Spans from other services are treated as sensitive and their
+  # taintward.args_redacted marker is ignored. Use it with auth above.
+  trustedServices: []
+
   extraEnv: []
   #  - name: SIGNOZ_INGESTION_KEY
   #    valueFrom:

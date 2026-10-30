@@ -25,7 +25,8 @@ services:
   jaeger:
     image: jaegertracing/jaeger:2.21.0
     ports:
-      - "16686:16686"
+      # Host loopback only: the UI shows span data.
+      - "127.0.0.1:16686:16686"
     restart: unless-stopped
 
   taintward-collector:
@@ -45,7 +46,8 @@ services:
       # Used only when TAINTWARD_TRACE_EXPORTERS lists file.
       - taintward-spans:/var/lib/taintward
     ports:
-      - "14319:4319"
+      # Host loopback only: no auth on this receiver (gap G8).
+      - "127.0.0.1:14319:4319"
     depends_on:
       - jaeger
     restart: unless-stopped

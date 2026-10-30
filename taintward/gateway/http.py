@@ -28,6 +28,10 @@ How sessions work, and why this is safe with several replicas:
 
 Auth: when ``TAINTWARD_GATEWAY_TOKEN`` is set, every request except
 ``/healthz`` needs ``Authorization: Bearer <token>``; others get 401.
+``TAINTWARD_GATEWAY_TOKENS=alice:<token>,bob:<token>`` gives each client
+its own token. The gateway then knows the client's name and keeps its
+taint per client too, so ending a session and starting a new one does not
+clear it (gap G4).
 """
 
 from __future__ import annotations
@@ -53,6 +57,8 @@ DEFAULT_SHUTDOWN_TIMEOUT = 25.0
 
 _SESSION_HEADER = b"mcp-session-id"
 _VERSION_HEADER = b"mcp-protocol-version"
+# server.CLIENT_HEADER: the client name, set here after auth only.
+_CLIENT_HEADER = b"x-taintward-client"
 
 
 def parse_listen(value: str) -> tuple[str, int]:
@@ -94,10 +100,13 @@ class GatewayHTTPApp:
     bearer auth, and session ids backed by the session store."""
 
     def __init__(self, app, store: SessionStore, *, token: str | None = None,
+                 client_tokens: dict[str, str] | None = None,
                  mcp_path: str = MCP_PATH, max_body: int = MAX_BODY_BYTES) -> None:
         self.app = app
         self.store = store
         self.token = token or None
+        # token -> client name (TAINTWARD_GATEWAY_TOKENS)
+        self.client_tokens = dict(client_tokens or {})
         self.mcp_path = mcp_path.rstrip("/") or "/"
         self.max_body = max_body
 
@@ -114,10 +123,19 @@ class GatewayHTTPApp:
                 await _send_json(send, 405, None, [(b"allow", b"GET, HEAD")])
             return
         headers = {k.lower(): v for k, v in scope.get("headers", [])}
-        if self.token and not self._authorized(headers):
-            await _rpc_error(send, 401, -32001, "Unauthorized: missing or wrong bearer token",
-                             headers=[(b"www-authenticate", b'Bearer realm="taintward-gateway"')])
-            return
+        client = None
+        if self.token or self.client_tokens:
+            ok, client = self._authorized(headers)
+            if not ok:
+                await _rpc_error(
+                    send, 401, -32001, "Unauthorized: missing or wrong bearer token",
+                    headers=[(b"www-authenticate", b'Bearer realm="taintward-gateway"')])
+                return
+        # Only this app names the client: drop a name the request sent itself.
+        raw = [(k, v) for k, v in scope.get("headers", []) if k.lower() != _CLIENT_HEADER]
+        if client:
+            raw.append((_CLIENT_HEADER, client.encode()))
+        scope = {**scope, "headers": raw}
         if (path.rstrip("/") or "/") != self.mcp_path:
             await self.app(scope, receive, send)
             return
@@ -127,12 +145,20 @@ class GatewayHTTPApp:
             logger.error("session store error: %s", exc)
             await _rpc_error(send, 503, -32603, "session store unavailable")
 
-    def _authorized(self, headers: dict[bytes, bytes]) -> bool:
+    def _authorized(self, headers: dict[bytes, bytes]) -> tuple[bool, str | None]:
+        """(allowed, client name). Every token is compared, in constant time."""
         auth = headers.get(b"authorization", b"").decode("latin-1")
         scheme, _, given = auth.partition(" ")
         if scheme.lower() != "bearer":
-            return False
-        return hmac.compare_digest(given.strip().encode(), self.token.encode())
+            return False, None
+        given_b = given.strip().encode()
+        ok, client = False, None
+        if self.token and hmac.compare_digest(given_b, self.token.encode()):
+            ok = True
+        for token, name in self.client_tokens.items():
+            if hmac.compare_digest(given_b, token.encode()):
+                ok, client = True, name
+        return ok, client
 
     async def _mcp(self, scope, receive, send, headers, method) -> None:
         version = headers.get(_VERSION_HEADER, b"").decode("latin-1")
@@ -234,7 +260,8 @@ class GatewayHTTPApp:
         return b"".join(chunks)
 
 
-def build_http_app(gateway, *, host: str = "127.0.0.1", token: str | None = None):
+def build_http_app(gateway, *, host: str = "127.0.0.1", token: str | None = None,
+                   client_tokens: dict[str, str] | None = None):
     """The full ASGI app: SDK streamable HTTP (stateless) inside
     :class:`GatewayHTTPApp`. ``gateway`` must have ``require_session_id``
     set, so no call falls back to a shared default session."""
@@ -246,10 +273,11 @@ def build_http_app(gateway, *, host: str = "127.0.0.1", token: str | None = None
         host=host,
         max_request_body_size=MAX_BODY_BYTES,
     )
-    return GatewayHTTPApp(inner, gateway.store, token=token)
+    return GatewayHTTPApp(inner, gateway.store, token=token, client_tokens=client_tokens)
 
 
 def serve_http(gateway, host: str, port: int, *, token: str | None = None,
+               client_tokens: dict[str, str] | None = None,
                shutdown_timeout: float = DEFAULT_SHUTDOWN_TIMEOUT,
                log_level: str = "warning") -> None:
     """Run uvicorn until SIGTERM / SIGINT. On a signal uvicorn stops
@@ -271,7 +299,7 @@ def serve_http(gateway, host: str, port: int, *, token: str | None = None,
                 if isinstance(captured, list):
                     captured.clear()
 
-    app = build_http_app(gateway, host=host, token=token)
+    app = build_http_app(gateway, host=host, token=token, client_tokens=client_tokens)
     config = uvicorn.Config(
         app, host=host, port=port, lifespan="on", log_level=log_level.lower(),
         timeout_graceful_shutdown=shutdown_timeout, access_log=False,

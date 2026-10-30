@@ -52,9 +52,14 @@ spec:
               containerPort: 4317
             - name: health
               containerPort: 13133
-          {{- with $c.extraEnv }}
+          {{- if or $c.extraEnv $c.auth.enabled }}
           env:
+            {{- if $c.auth.enabled }}
+            {{- include "taintward.collectorTokenEnv" $ | nindent 12 }}
+            {{- end }}
+            {{- with $c.extraEnv }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           livenessProbe:
             httpGet:

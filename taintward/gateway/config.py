@@ -7,7 +7,9 @@ The config is a YAML file. See ``taintward/gateway/example-config.yaml`` and
 from __future__ import annotations
 
 import fnmatch
+import logging
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,6 +31,15 @@ MODE_REDACT = "redact"
 MODE_BLOCK = "block"
 MODE_AUDIT = "audit"
 VALID_MODES = frozenset({MODE_REDACT, MODE_BLOCK, MODE_AUDIT})
+
+# What to do when an upstream tool's description or schema changes (gap G2).
+TOOL_CHANGE_WARN = "warn"
+TOOL_CHANGE_HIDE = "hide"
+VALID_TOOL_CHANGES = frozenset({TOOL_CHANGE_WARN, TOOL_CHANGE_HIDE})
+
+_CLIENT_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+
+logger = logging.getLogger("taintward.gateway")
 
 
 class ConfigError(ValueError):
@@ -93,6 +104,15 @@ class GatewayConfig:
     session_store: str = "memory"
     # Seconds a session's taint is kept after its last use.
     session_ttl: float = 24 * 3600.0
+    # Gap G2: exposed tool name -> expected fingerprint (``tool_fingerprint``).
+    # A tool without a pin is compared with the first version seen.
+    tool_pins: dict[str, str] = field(default_factory=dict)
+    # "warn": log and record a span; "hide": also stop exposing the tool.
+    on_tool_change: str = TOOL_CHANGE_WARN
+    # Gap G4, stdio: a client name whose taint is kept across sessions
+    # (useful with a Redis session store). Over HTTP the name comes from
+    # the client's token (TAINTWARD_GATEWAY_TOKENS).
+    client: str | None = None
 
     def policy_for(self, tool: str, upstream: str = "") -> ToolPolicy:
         """Resolve a tool's policy. The first matching rule wins; fields it
@@ -199,6 +219,8 @@ def parse_config(data: dict[str, Any], base_dir: str | os.PathLike | None = None
         where = f"tools[{i}]"
         if not isinstance(r, dict) or not r.get("match"):
             raise ConfigError(f"{where} needs a 'match' glob")
+        if r.get("upstream") and str(r["upstream"]) not in seen:
+            raise ConfigError(f"{where}: upstream {r['upstream']!r} is not in 'upstreams'")
         rr = r.get("redact_results")
         rules.append(ToolRule(
             match=str(r["match"]),
@@ -209,6 +231,15 @@ def parse_config(data: dict[str, Any], base_dir: str | os.PathLike | None = None
             redact_results=bool(rr) if rr is not None else None,
             passthrough_args=_names(r.get("passthrough_args"), where),
         ))
+        rule = rules[-1]
+        if (len(upstreams) > 1 and rule.upstream is None
+                and (rule.destination == DEST_INTERNAL or rule.passthrough_args)):
+            # Gap G3: any upstream can claim a tool name this rule trusts.
+            logger.warning("%s (match %r) grants %s without 'upstream:'; a tool of that "
+                           "name from any upstream gets it. Pin the rule to an upstream.",
+                           where, rule.match,
+                           "internal" if rule.destination == DEST_INTERNAL
+                           else "passthrough_args")
 
     store = str(data.get("session_store") or "memory").strip()
     if not (store in ("memory", "memory://") or store.startswith(("redis://", "rediss://", "unix://"))):
@@ -220,6 +251,17 @@ def parse_config(data: dict[str, Any], base_dir: str | os.PathLike | None = None
     if ttl <= 0:
         raise ConfigError("session_ttl must be positive")
 
+    pins = data.get("tool_pins") or {}
+    if not isinstance(pins, dict):
+        raise ConfigError("tool_pins must map tool names to fingerprints")
+    on_change = str(data.get("on_tool_change") or TOOL_CHANGE_WARN)
+    if on_change not in VALID_TOOL_CHANGES:
+        raise ConfigError(f"on_tool_change {on_change!r} is not one of "
+                          f"{sorted(VALID_TOOL_CHANGES)}")
+    client = data.get("client")
+    if client is not None and not _CLIENT_NAME_RE.match(str(client)):
+        raise ConfigError("client must be 1 to 64 letters, digits, '.', '_' or '-'")
+
     return GatewayConfig(
         upstreams=upstreams,
         rules=rules,
@@ -227,7 +269,30 @@ def parse_config(data: dict[str, Any], base_dir: str | os.PathLike | None = None
         service_name=str(data.get("service_name") or "taintward-mcp-gateway"),
         session_store=store,
         session_ttl=ttl,
+        tool_pins={str(k): str(v) for k, v in pins.items()},
+        on_tool_change=on_change,
+        client=str(client) if client is not None else None,
     )
+
+
+def parse_client_tokens(spec: str | None) -> dict[str, str]:
+    """``TAINTWARD_GATEWAY_TOKENS``: ``name:token,name2:token2`` -> {token: name}.
+
+    Each client gets its own token, and its taint is kept per client name
+    as well as per session (gap G4)."""
+    out: dict[str, str] = {}
+    for item in (spec or "").split(","):
+        item = item.strip()
+        if not item:
+            continue
+        name, sep, token = item.partition(":")
+        if not sep or not token or not _CLIENT_NAME_RE.match(name):
+            raise ConfigError("TAINTWARD_GATEWAY_TOKENS entries are name:token, with a name "
+                              "of letters, digits, '.', '_' or '-'")
+        if token in out:
+            raise ConfigError("TAINTWARD_GATEWAY_TOKENS: two clients share a token")
+        out[token] = name
+    return out
 
 
 def load_config(path: str | os.PathLike) -> GatewayConfig:

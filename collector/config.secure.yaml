@@ -1,0 +1,75 @@
+# Taintward collector config for a receiver that other hosts can reach
+# (gaps G7 and G8 in docs/threat-model.md).
+#
+# Differences from config.docker.yaml:
+#   * every producer must send "Authorization: Bearer <token>"
+#     (bearertokenauth). For the Python SDK and the gateway set
+#     OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer%20<token>.
+#   * taint_policy trusts taintward.sensitive=false and the
+#     taintward.args_redacted marker only from the services listed in
+#     trusted_services. Spans from any other service.name are treated as
+#     sensitive and their arguments are masked.
+#   * the receiver uses TLS, and the export to the backend uses TLS too.
+#
+# Environment variables:
+#   TAINTWARD_COLLECTOR_TOKEN   the producer token (from a secret manager).
+#   TAINTWARD_TLS_CERT_FILE     receiver certificate (PEM).
+#   TAINTWARD_TLS_KEY_FILE      receiver private key (PEM).
+#   OTLP_EXPORT_ENDPOINT        backend as an OTLP gRPC host:port.
+#   OTLP_EXPORT_CA_FILE         CA that signed the backend's certificate.
+#   TAINTWARD_MEMORY_LIMIT_MIB  memory_limiter hard limit. Default 400.
+#
+# Edit trusted_services below to the service names of your agents and
+# gateways.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4319
+        auth:
+          authenticator: bearertokenauth
+        tls:
+          cert_file: ${env:TAINTWARD_TLS_CERT_FILE}
+          key_file: ${env:TAINTWARD_TLS_KEY_FILE}
+      grpc:
+        endpoint: 0.0.0.0:4317
+        auth:
+          authenticator: bearertokenauth
+        tls:
+          cert_file: ${env:TAINTWARD_TLS_CERT_FILE}
+          key_file: ${env:TAINTWARD_TLS_KEY_FILE}
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  bearertokenauth:
+    token: ${env:TAINTWARD_COLLECTOR_TOKEN}
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: ${env:TAINTWARD_MEMORY_LIMIT_MIB:-400}
+    spike_limit_mib: 80
+  taint_policy:
+    policy_path: /etc/taintward/policy/pii_egress.rego
+    trusted_services: [taintward-hr-bot, taintward-mcp-gateway]
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+
+exporters:
+  otlp_grpc/backend:
+    endpoint: ${env:OTLP_EXPORT_ENDPOINT}
+    tls:
+      ca_file: ${env:OTLP_EXPORT_CA_FILE}
+
+service:
+  extensions: [health_check, bearertokenauth]
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, taint_policy, batch]
+      exporters: [otlp_grpc/backend]

@@ -9,7 +9,10 @@ receivers:
   otlp:
     protocols:
       http:
-        endpoint: 0.0.0.0:4319
+        # Sidecar: only processes on this host can send spans (gap G8).
+        # Anything that reaches this port can claim taintward.* attributes,
+        # see config.secure.yaml for auth when it must listen wider.
+        endpoint: 127.0.0.1:4319
 
 processors:
   taint_policy:

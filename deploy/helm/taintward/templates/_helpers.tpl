@@ -59,15 +59,13 @@ app.kubernetes.io/component: {{ .component }}
 {{- if $c.fileExport.enabled }}{{ $exporters = append $exporters "file" }}{{ end -}}
 {{- if $c.debugExporter }}{{ $exporters = append $exporters "debug" }}{{ end -}}
 receivers:
-  otlp:
-    protocols:
-      http:
-        endpoint: 0.0.0.0:4319
-      grpc:
-        endpoint: 0.0.0.0:4317
+  {{- include "taintward.otlpReceiver" . | nindent 2 }}
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
+  {{- if .Values.collector.auth.enabled }}
+  {{- include "taintward.authExtension" . | nindent 2 }}
+  {{- end }}
 processors:
   memory_limiter:
     check_interval: 1s
@@ -75,6 +73,10 @@ processors:
     spike_limit_percentage: {{ $c.memoryLimiter.spikeLimitPercentage }}
   taint_policy:
     policy_path: /etc/taintward/policy/pii_egress.rego
+    {{- with $c.trustedServices }}
+    trusted_services:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
   batch:
     timeout: {{ $c.batch.timeout }}
     send_batch_size: {{ $c.batch.sendBatchSize }}
@@ -106,7 +108,7 @@ exporters:
     verbosity: basic
   {{- end }}
 service:
-  extensions: [health_check]
+  extensions: [{{ include "taintward.extensions" . }}]
   telemetry:
     logs:
       level: info
@@ -121,15 +123,13 @@ service:
 {{/* Config for the optional routing tier (same as collector/config.gateway-tier.yaml). */}}
 {{- define "taintward.routing.config" -}}
 receivers:
-  otlp:
-    protocols:
-      http:
-        endpoint: 0.0.0.0:4319
-      grpc:
-        endpoint: 0.0.0.0:4317
+  {{- include "taintward.otlpReceiver" . | nindent 2 }}
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
+  {{- if .Values.collector.auth.enabled }}
+  {{- include "taintward.authExtension" . | nindent 2 }}
+  {{- end }}
 processors:
   memory_limiter:
     check_interval: 1s
@@ -152,6 +152,10 @@ exporters:
       otlp:
         tls:
           insecure: true
+        {{- if .Values.collector.auth.enabled }}
+        headers:
+          authorization: "Bearer ${env:TAINTWARD_COLLECTOR_TOKEN}"
+        {{- end }}
         timeout: 5s
         # Fail fast per pod and hand the data back to the top level queue.
         retry_on_failure:
@@ -166,7 +170,7 @@ exporters:
         port: "4317"
         interval: 5s
 service:
-  extensions: [health_check]
+  extensions: [{{ include "taintward.extensions" . }}]
   telemetry:
     logs:
       level: info
@@ -183,4 +187,44 @@ allowPrivilegeEscalation: false
 readOnlyRootFilesystem: true
 capabilities:
   drop: ["ALL"]
+{{- end }}
+
+
+{{/* OTLP receiver; with collector.auth.enabled every producer needs the bearer token (gap G7). */}}
+{{- define "taintward.otlpReceiver" -}}
+otlp:
+  protocols:
+    http:
+      endpoint: 0.0.0.0:4319
+      {{- if .Values.collector.auth.enabled }}
+      auth:
+        authenticator: bearertokenauth
+      {{- end }}
+    grpc:
+      endpoint: 0.0.0.0:4317
+      {{- if .Values.collector.auth.enabled }}
+      auth:
+        authenticator: bearertokenauth
+      {{- end }}
+{{- end }}
+
+{{- define "taintward.authExtension" -}}
+{{- if .Values.collector.auth.enabled }}
+bearertokenauth:
+  token: "${env:TAINTWARD_COLLECTOR_TOKEN}"
+{{- end }}
+{{- end }}
+
+{{- define "taintward.extensions" -}}
+{{- if .Values.collector.auth.enabled }}health_check, bearertokenauth{{ else }}health_check{{ end }}
+{{- end }}
+
+{{/* The collector token from collector.auth.existingSecret, as an env entry. */}}
+{{- define "taintward.collectorTokenEnv" -}}
+{{- $a := .Values.collector.auth -}}
+- name: TAINTWARD_COLLECTOR_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ required "collector.auth.existingSecret is required when collector.auth.enabled" $a.existingSecret }}
+      key: {{ $a.secretKey }}
 {{- end }}

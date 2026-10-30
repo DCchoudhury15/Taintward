@@ -14,7 +14,6 @@ from taintward.sdk.integrations import Ward
 from taintward.sdk.redact import Redactor
 
 
-
 def _tracer():
     exp = InMemorySpanExporter()
     tp = TracerProvider()

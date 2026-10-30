@@ -76,6 +76,25 @@ OTLP/gRPC  taintward-collector.taintward.svc.cluster.local:4317
 
 With the SDK that is `configure_tracing("my-agent", endpoint="http://taintward-collector.taintward.svc.cluster.local:4319/v1/traces")`.
 
+By default any pod that can reach the Service can send spans, with any
+`taintward.*` attributes. To allow only your agents, create a Secret with a
+token and turn on producer auth:
+
+```bash
+kubectl -n taintward create secret generic taintward-collector-token \
+  --from-literal=token="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+helm upgrade taintward ... \
+  --set collector.auth.enabled=true \
+  --set collector.auth.existingSecret=taintward-collector-token \
+  --set 'collector.trustedServices={my-agent,taintward-mcp-gateway}'
+```
+
+Agents then send the token with
+`OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer%20<token>`; the routing
+tier and the gateway in this chart do it for you. Spans from a service that
+is not in `collector.trustedServices` are treated as sensitive, whatever
+they claim.
+
 ## 3. Change the policy
 
 The Rego policy is in a ConfigMap. To use your own file:
@@ -208,6 +227,8 @@ kubectl delete namespace taintward
 | `collector.policy.rego` | empty (shipped policy) | your Rego policy |
 | `collector.fileExport.enabled` | `false` | also write OTLP JSON lines |
 | `collector.configOverride` | empty | your own full collector config |
+| `collector.auth.enabled` | `false` | producers need a bearer token (from `collector.auth.existingSecret`, key `collector.auth.secretKey`) |
+| `collector.trustedServices` | empty (trust all) | `service.name` values whose `taintward.*` claims are believed |
 | `routingTier.enabled` | `false` | traceID routing tier |
 | `gateway.enabled` | `false` | MCP gateway |
 | `gateway.existingSecret` | empty, required with the gateway | keys |

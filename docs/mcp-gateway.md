@@ -169,8 +169,26 @@ set there is no auth, and the gateway logs a warning if it listens on
 anything other than localhost. Without a token anyone who can reach the
 port can call the upstream tools, so only skip it on a trusted network.
 
-The token is one shared secret, not per user auth. Put TLS in front of the
-gateway (an ingress or a service mesh) so the token is not sent in clear.
+`TAINTWARD_GATEWAY_TOKEN` is one shared secret. To tell clients apart, give
+each one its own token instead:
+
+```bash
+export TAINTWARD_GATEWAY_TOKENS="support-bot:<token1>,billing-bot:<token2>"
+```
+
+The gateway then knows which client sent each call (from the token, never
+from anything the client claims) and keeps the taint per client as well as
+per session. Ending a session and starting a new one no longer gives a
+clean slate: the client's taint is still there until `session_ttl` passes
+without a call. The span gets `taintward.gateway.client`. Both variables can
+be set together; the shared token then has no client name.
+
+Over stdio there is no token. Set `client: <name>` in the config to keep the
+taint per client there, which matters with a Redis session store, since a
+new stdio process is a new session.
+
+Put TLS in front of the gateway (an ingress or a service mesh) so tokens
+are not sent in clear.
 
 ### Session store and several replicas
 
@@ -218,6 +236,10 @@ never runs a call with unknown taint.
 service_name: taintward-mcp-gateway   # OTel service.name
 session_store: memory      # memory | redis://host:6379/0 (shared by replicas)
 session_ttl: 86400         # seconds a session's taint is kept after last use
+client: support-bot        # optional, stdio: keep taint per client (HTTP: TAINTWARD_GATEWAY_TOKENS)
+on_tool_change: warn       # warn | hide, when a tool's description or schema changes
+tool_pins:                 # optional, from --print-tool-pins
+  get_employee: "sha256:..."
 
 upstreams:                 # one or more, tools from all of them are exposed
   - name: hr               # unique name, used in rules and spans
@@ -252,9 +274,25 @@ Notes:
 - `command: python` (or `python3`) means the same interpreter that runs the
   gateway.
 - A field a rule leaves out comes from `defaults`.
-- If two upstreams expose the same tool name, the first upstream in the list
-  wins and the other one is hidden (a warning is logged). Use `prefix` to
-  keep both.
+- If two upstreams expose the same tool name, the gateway refuses to start.
+  If the clash appears later (an upstream adds a tool), both tools are
+  hidden, calls to them get an error and a `taintward.gateway tool_clash`
+  span is recorded, until the clash is gone. Use `prefix` to keep both.
+- With more than one upstream, a rule that grants `internal` or
+  `passthrough_args` without `upstream:` logs a warning at startup: a tool of
+  that name from any upstream would get it. An `upstream:` that is not in
+  `upstreams` is an error.
+- `tool_pins` and `on_tool_change`: the gateway keeps a fingerprint (SHA-256
+  of the description, title and input and output schema) of every tool. A
+  tool that differs from its pin, or from the version first seen when it has
+  no pin, gets a warning and a `taintward.gateway tool_changed` span, once per
+  new version. With `on_tool_change: hide` the tool is also no longer listed
+  and calls to it get an error until the gateway restarts. Make the pins
+  after you have read the tool descriptions:
+
+  ```bash
+  python -m taintward.gateway --config gateway.yaml --print-tool-pins >> gateway.yaml
+  ```
 - `passthrough_args` is for values the tool really needs raw, such as the
   `to` address of an email tool. They are still masked on the span.
 
@@ -281,6 +319,13 @@ policy and SigNoz dashboards work on it:
 | `taintward.dry_run` | set in audit mode |
 | `taintward.args.redacted` / `taintward.result.redacted` | something was changed |
 | `taintward.gateway.upstream` | upstream name |
+| `taintward.gateway.client` | client name from its token (`TAINTWARD_GATEWAY_TOKENS`) or `client:` |
+
+Tool listing problems get a span of their own, `taintward.gateway
+tool_changed` or `taintward.gateway tool_clash`, with `gen_ai.tool.name`,
+`taintward.gateway.upstream`, `taintward.gateway.tool.hidden` and, for a
+change, `taintward.gateway.tool.fingerprint` and
+`taintward.gateway.tool.expected_fingerprint`.
 
 The chain taint is also put in OTel baggage on the upstream request, so an
 upstream that is itself instrumented can read it.

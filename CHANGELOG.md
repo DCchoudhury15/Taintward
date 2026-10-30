@@ -28,6 +28,25 @@
 - The collector's `taint_policy` processor has a `drop_attributes` option.
   By default it drops the Google ADK attributes that hold model requests,
   responses and tool arguments with real values.
+- Gateway: tools are fingerprinted (description, title, schemas). A tool
+  that differs from its pin in `tool_pins` or from the version first seen
+  gets a `taintward.gateway tool_changed` span; `on_tool_change: hide` stops
+  exposing it. `--print-tool-pins` writes the pins (gap G2).
+- Gateway: two upstreams offering the same tool name stops the gateway at
+  startup, and hides both tools if it happens later; it used to let the
+  first upstream win. Rules that grant `internal` or `passthrough_args`
+  without `upstream:` warn when there are several upstreams, and an unknown
+  `upstream:` is a config error (gap G3).
+- Gateway: `TAINTWARD_GATEWAY_TOKENS=name:token,...` gives each client its
+  own token, and taint is kept per client as well as per session, so a new
+  session does not start clean (gap G4). `client:` does the same over stdio.
+- Collector: `trusted_services` in `taint_policy`. Spans from other
+  services are treated as sensitive and their `taintward.args_redacted`
+  marker is ignored (gap G7). The image includes the `bearertokenauth`
+  extension; `collector/config.secure.yaml` and Helm `collector.auth`
+  require a producer token, and the Helm routing tier and gateway send it.
+- The sidecar config listens on `127.0.0.1:4319`, and `docker-compose.yml`
+  publishes the collector and Jaeger ports on `127.0.0.1` only (gap G8).
 
 ## 0.3.0
 

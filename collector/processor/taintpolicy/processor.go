@@ -45,6 +45,8 @@ const (
 	attPolicyError      = "taintward.policy.error"
 	attPolicyMasked     = "taintward.policy.masked_values"
 	attPolicyDropped    = "taintward.policy.dropped_attributes"
+	attPolicyUntrusted  = "taintward.policy.untrusted_producer"
+	attServiceName      = "service.name"
 	decisionEngine      = "rego"
 )
 
@@ -52,7 +54,7 @@ const (
 var ownedAttrs = map[string]struct{}{
 	attPolicyRedact: {}, attPolicyViolation: {}, attPolicyTransfer: {},
 	attPolicyViolations: {}, attPolicyReasons: {}, attPolicyDecision: {},
-	attPolicyError: {}, attPolicyMasked: {}, attPolicyDropped: {},
+	attPolicyError: {}, attPolicyMasked: {}, attPolicyDropped: {}, attPolicyUntrusted: {},
 }
 
 // taintPolicyProcessor is a traces processor that:
@@ -66,10 +68,11 @@ var ownedAttrs = map[string]struct{}{
 // It fails closed: a policy error or undefined decision still redacts and
 // records taintward.policy.error.
 type taintPolicyProcessor struct {
-	cfg    *Config
-	next   consumer.Traces
-	policy *policy
-	drop   attrMatcher
+	cfg     *Config
+	next    consumer.Traces
+	policy  *policy
+	drop    attrMatcher
+	trusted map[string]struct{} // empty: every producer is trusted
 }
 
 var _ processor.Traces = (*taintPolicyProcessor)(nil)
@@ -90,8 +93,12 @@ func newProcessor(cfg *Config, next consumer.Traces) (*taintPolicyProcessor, err
 	if err != nil {
 		return nil, err
 	}
+	trusted := map[string]struct{}{}
+	for _, s := range cfg.TrustedServices {
+		trusted[s] = struct{}{}
+	}
 	return &taintPolicyProcessor{cfg: cfg, next: next, policy: pol,
-		drop: newAttrMatcher(cfg.DropAttributes)}, nil
+		drop: newAttrMatcher(cfg.DropAttributes), trusted: trusted}, nil
 }
 
 // Capabilities: mutates span data.
@@ -108,25 +115,36 @@ func (p *taintPolicyProcessor) Shutdown(context.Context) error              { re
 func (p *taintPolicyProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
+		// Read before masking: the service name decides trust (gap G7).
+		trusted := p.isTrusted(getStr(rs.Resource().Attributes(), attServiceName))
 		maskMap(rs.Resource().Attributes(), "", 0)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			ss := rs.ScopeSpans().At(j)
 			maskMap(ss.Scope().Attributes(), "", 0)
 			for k := 0; k < ss.Spans().Len(); k++ {
-				p.processSpan(ctx, ss.Spans().At(k))
+				p.processSpan(ctx, ss.Spans().At(k), trusted)
 			}
 		}
 	}
 	return p.next.ConsumeTraces(ctx, td)
 }
 
-func (p *taintPolicyProcessor) processSpan(ctx context.Context, span ptrace.Span) {
+func (p *taintPolicyProcessor) isTrusted(service string) bool {
+	if len(p.trusted) == 0 {
+		return true
+	}
+	_, ok := p.trusted[service]
+	return ok
+}
+
+func (p *taintPolicyProcessor) processSpan(ctx context.Context, span ptrace.Span, trusted bool) {
 	attrs := span.Attributes()
 
 	// Normalize in Go as well as in the policy, so a custom policy that
-	// forgets lower() still sees "us", not "US".
+	// forgets lower() still sees "us", not "US". An untrusted producer
+	// cannot claim its data is clean (gap G7).
 	in := policyInput{
-		sensitive:    truthy(attrs, attSensitive),
+		sensitive:    truthy(attrs, attSensitive) || !trusted,
 		classes:      lowerStr(attrs, attClasses),
 		destination:  lowerStr(attrs, attDestination),
 		jurisdiction: lowerStr(attrs, attJurisdiction),
@@ -146,7 +164,7 @@ func (p *taintPolicyProcessor) processSpan(ctx context.Context, span ptrace.Span
 	}
 
 	dropped := p.drop.removeFrom(attrs)
-	masked := redactSpan(span)
+	masked := redactSpan(span, trusted)
 
 	if err != nil {
 		// Fail closed: the backstop above already ran on everything.
@@ -166,6 +184,9 @@ func (p *taintPolicyProcessor) processSpan(ctx context.Context, span ptrace.Span
 	}
 	if dropped > 0 {
 		attrs.PutInt(attPolicyDropped, int64(dropped))
+	}
+	if !trusted {
+		attrs.PutBool(attPolicyUntrusted, true)
 	}
 }
 
@@ -218,10 +239,11 @@ func (m attrMatcher) removeFrom(attrs pcommon.Map) int {
 
 // redactSpan runs the backstop over every string on the span and returns
 // how many values it masked.
-func redactSpan(span ptrace.Span) int {
+// The args_redacted marker is honored only from a trusted producer.
+func redactSpan(span ptrace.Span, trusted bool) int {
 	attrs := span.Attributes()
 	skip := ""
-	if argsMarked(attrs) {
+	if trusted && argsMarked(attrs) {
 		skip = attArgs
 	}
 	n := maskMap(attrs, skip, 0)

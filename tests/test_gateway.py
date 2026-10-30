@@ -182,7 +182,8 @@ def test_config_globs_defaults_and_validation():
     assert unknown.destination == "external" and unknown.mode == "redact"
 
     cfg2 = parse_config({
-        "upstreams": [{"name": "a", "url": "http://localhost:1/mcp"}],
+        "upstreams": [{"name": "a", "url": "http://localhost:1/mcp"},
+                      {"name": "b", "url": "http://localhost:2/mcp"}],
         "tools": [{"match": "x_*", "upstream": "b", "destination": "internal"}],
     })
     assert cfg2.policy_for("x_1", "a").destination == "external"  # upstream filter
@@ -193,6 +194,9 @@ def test_config_globs_defaults_and_validation():
                       "tools": [{"match": "*", "mode": "explode"}]})
     with pytest.raises(ConfigError):
         parse_config({"upstreams": [{"name": "a", "command": "x", "url": "http://x"}]})
+    with pytest.raises(ConfigError, match="not in 'upstreams'"):  # a typo in upstream:
+        parse_config({"upstreams": [{"name": "a", "command": "x"}],
+                      "tools": [{"match": "*", "upstream": "typo"}]})
     with pytest.raises(ConfigError):
         parse_config({"upstreams": [{"name": "a", "command": "x"}],
                       "tools": [{"match": "*", "destination": "moon"}]})

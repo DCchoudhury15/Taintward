@@ -72,6 +72,7 @@ itself, then writes them from its own decision.
 | `taintward.policy.redacted` | bool | the policy asked for redaction (every sensitive span), or the policy failed |
 | `taintward.policy.decision_engine` | string | `rego` |
 | `taintward.policy.masked_values` | int | how many values the collector masked on this span (only when more than 0) |
+| `taintward.policy.untrusted_producer` | bool | the span's service is not in `trusted_services`; it was treated as sensitive and its `taintward.args_redacted` marker was ignored |
 | `taintward.policy.dropped_attributes` | int | how many attributes the collector removed with `drop_attributes` (only when more than 0) |
 | `taintward.policy.error` | string | the policy could not be evaluated; the span was masked anyway |
 

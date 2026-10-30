@@ -509,3 +509,64 @@ func TestCache_SameDecisionAsUncached(t *testing.T) {
 		t.Error("cached and uncached decisions differ")
 	}
 }
+
+// --- gap G7: trusted_services ---
+
+func untrustedSpan(service string) ptrace.Traces {
+	td := ptrace.NewTraces()
+	sp := newSpan(td, "send_email")
+	td.ResourceSpans().At(0).Resource().Attributes().PutStr("service.name", service)
+	sp.Attributes().PutBool("taintward.sensitive", false)
+	sp.Attributes().PutStr("taintward.destination", "external")
+	sp.Attributes().PutBool("taintward.args_redacted", true)
+	sp.Attributes().PutStr("gen_ai.tool.call.arguments", `{"to":"`+rawSSN+`"}`)
+	return td
+}
+
+func trustedCfg() *Config {
+	cfg := defaultCfg()
+	cfg.TrustedServices = []string{"hr-bot"}
+	return cfg
+}
+
+func TestTrusted_UntrustedProducerCannotClaimClean(t *testing.T) {
+	got := firstSpan(run(t, trustedCfg(), untrustedSpan("someone-else"))).Attributes()
+	if v, ok := got.Get("taintward.policy.violation"); !ok || !v.Bool() {
+		t.Error("an untrusted span to external must be a violation whatever it claims")
+	}
+	if strings.Contains(strAttr(got, "gen_ai.tool.call.arguments"), rawSSN) {
+		t.Error("the args_redacted marker of an untrusted producer must be ignored")
+	}
+	if v, ok := got.Get("taintward.policy.untrusted_producer"); !ok || !v.Bool() {
+		t.Error("missing taintward.policy.untrusted_producer")
+	}
+}
+
+func TestTrusted_ListedServiceKeepsItsMarker(t *testing.T) {
+	got := firstSpan(run(t, trustedCfg(), untrustedSpan("hr-bot"))).Attributes()
+	if v, _ := got.Get("taintward.policy.violation"); v.Bool() {
+		t.Error("a trusted clean span must not be a violation")
+	}
+	if !strings.Contains(strAttr(got, "gen_ai.tool.call.arguments"), rawSSN) {
+		t.Error("a trusted producer's marker must be honored (by design)")
+	}
+	if _, ok := got.Get("taintward.policy.untrusted_producer"); ok {
+		t.Error("trusted spans must not be marked untrusted")
+	}
+}
+
+func TestTrusted_EmptyListTrustsEveryone(t *testing.T) {
+	got := firstSpan(run(t, defaultCfg(), untrustedSpan("anyone"))).Attributes()
+	if _, ok := got.Get("taintward.policy.untrusted_producer"); ok {
+		t.Error("with no trusted_services every producer is trusted, as before")
+	}
+}
+
+func TestTrusted_ProducerCannotSetTheUntrustedFlagItself(t *testing.T) {
+	td := untrustedSpan("hr-bot")
+	firstSpan(td).Attributes().PutBool("taintward.policy.untrusted_producer", true)
+	got := firstSpan(run(t, trustedCfg(), td)).Attributes()
+	if _, ok := got.Get("taintward.policy.untrusted_producer"); ok {
+		t.Error("taintward.policy.untrusted_producer is owned by the collector")
+	}
+}

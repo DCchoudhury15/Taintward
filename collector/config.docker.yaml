@@ -16,6 +16,9 @@
 #   TAINTWARD_MEMORY_LIMIT_MIB  memory_limiter hard limit. Default 400.
 #                               Keep it about 80% of the container memory limit.
 receivers:
+  # 0.0.0.0 inside the container; publish the ports on 127.0.0.1 or a
+  # private network only. There is no producer auth here: use
+  # config.secure.yaml (or Helm collector.auth) when other hosts send spans.
   otlp:
     protocols:
       http:

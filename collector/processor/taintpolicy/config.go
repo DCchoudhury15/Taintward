@@ -19,10 +19,20 @@ import "go.opentelemetry.io/collector/component"
 //	on its own spans with the model request, the model response and tool
 //	arguments and results: ADK writes them after Taintward restored the
 //	placeholders, so they hold real values. Set [] to keep them.
+//
+//	trusted_services: service.name values whose spans are trusted (gap G7).
+//	Empty (the default) trusts every producer, as before. When set, a span
+//	from any other service is treated as sensitive whatever its
+//	taintward.sensitive says, its taintward.args_redacted marker is ignored
+//	(the backstop masks its arguments), and it gets
+//	taintward.policy.untrusted_producer=true. Pair it with producer auth
+//	(bearertokenauth on the receiver), since service.name is set by the
+//	producer.
 type Config struct {
 	PolicyPath        string   `mapstructure:"policy_path,omitempty"`
 	DecisionCacheSize int      `mapstructure:"decision_cache_size"`
 	DropAttributes    []string `mapstructure:"drop_attributes"`
+	TrustedServices   []string `mapstructure:"trusted_services"`
 }
 
 const defaultDecisionCacheSize = 4096

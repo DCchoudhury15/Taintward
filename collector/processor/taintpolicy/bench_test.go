@@ -39,7 +39,7 @@ func benchProcessSpan(b *testing.B, cacheSize int, withPII bool) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		tmpl.CopyTo(work)
-		p.processSpan(ctx, work)
+		p.processSpan(ctx, work, true)
 	}
 }
 

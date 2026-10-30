@@ -12,7 +12,16 @@ session_ttl: 86400          # seconds a session is kept after its last use
 
 # Serve over HTTP instead of stdio:
 #   python -m taintward.gateway --config taintward/gateway/example-config.yaml --listen 0.0.0.0:8811
-# Set TAINTWARD_GATEWAY_TOKEN to require "Authorization: Bearer <token>".
+# Set TAINTWARD_GATEWAY_TOKEN to require "Authorization: Bearer <token>", or
+# TAINTWARD_GATEWAY_TOKENS=support-bot:<token>,... for one token per client,
+# so a client's taint survives a new session.
+
+# A tool whose description or schema changes after the gateway first saw it
+# (or differs from its pin below) is reported; "hide" also stops exposing it.
+on_tool_change: warn        # or hide
+# Pins from: python -m taintward.gateway --config <this file> --print-tool-pins
+# tool_pins:
+#   get_employee: "sha256:..."
 
 # Upstream MCP servers. Each one is either a local command (stdio) or a
 # streamable HTTP url. Their tools are re-exposed with the same names and

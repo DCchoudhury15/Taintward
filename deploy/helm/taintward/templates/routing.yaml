@@ -56,6 +56,10 @@ spec:
               containerPort: 4317
             - name: health
               containerPort: 13133
+          {{- if .Values.collector.auth.enabled }}
+          env:
+            {{- include "taintward.collectorTokenEnv" $ | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /

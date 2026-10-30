@@ -40,6 +40,9 @@ What starts:
 | `taintward-collector` | OTLP receiver + `taint_policy` processor | 14319 (OTLP/HTTP) |
 | `demo` | runs the breach simulator once, then exits | none |
 
+Both host ports are published on `127.0.0.1` only: the collector receiver
+has no auth, and the UI shows span data.
+
 The demo prints `external API ack: ...` and exits with code 0. That is
 expected. The collector and Jaeger keep running.
 
