@@ -1,7 +1,29 @@
 # Releasing
 
-A release is one git tag, `vX.Y.Z`. Pushing the tag runs the release
-pipeline in `.gitlab-ci.yml`, which publishes everything.
+A release is one git tag, `vX.Y.Z`. On GitHub, pushing the tag runs
+`.github/workflows/release.yml`: tests, a build (with the README's links
+made absolute for the PyPI page by `scripts/pypi_readme.py`), the upload
+to PyPI and a GitHub release with the notes from `CHANGELOG.md`.
+`.gitlab-ci.yml` has a fuller pipeline (images, Helm chart, signing) for
+GitLab; the sections below describe it.
+
+## PyPI from GitHub: one-time setup
+
+1. Log in to https://pypi.org (turn on 2FA).
+2. Your account > Publishing > Add a new pending publisher > GitHub:
+
+   | field | value |
+   |---|---|
+   | PyPI Project Name | `taintward` |
+   | Owner | `DCchoudhury15` |
+   | Repository name | `Taintward` |
+   | Workflow name | `release.yml` |
+   | Environment name | `pypi` |
+
+3. On GitHub: Settings > Environments > New environment `pypi`. Optionally
+   add yourself as a required reviewer, so every upload waits for a click.
+
+The first successful upload creates the `taintward` project on PyPI.
 
 ## Cut a release
 

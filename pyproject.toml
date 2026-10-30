@@ -105,10 +105,10 @@ google-adk = ["google-adk>=1.14"]
 
 [project.urls]
 Homepage = "https://taintward.vercel.app"
-Documentation = "https://gitlab.com/divyanshuchoudhury51/taintward/-/tree/main/docs"
-Source = "https://gitlab.com/divyanshuchoudhury51/taintward"
-Issues = "https://gitlab.com/divyanshuchoudhury51/taintward/-/issues"
-Changelog = "https://gitlab.com/divyanshuchoudhury51/taintward/-/blob/main/CHANGELOG.md"
+Documentation = "https://dcchoudhury15.github.io/Taintward/"
+Source = "https://github.com/DCchoudhury15/Taintward"
+Issues = "https://github.com/DCchoudhury15/Taintward/issues"
+Changelog = "https://github.com/DCchoudhury15/Taintward/blob/main/CHANGELOG.md"
 
 [project.scripts]
 taintward-evidence = "taintward.evidence.log:main"
