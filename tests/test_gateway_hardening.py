@@ -6,11 +6,11 @@ from __future__ import annotations
 import logging
 
 import anyio
-import mcp_types as types
 import pytest
 
 pytest.importorskip("mcp")
 
+import mcp_types as types  # noqa: E402
 from mcp import Client  # noqa: E402
 from mcp.server import Server  # noqa: E402
 from mcp.shared.exceptions import MCPError  # noqa: E402
