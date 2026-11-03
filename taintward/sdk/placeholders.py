@@ -360,7 +360,7 @@ class PlaceholderMap:
                 out.append(KnownSpan(e.entity_type, m.start(), m.end(), e.sensitivity))
         return out
 
-    def restore_text(self, text: str, before: str = "") -> str:
+    def restore_text(self, text: str, before: str = "", *, spaced: bool = True) -> str:
         """Swap every known placeholder in ``text`` for its real value.
 
         Unknown placeholders (for example ones the model invented) are left as
@@ -370,11 +370,22 @@ class PlaceholderMap:
         value with a quote or backslash stays valid JSON.
 
         ``before``: text that came before ``text`` (earlier stream chunks),
-        used only to see whether a placeholder continues a link address."""
+        used only to see whether a placeholder continues a link address.
+        ``spaced=False``: do not restore "Person 1" style forms (a streamed
+        answer, where the rest of the text is not known yet)."""
+        return self._restore_text(text, before, spaced=spaced)
+
+    def restore_json_fragment(self, text: str, before: str = "") -> str:
+        """Like ``restore_text``, for text that sits inside a JSON document
+        that is not complete yet (a streamed piece of tool call arguments):
+        the real value is JSON-escaped, so the arguments stay valid JSON."""
+        return self._replace_forms(text, _json_inner, before, spaced=False, in_json=True)
+
+    def _restore_text(self, text: str, before: str, *, spaced: bool) -> str:
         if not isinstance(text, str) or not text:
             return text
         # JSON first: tool call arguments from some servers (Ollama) escape
-        # "<" as <, so the raw string has no "<PERSON_1>" in it.
+        # "<" as \u003c, so the raw string has no "<PERSON_1>" in it.
         if text.lstrip()[:1] in ("{", "[") and ("\\u003c" in text or self._might_have(text)):
             try:
                 parsed = json.loads(text)
@@ -385,26 +396,46 @@ class PlaceholderMap:
                 if restored == parsed:
                     return text  # nothing to restore: keep the original string
                 return json.dumps(restored, ensure_ascii=False)
-        if not self._might_have(text):
-            return text
+        return self._replace_forms(text, _plain, before, spaced=spaced)
 
+    def _replace_forms(self, text: str, encode, before: str, *, spaced: bool,
+                       in_json: bool = False) -> str:
+        """Replace the placeholder forms in ``text`` with ``encode(value)``.
+
+        ``spaced``: also restore "Person 1" style forms. That needs the
+        whole answer (see ``_spaced_ok``), so stream pieces never do it.
+        ``in_json``: ``text`` is part of a JSON document, so the link check
+        looks only at the JSON string the placeholder is in."""
+        if not isinstance(text, str) or not text or not self._might_have(text):
+            return text
         tail = before[-2000:]
+        # A piece that starts inside a word (a stream cut a very long word):
+        # a bare PERSON_1 at its start is not a word of its own.
+        glued = bool(tail) and (tail[-1].isalnum() or tail[-1] in "_\\")
 
         def blocked(m: re.Match) -> bool:
-            return not self.restore_in_urls and in_url(tail + text, len(tail) + m.start())
+            if self.restore_in_urls:
+                return False
+            full, pos = tail + text, len(tail) + m.start()
+            if in_json:
+                start = _json_string_start(full, pos)
+                return in_url(full[start:], pos - start)
+            return in_url(full, pos)
 
         if not self.tolerant:
             def sub(m: re.Match) -> str:
                 entry = self._entry(_canonical(m))
-                return entry.value if entry and not blocked(m) else m.group(0)
+                return encode(entry.value) if entry and not blocked(m) else m.group(0)
 
             return PLACEHOLDER_RE.sub(sub, text)
 
-        spaced = self._spaced_ok(text)
+        ok = self._spaced_ok(text) if spaced else {}
 
         def tolerant_sub(m: re.Match) -> str:
-            value = self._classify(m, spaced)[0]
-            return value if value is not None and not blocked(m) else m.group(0)
+            if glued and m.start() == 0 and (m.group("ulabel") or m.group("slabel")):
+                return m.group(0)
+            value = self._classify(m, ok)[0]
+            return encode(value) if value is not None and not blocked(m) else m.group(0)
 
         return _TOLERANT_RE.sub(tolerant_sub, text)
 
@@ -494,8 +525,11 @@ class PlaceholderMap:
             return "unknown"
         return "ignore"
 
-    def diagnose(self, text: str) -> dict[str, list[str]]:
+    def diagnose(self, text: str, *, spaced: bool = True) -> dict[str, list[str]]:
         """What restoring ``text`` (a model answer, before restore) will do.
+
+        ``spaced=False`` for a streamed answer: stream pieces never restore
+        "Person 1" style forms, so they count as ``lost``.
 
         Returns lists of placeholder forms (never values):
 
@@ -520,7 +554,7 @@ class PlaceholderMap:
                 parsed = None
             if isinstance(parsed, (dict, list)):
                 for v in _strings(parsed):
-                    for k, found in self.diagnose(v).items():
+                    for k, found in self.diagnose(v, spaced=spaced).items():
                         out[k].extend(found)
                 return out
         if not self.tolerant:
@@ -532,9 +566,9 @@ class PlaceholderMap:
                 elif not self.restore_in_urls and in_url(text, m.start()):
                     out["blocked"].append(m.group(0))
         else:
-            spaced = self._spaced_ok(text)
+            ok = self._spaced_ok(text) if spaced else {}
             for m in _TOLERANT_RE.finditer(text):
-                value, kind = self._classify(m, spaced)
+                value, kind = self._classify(m, ok)
                 if value is not None and not self.restore_in_urls and in_url(text, m.start()):
                     kind = "blocked"
                 if kind in out:
@@ -624,6 +658,110 @@ class PlaceholderMap:
 
     def __repr__(self) -> str:  # never print values
         return f"PlaceholderMap({len(self)} placeholders)"
+
+
+def _plain(value: str) -> str:
+    return value
+
+
+def _json_string_start(s: str, pos: int) -> int:
+    """Where the JSON string that holds position ``pos`` starts (after its
+    opening quote); 0 when there is no quote before ``pos``."""
+    i = s.rfind('"', 0, pos)
+    while i >= 0:
+        j = i
+        while j > 0 and s[j - 1] == "\\":
+            j -= 1
+        if (i - j) % 2 == 0:  # not an escaped quote
+            return i + 1
+        i = s.rfind('"', 0, i)
+    return 0
+
+
+def _json_inner(value: str) -> str:
+    """``value`` as it is written inside a JSON string (without the quotes)."""
+    return json.dumps(value, ensure_ascii=False)[1:-1]
+
+
+class StreamRestorer:
+    """Restores one streamed text (an answer, or one tool call's arguments)
+    piece by piece, so a placeholder split across chunks is restored whole.
+
+    ``push(delta)`` returns the text that is safe to emit now: it holds back
+    a tail that may be the start of a placeholder (``"<SS"``, ``"[PERSON"``,
+    a word that may become ``PERSON_1``), at most ``max_hold`` characters.
+    ``flush()`` returns the rest at the end of the stream.
+
+    ``mode="json"`` is for pieces of a JSON document (streamed tool call
+    arguments): the real value is JSON-escaped. "Person 1" style forms are
+    not restored in a stream (that needs the whole answer)."""
+
+    def __init__(self, pmap: PlaceholderMap, mode: str = "text", max_hold: int = 64) -> None:
+        if mode not in ("text", "json"):
+            raise ValueError(f"mode must be 'text' or 'json', not {mode!r}")
+        self.pmap = pmap
+        self.mode = mode
+        self.max_hold = max_hold
+        self._pending = ""
+        # The text already emitted (as the model wrote it, last part only):
+        # tells whether a placeholder in the next piece continues a link
+        # address (gap G1).
+        self._seen = ""
+
+    @property
+    def holding(self) -> bool:
+        """True when ``flush`` would return text."""
+        return bool(self._pending)
+
+    def push(self, delta: str) -> str:
+        if not delta:
+            return ""
+        self._pending += delta
+        cut = _hold_from(self._pending, self.max_hold)
+        ready, self._pending = self._pending[:cut], self._pending[cut:]
+        return self._apply(ready)
+
+    def flush(self) -> str:
+        rest, self._pending = self._pending, ""
+        return self._apply(rest)
+
+    def _apply(self, piece: str) -> str:
+        if not piece:
+            return piece
+        before = self._seen
+        self._seen = (self._seen + piece)[-2000:]
+        if self.mode == "json":
+            return self.pmap.restore_json_fragment(piece, before)
+        return self.pmap.restore_text(piece, before, spaced=False)
+
+
+# The start of a placeholder that is not finished yet: "<", "&lt", "<SSN",
+# "<SSN_1", "[PERSON", "{{EMAIL_1" ... (the same rules as the TypeScript SDK)
+_PARTIAL_ENTITY = re.compile(r"&(?:l|lt|lt;?)?")
+_PARTIAL = re.compile(rf"(?:{_OPEN})?[ \t]*[\w \-\\＿]*(?:&|&g|&gt)?")
+# "{{PERSON_1}" or "[[PERSON_1]": the second closing bracket may still come.
+_PARTIAL_DOUBLE = re.compile(r"(?:\{\{|\[\[)[ \t]*[\w \-\\＿]*[}\]]")
+_OPENERS = frozenset("<&[{(\\«‹〈《＜【「『")
+
+
+def _wordish(c: str) -> bool:
+    return c.isalnum() or c in "_＿\\"
+
+
+def _hold_from(text: str, max_hold: int) -> int:
+    """Index from which ``text`` must be held back (``len(text)`` when none)."""
+    start = max(0, len(text) - max_hold)
+    # A bare form (PERSON_1) can be cut anywhere: hold a trailing word run.
+    cut = len(text)
+    while cut > start and _wordish(text[cut - 1]):
+        cut -= 1
+    for i in range(start, cut):
+        if text[i] in _OPENERS:
+            rest = text[i:]
+            if (_PARTIAL_ENTITY.fullmatch(rest) or _PARTIAL.fullmatch(rest)
+                    or _PARTIAL_DOUBLE.fullmatch(rest)):
+                return i
+    return cut
 
 
 def _canonical(m: re.Match) -> str:
@@ -775,17 +913,18 @@ def _strings(value: Any, depth: int = 0) -> Iterator[str]:
 
 
 def check_output(pmap: PlaceholderMap, raw_output: Any, *, span: Any = None,
-                 strict: bool = False) -> dict[str, list[str]]:
+                 strict: bool = False, spaced: bool = True) -> dict[str, list[str]]:
     """Check a model answer (the placeholder version, before restore).
 
     Records ``taintward.placeholders.repaired`` / ``.lost`` / ``.unknown`` /
     ``.blocked`` on ``span`` (placeholder forms only, never values), logs a
     warning when something could not be restored, and raises
     ``PlaceholderRestoreError`` in strict mode. Blocked placeholders (inside
-    a link address, gap G1) are logged but never raise."""
+    a link address, gap G1) are logged but never raise. ``spaced=False`` for
+    a streamed answer (see ``PlaceholderMap.diagnose``)."""
     found: dict[str, list[str]] = {"repaired": [], "lost": [], "unknown": [], "blocked": []}
     for s in _strings(raw_output):
-        for k, v in pmap.diagnose(s).items():
+        for k, v in pmap.diagnose(s, spaced=spaced).items():
             found[k].extend(v)
     if span is not None:
         for k, v in found.items():
@@ -809,5 +948,5 @@ __all__ = [
     "PLACEHOLDER_RE", "PlaceholderMap", "KnownSpan", "label_for",
     "current", "activate", "deactivate", "scope", "restore",
     "INSTRUCTION", "PlaceholderRestoreError", "placeholders_in", "instruction_for",
-    "check_output", "in_url",
+    "check_output", "in_url", "StreamRestorer",
 ]

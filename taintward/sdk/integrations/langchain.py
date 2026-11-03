@@ -21,7 +21,10 @@ modified.
 Placeholders (on by default): the model gets ``<PERSON_1>`` style
 placeholders instead of masks, and the ``AIMessage`` it returns from
 ``invoke`` / ``ainvoke`` (text, ``tool_calls`` args, ``additional_kwargs``) is
-restored to the real values. A wrapped tool restores any placeholder still in
+restored to the real values. ``stream`` / ``astream`` hand out restored
+copies of the chunks: text (also content blocks), tool call chunk arguments
+and ``additional_kwargs`` tool calls. A placeholder split across chunks is
+restored whole; text held back for that is added to the last chunk. A wrapped tool restores any placeholder still in
 its input from the run's map, then the normal destination gate runs on the
 real values (internal: reversible token, external/log/rag: mask, ``allow``
 arguments: real value).
@@ -33,7 +36,7 @@ import contextvars
 from typing import Any, ClassVar, Iterable, Mapping
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.messages import AIMessageChunk, BaseMessage, SystemMessage
 from langchain_core.prompt_values import ChatPromptValue
 from langchain_core.tools import BaseTool
 from opentelemetry import trace
@@ -48,6 +51,13 @@ from taintward.sdk.integrations._payload import (
     redact_structure,
 )
 from taintward.sdk.integrations._payload import plain_view as _plain_view
+from taintward.sdk.integrations._stream import (
+    Guard,
+    Pieces,
+    StreamCall,
+    async_items,
+    sync_items,
+)
 from taintward.sdk.redact import redact_payload
 
 _POLICY_ATTR = "__taintward_policy__"
@@ -305,6 +315,202 @@ def _finish(call: GuardedCall, out: Any, pmap, ward: Ward) -> None:
                         strict=getattr(ward, "placeholder_strict", False))
 
 
+# Fields of a content block that hold streamed text, and how to restore them.
+_BLOCK_FIELDS = {"text": "text", "thinking": "text", "reasoning": "text",
+                 "partial_json": "json", "args": "json"}
+
+
+class _Chunks:
+    """Stream handler for ``AIMessageChunk`` objects."""
+
+    def __init__(self, pmap) -> None:
+        self.p = Pieces(pmap)
+        self.pmap = self.p.pmap
+        self.block_types: dict = {}
+        self.names: dict = {}
+        self.whole: list = []  # full messages (a model that cannot stream)
+        self.closed = False
+
+    # -- one chunk ------------------------------------------------------------
+    def _content(self, content: Any) -> Any:
+        if isinstance(content, str):
+            return self.p.push(("text",), content)
+        if not isinstance(content, list):
+            return content
+        out, changed = [], False
+        for pos, block in enumerate(content):
+            new = block
+            if isinstance(block, str):
+                new = self.p.push(("text",), block)
+            elif isinstance(block, dict):
+                idx = block.get("index", pos)
+                self.block_types.setdefault(idx, block.get("type"))
+                for field, mode in _BLOCK_FIELDS.items():
+                    v = block.get(field)
+                    if isinstance(v, str) and v:
+                        r = self.p.push(("block", idx, field), v, mode)
+                        if r != v:
+                            new = {**new, field: r}
+            changed |= new is not block
+            out.append(new)
+        return out if changed else content
+
+    def _tool_chunks(self, chunks: list) -> list:
+        out, changed = [], False
+        for pos, tc in enumerate(chunks):
+            idx = tc.get("index")
+            idx = pos if idx is None else idx
+            if tc.get("name"):
+                self.names[idx] = tc["name"]
+            args = tc.get("args")
+            new = tc
+            if isinstance(args, str) and args:
+                r = self.p.push(("tool", idx), args, "json")
+                if r != args:
+                    new = {**tc, "args": r}
+            else:
+                self.p.touch(("tool", idx))
+            changed |= new is not tc
+            out.append(new)
+        return out if changed else chunks
+
+    def _kwargs(self, ak: dict) -> dict:
+        if not ak:
+            return ak
+        new = dict(ak)
+        changed = False
+        calls = ak.get("tool_calls")
+        if isinstance(calls, list):
+            fixed = []
+            for pos, tc in enumerate(calls):
+                fn = tc.get("function") if isinstance(tc, dict) else None
+                args = fn.get("arguments") if isinstance(fn, dict) else None
+                if isinstance(args, str) and args:
+                    idx = tc.get("index", pos)
+                    r = self.p.push(("ak_tool", idx), args, "json")
+                    if r != args:
+                        tc = {**tc, "function": {**fn, "arguments": r}}
+                        changed = True
+                fixed.append(tc)
+            new["tool_calls"] = fixed
+        fc = ak.get("function_call")
+        if isinstance(fc, dict) and isinstance(fc.get("arguments"), str) and fc["arguments"]:
+            r = self.p.push(("ak_fc",), fc["arguments"], "json")
+            if r != fc["arguments"]:
+                new["function_call"] = {**fc, "arguments": r}
+                changed = True
+        rc = ak.get("reasoning_content")
+        if isinstance(rc, str) and rc:
+            r = self.p.push(("ak_reasoning",), rc)
+            if r != rc:
+                new["reasoning_content"] = r
+                changed = True
+        return new if changed else ak
+
+    # -- held text --------------------------------------------------------------
+    def _add_held(self, content: Any, tool_chunks: list, ak: dict) -> tuple:
+        """Add every held end to one chunk's fields."""
+        for key in self.p.holding():
+            rest = self.p.flush(key)
+            if not rest:
+                continue
+            kind = key[0]
+            if kind == "text":
+                content = content + rest if isinstance(content, str) else [*content, rest]
+            elif kind == "block":
+                block = {"type": self.block_types.get(key[1]) or "text", key[2]: rest,
+                         "index": key[1]}
+                content = [*_as_list(content), block]
+            elif kind == "tool":
+                tool_chunks = [*tool_chunks, {"name": None, "args": rest, "id": None,
+                                              "index": key[1], "type": "tool_call_chunk"}]
+            elif kind == "ak_tool":
+                ak = {**ak, "tool_calls": [*(ak.get("tool_calls") or []),
+                                           {"index": key[1], "function": {"arguments": rest}}]}
+            elif kind == "ak_fc":
+                ak = {**ak, "function_call": {"arguments": rest}}
+            elif kind == "ak_reasoning":
+                ak = {**ak, "reasoning_content": rest}
+        return content, tool_chunks, ak
+
+    def item(self, chunk: Any) -> list:
+        if not isinstance(chunk, AIMessageChunk):
+            if isinstance(chunk, BaseMessage):
+                self.whole.append(chunk)
+                return [restore_message(chunk, self.pmap)]
+            return [chunk]
+        content = self._content(chunk.content)
+        tool_chunks = self._tool_chunks(chunk.tool_call_chunks)
+        ak = self._kwargs(chunk.additional_kwargs)
+        if chunk.chunk_position == "last":
+            content, tool_chunks, ak = self._add_held(content, tool_chunks, ak)
+            self.closed = True
+        if (content is chunk.content and tool_chunks is chunk.tool_call_chunks
+                and ak is chunk.additional_kwargs):
+            return [chunk]
+        return [_rebuild_chunk(chunk, content, tool_chunks, ak)]
+
+    def end(self) -> list:
+        if not self.p.holding():
+            return []
+        content, tool_chunks, ak = self._add_held("", [], {})
+        return [AIMessageChunk(content=content, tool_call_chunks=tool_chunks,
+                               additional_kwargs=ak)]
+
+    def view(self) -> Any:
+        """The answer as the model wrote it."""
+        if self.whole:
+            return [_message_view(m) for m in self.whole]
+        keys = self.p.keys()
+        text = self.p.raw(("text",)) or ""
+        blocks = [{"type": self.block_types.get(k[1]) or "text", k[2]: self.p.raw(k)}
+                  for k in keys if k[0] == "block"]
+        view: dict[str, Any] = {"role": "ai", "content": blocks if blocks and not text else text}
+        if blocks and text:
+            view["blocks"] = blocks
+        tools = sorted((k[1] for k in keys if k[0] == "tool"), key=str)
+        if tools:
+            view["tool_calls"] = [{"name": self.names.get(i), "args": self.p.raw(("tool", i))}
+                                  for i in tools]
+        extra = {k[0]: self.p.raw(k) for k in keys if k[0].startswith("ak_")}
+        if extra:
+            view["additional_kwargs"] = extra
+        return view
+
+
+def _as_list(content: Any) -> list:
+    if isinstance(content, str):
+        return [content] if content else []
+    return list(content)
+
+
+def _rebuild_chunk(chunk: AIMessageChunk, content: Any, tool_chunks: list,
+                   ak: dict) -> AIMessageChunk:
+    """A new chunk with these fields; its parsed ``tool_calls`` are made
+    again from ``tool_chunks`` (the constructor does that)."""
+    data = {name: getattr(chunk, name) for name in type(chunk).model_fields}
+    data.pop("tool_calls", None)
+    data.pop("invalid_tool_calls", None)
+    data.update(content=content, tool_call_chunks=tool_chunks, additional_kwargs=ak)
+    return type(chunk)(**data)
+
+
+def _open_stream(model, messages: list[BaseMessage], ward: Ward):
+    """Start one streamed request: the span, the redacted messages, and a
+    context in which the inner stream must run (so the inner
+    ``_convert_input`` / ``invoke`` do not redact a second time)."""
+    pmap = ward.llm_placeholder_map()
+    sc = StreamCall(_llm_call(model, messages, ward, pmap), ward, pmap)
+    call = sc.enter()
+    try:
+        send = _send(call, pmap, ward)
+        sc.run(_IN_GUARDED_INVOKE.set, True)
+    except BaseException as e:
+        sc.end(None, exc=e, check=False)
+        raise
+    return sc, ChatPromptValue(messages=send), pmap
+
+
 _MODEL_CLASSES: dict[tuple[type, int], type] = {}
 
 
@@ -320,14 +526,40 @@ def _protected_model_class(base: type, ward: Ward) -> type:
             pv = super()._convert_input(input)
             if _IN_GUARDED_INVOKE.get():
                 return pv
-            # stream / astream / direct generate: redact, record a request span.
-            # The streamed output is not restored (see docs/integrations.md).
+            # batch / direct generate and other paths that do not go through
+            # invoke or stream: redact, record a request span.
             pmap = ward.llm_placeholder_map()
             with _llm_call(self, pv.to_messages(), ward, pmap) as call:
                 messages = _send(call, pmap, ward)
             return ChatPromptValue(messages=messages)
 
+        def stream(self, input, config=None, *, stop=None, **kwargs):
+            messages = super()._convert_input(input).to_messages()
+            sc, prompt, pmap = _open_stream(self, messages, ward)
+            try:
+                inner = super().stream(prompt, config, stop=stop, **kwargs)
+            except BaseException as e:
+                sc.end(None, exc=e, check=False)
+                raise
+            guard = Guard(sc, _Chunks(pmap))
+            return sync_items(guard, lambda: sc.run(next, inner),
+                              on_close=lambda: sc.run(inner.close))
+
+        def astream(self, input, config=None, *, stop=None, **kwargs):
+            messages = super()._convert_input(input).to_messages()
+            sc, prompt, pmap = _open_stream(self, messages, ward)
+            try:
+                inner = super().astream(prompt, config, stop=stop, **kwargs)
+            except BaseException as e:
+                sc.end(None, exc=e, check=False)
+                raise
+            guard = Guard(sc, _Chunks(pmap))
+            return async_items(guard, lambda: sc.arun(inner.__anext__()),
+                               on_close=lambda: sc.arun(inner.aclose()))
+
         def invoke(self, input, config=None, **kwargs):
+            if _IN_GUARDED_INVOKE.get():  # a stream fell back to invoke
+                return super().invoke(input, config, **kwargs)
             messages = super()._convert_input(input).to_messages()
             pmap = ward.llm_placeholder_map()
             with _llm_call(self, messages, ward, pmap) as call:
@@ -342,6 +574,8 @@ def _protected_model_class(base: type, ward: Ward) -> type:
             return restore_message(out, pmap)
 
         async def ainvoke(self, input, config=None, **kwargs):
+            if _IN_GUARDED_INVOKE.get():  # a stream fell back to ainvoke
+                return await super().ainvoke(input, config, **kwargs)
             messages = super()._convert_input(input).to_messages()
             pmap = ward.llm_placeholder_map()
             with _llm_call(self, messages, ward, pmap) as call:

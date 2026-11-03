@@ -131,6 +131,18 @@ export function inUrl(text: string, pos: number): boolean {
   return attr !== undefined && !line.slice(attr.index! + attr[0].length).includes(attr[1]!);
 }
 
+/** Where the JSON string holding position `pos` starts (after its quote); 0 if none. */
+function jsonStringStart(s: string, pos: number): number {
+  let i = s.lastIndexOf('"', pos - 1);
+  while (i >= 0) {
+    let j = i;
+    while (j > 0 && s[j - 1] === "\\") j--;
+    if ((i - j) % 2 === 0) return i + 1; // not an escaped quote
+    i = i > 0 ? s.lastIndexOf('"', i - 1) : -1;
+  }
+  return 0;
+}
+
 function restoreInUrlsDefault(): boolean {
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
   return ["1", "true", "yes"].includes((env?.TAINTWARD_RESTORE_IN_URLS ?? "").toLowerCase());
@@ -277,7 +289,7 @@ export class PlaceholderMap {
    * piece of tool call arguments): the real value is JSON-escaped.
    */
   restoreJsonFragment(text: string, before = ""): string {
-    return this.replaceForms(text, (v) => JSON.stringify(v).slice(1, -1), before);
+    return this.replaceForms(text, (v) => JSON.stringify(v).slice(1, -1), before, true);
   }
 
   /** What restoring `text` (a model answer, before restore) will do. */
@@ -311,7 +323,7 @@ export class PlaceholderMap {
     return out;
   }
 
-  private replaceForms(text: string, encode: (v: string) => string, before = ""): string {
+  private replaceForms(text: string, encode: (v: string) => string, before = "", inJson = false): string {
     if (typeof text !== "string" || !text || this.byPlaceholder.size === 0 || !TOLERANT_ANY.test(text)) return text;
     const tail = before.slice(-2000);
     return text.replace(TOLERANT_G, (...args) => {
@@ -321,7 +333,13 @@ export class PlaceholderMap {
       m.groups = groups;
       const [value] = this.classify(m);
       if (value === undefined) return m[0] as string;
-      if (!this.restoreInUrls && inUrl(tail + text, tail.length + offset)) return m[0] as string;
+      if (!this.restoreInUrls) {
+        // In JSON, look only at the JSON string the placeholder is in.
+        const full = tail + text;
+        const pos = tail.length + offset;
+        const start = inJson ? jsonStringStart(full, pos) : 0;
+        if (inUrl(full.slice(start), pos - start)) return m[0] as string;
+      }
       return encode(value);
     });
   }
@@ -462,6 +480,8 @@ export class StreamRestorer {
 // "<SSN_1", "[PERSON", "{{EMAIL_1" ...
 const PARTIAL_ENTITY = /^&(?:l|lt|lt;?)?$/;
 const PARTIAL = new RegExp(String.raw`^(?:${OPEN})?[ \t]*[\p{L}\p{N}_ \-\\＿]*(?:&|&g|&gt)?$`, "u");
+// "{{PERSON_1}" or "[[PERSON_1]": the second closing bracket may still come.
+const PARTIAL_DOUBLE = new RegExp(String.raw`^(?:\{\{|\[\[)[ \t]*[\p{L}\p{N}_ \-\\＿]*[}\]]$`, "u");
 const OPENERS = new Set(["<", "&", "[", "{", "(", "\\", "«", "‹", "〈", "《", "＜", "【", "「", "『"]);
 
 /** Index from which the text must be held back (text.length when none). */
@@ -474,7 +494,7 @@ function holdFrom(text: string, maxHold: number): number {
     const c = text[i]!;
     if (!OPENERS.has(c)) continue;
     const rest = text.slice(i);
-    if (PARTIAL_ENTITY.test(rest) || PARTIAL.test(rest)) return i;
+    if (PARTIAL_ENTITY.test(rest) || PARTIAL.test(rest) || PARTIAL_DOUBLE.test(rest)) return i;
   }
   return cut;
 }

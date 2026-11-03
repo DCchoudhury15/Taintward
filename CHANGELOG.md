@@ -48,6 +48,44 @@
 - The sidecar config listens on `127.0.0.1:4319`, and `docker-compose.yml`
   publishes the collector and Jaeger ports on `127.0.0.1` only (gap G8).
 
+### Added
+
+- Streamed answers are restored in Python: OpenAI and Anthropic
+  `stream=True` (and the OpenAI `chat.completions.stream()` /
+  `responses.stream()` helpers), LangChain `stream()` / `astream()`,
+  Pydantic AI `run_stream`, LiteLLM `stream=True` and the LiteLLM proxy
+  guardrail. A placeholder split across chunks is restored whole: each text
+  holds back at most 64 characters while they may be the start of a
+  placeholder. Tool call arguments are restored as JSON, and so is the text
+  of a JSON answer (`response_format`). The SDK's own stream object is
+  returned and its chunks are restored copies; the provider's chunk objects
+  keep the placeholders (LiteLLM's logging callbacks read them). The span
+  stays open until the stream ends, then records the answer (placeholder
+  version) and checks it; strict mode raises after the last chunk.
+- `PlaceholderMap.restore_json_fragment()` and
+  `placeholders.StreamRestorer` (the Python version of the TypeScript one).
+
+### Changed
+
+- The LiteLLM proxy guardrail sends placeholders for streaming requests too
+  (it used to send masks, because it could not restore a stream).
+- LlamaIndex and Google ADK streams go through the same restorer, so a
+  placeholder split across two deltas is restored in the deltas too, not
+  only in the final text. Their chunks are restored copies, and the span
+  records the placeholder version of the streamed answer.
+- Pydantic AI `request_stream` keeps its span in a private context, so it
+  no longer logs "Failed to detach context" when Pydantic AI ends the stream
+  in another task.
+
+### Fixed
+
+- TypeScript `StreamRestorer`: a double bracket form (`{{PERSON_1}}`,
+  `[[PERSON_1]]`) cut between its two closing brackets was restored too
+  early and left a stray bracket. In streamed tool call arguments, the
+  check for link addresses (gap G1) now looks only at the JSON string the
+  placeholder is in, so a link in another argument no longer keeps a
+  placeholder unrestored.
+
 ## 0.3.0
 
 ### Added

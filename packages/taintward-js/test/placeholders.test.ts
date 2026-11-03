@@ -69,6 +69,27 @@ describe("stream restore", () => {
     const out = ["to [PER", "SON_1] now"].map((d) => r.push(d)).join("") + r.flush();
     expect(out).toBe("to Alice Lee now");
   });
+
+  it("checks links only inside the current JSON string of streamed arguments", () => {
+    const m = map();
+    for (const args of ['{"url":"https://e/?q=x","to":"<EMAIL_1>"}', '{"u":"https://e/?q=<EMAIL_1>","to":"<EMAIL_1>"}']) {
+      const want = JSON.parse(m.restoreText(args));
+      for (let i = 0; i <= args.length; i++) {
+        const r = new StreamRestorer(m, "json");
+        expect(JSON.parse(r.push(args.slice(0, i)) + r.push(args.slice(i)) + r.flush())).toEqual(want);
+      }
+    }
+  });
+
+  it("gives the same text as restoreText wherever the stream is cut", () => {
+    const m = map();
+    const text = "to {{PERSON_1}} and [[EMAIL_1]] and &lt;PERSON_1&gt; and PERSON_1.";
+    const want = m.restoreText(text);
+    for (let i = 0; i <= text.length; i++) {
+      const r = new StreamRestorer(m);
+      expect(r.push(text.slice(0, i)) + r.push(text.slice(i)) + r.flush()).toBe(want);
+    }
+  });
 });
 
 describe("instruction", () => {

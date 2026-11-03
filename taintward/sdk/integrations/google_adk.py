@@ -12,9 +12,11 @@ or a model name (resolved with ADK's model registry) and returns a
 protected copy. Each ``generate_content_async`` request is redacted for the
 ``llm`` destination: text parts, function call arguments, function responses
 and the system instruction. With placeholders on, every response is
-restored (text and function call arguments), including the chunks of a
-streamed response; a placeholder split across two partial chunks is
-restored in the final, complete response.
+restored (text and function call arguments). A streamed response hands out
+restored copies of its partial chunks; their text goes through a
+``StreamRestorer``, so a placeholder split across two partial chunks is
+restored whole (text held back for that comes in one extra partial chunk
+before the final response).
 
     agent = LlmAgent(name="support", model=tw.protect_adk_model("gemini-2.5-flash"),
                      tools=tw.wrap_adk_tools([lookup, send_email]))
@@ -44,6 +46,7 @@ from taintward.sdk.integrations._common import (
     ward_of,
 )
 from taintward.sdk.integrations._payload import plain_view, to_plain
+from taintward.sdk.integrations._stream import Pieces
 
 FRAMEWORK = "google-adk"
 
@@ -153,18 +156,38 @@ def _view(resp) -> Any:
     return to_plain(content) if content is not None else None
 
 
-def _restore_partial(pmap, content, seen: str) -> str:
-    """Restore one streamed chunk in place. ``seen`` is the text of the
-    earlier chunks, so a link address that started there still blocks
-    restore (gap G1). Returns the new ``seen``."""
-    for part in content.parts or []:
-        if part.text:
-            raw = part.text
-            part.text = pmap.restore_text(raw, before=seen)
-            seen += raw
-        elif part.function_call is not None:
-            pmap.restore_inplace(part.function_call)
-    return seen
+class _Partials:
+    """Restored copies of partial (streamed) responses. Text and thought text
+    are restored piece by piece; the model's own chunks keep the
+    placeholders."""
+
+    def __init__(self, pmap) -> None:
+        self.p = Pieces(pmap)
+        self.pmap = self.p.pmap
+        self.last = None
+
+    def partial(self, resp):
+        if self.pmap is None or resp.content is None:
+            return resp
+        new = resp.model_copy(deep=True)
+        for part in new.content.parts or []:
+            if part.text:
+                part.text = self.p.push("thought" if part.thought else "text", part.text)
+            elif part.function_call is not None:
+                self.pmap.restore_inplace(part.function_call)
+        self.last = new
+        return new
+
+    def held(self) -> list:
+        """Extra partial chunks with the held text, before the stream ends."""
+        out = []
+        for key in self.p.holding():
+            rest = self.p.flush(key)
+            if rest and self.last is not None:
+                part = types.Part(text=rest, thought=True if key == "thought" else None)
+                content = types.Content(role=self.last.content.role or "model", parts=[part])
+                out.append(self.last.model_copy(update={"content": content}))
+        return out
 
 
 def _model_class(base: type) -> type:
@@ -188,17 +211,18 @@ def _model_class(base: type) -> type:
                     call.span.set_attribute("taintward.placeholders.instruction", True)
                 request = _rebuild(llm_request, slots, call.kwargs["parts"],
                                    call.kwargs.get("system"), line)
-                last = None
-                seen = ""
-                restore = pmap is not None and len(pmap) > 0
+                partials = _Partials(pmap)
                 async for resp in super().generate_content_async(request, stream):
                     if not getattr(resp, "partial", False):
-                        last = _view(resp)
-                        if finish_llm(call, ward, pmap, last) and resp.content is not None:
+                        for extra in partials.held():
+                            yield extra
+                        if finish_llm(call, ward, pmap, _view(resp)) and resp.content is not None:
                             resp.content = pmap.restore_inplace(resp.content)
-                    elif restore and resp.content is not None:
-                        seen = _restore_partial(pmap, resp.content, seen)
+                    else:
+                        resp = partials.partial(resp)
                     yield resp
+                for extra in partials.held():
+                    yield extra
 
     return Protected
 

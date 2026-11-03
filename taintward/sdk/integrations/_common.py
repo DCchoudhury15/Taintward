@@ -64,13 +64,13 @@ def llm_call(ward: Ward, model: str, framework: str, system: str, content: dict,
     )
 
 
-def finish_llm(call: GuardedCall, ward: Ward, pmap, view: Any) -> bool:
+def finish_llm(call: GuardedCall, ward: Ward, pmap, view: Any, *, spaced: bool = True) -> bool:
     """Record the answer (placeholder version) and check it. Returns True when
-    the caller should restore it."""
+    the caller should restore it. ``spaced=False`` for a streamed answer."""
     call.record_result(view, view=view)
     if pmap is None or not len(pmap):
         return False
-    ph.check_output(pmap, view, span=call.span,
+    ph.check_output(pmap, view, span=call.span, spaced=spaced,
                     strict=getattr(ward, "placeholder_strict", False))
     return True
 

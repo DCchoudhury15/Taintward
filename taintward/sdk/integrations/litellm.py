@@ -6,7 +6,10 @@ a name imported before the patch is not covered). Each request is redacted
 for the ``llm`` destination and recorded as a ``chat <model>`` span, the same
 way as ``protect_openai``. With placeholders on, the returned
 ``ModelResponse`` is restored: message text and tool call arguments get the
-real values back. Streamed responses are not restored (the request still is).
+real values back. With ``stream=True`` each chunk is handed out as a
+restored copy (a placeholder split across chunks is restored whole), and
+LiteLLM's own copies of the chunks, which its logging callbacks read, keep
+the placeholders.
 
 Proxy. ``TaintwardGuardrail`` is a LiteLLM custom guardrail. In the proxy
 config::
@@ -20,11 +23,11 @@ config::
 
 ``pre_call`` redacts ``messages`` before the request goes to the provider and
 records the span; ``post_call`` restores the placeholders in the answer, so
-the client gets real values and the provider never sees them. Streaming
-requests get plain masks instead of placeholders, because the streamed
-answer is not restored. Each request has its own placeholder map, kept in
-memory between the two hooks (at most ``max_pending`` requests, oldest
-dropped first) and never sent anywhere.
+the client gets real values and the provider never sees them. A streamed
+answer is restored chunk by chunk (``async_post_call_streaming_iterator_hook``).
+Each request has its own placeholder map, kept in memory between the two
+hooks (at most ``max_pending`` requests, oldest dropped first) and never sent
+anywhere.
 """
 
 from __future__ import annotations
@@ -43,6 +46,13 @@ from taintward.sdk import placeholders as ph
 from taintward.sdk.integrations import Ward, _resolve
 from taintward.sdk.integrations._common import finish_llm, instruction, llm_call
 from taintward.sdk.integrations._payload import to_plain
+from taintward.sdk.integrations._stream import (
+    ChatChunks,
+    StreamCall,
+    guard_stream,
+    is_stream,
+    json_format,
+)
 
 _MARK = "__taintward_patched__"
 _FIELDS = ("messages",)
@@ -93,7 +103,7 @@ def _bind(original, args, kwargs) -> dict:
 
 def _wrap(original, ward: Ward, is_async: bool):
     def start(kwargs):
-        pmap = None if kwargs.get("stream") else ward.llm_placeholder_map()
+        pmap = ward.llm_placeholder_map()
         content = {k: kwargs[k] for k in _FIELDS if k in kwargs}
         return pmap, llm_call(ward, _model(kwargs), "litellm", "litellm", content, pmap)
 
@@ -107,17 +117,44 @@ def _wrap(original, ward: Ward, is_async: bool):
         return kwargs
 
     def end(call, kwargs, resp, pmap):
-        if kwargs.get("stream"):
-            return resp
         if finish_llm(call, ward, pmap, _view(resp)):
             resp = pmap.restore_inplace(resp)
         return resp
+
+    def open_stream(call, kwargs, pmap):
+        sc = StreamCall(call, ward, pmap)
+        sc.enter()
+        try:
+            return sc, send(call, kwargs, pmap)
+        except BaseException as e:
+            sc.end(None, exc=e, check=False)
+            raise
+
+    def stream(sc, kwargs, resp, pmap):
+        if not is_stream(resp):  # a full answer after all
+            try:
+                resp = sc.run(end, sc.call, kwargs, resp, pmap)
+            except BaseException as e:
+                sc.end(None, exc=e, check=False)
+                raise
+            sc.end(None, check=False)
+            return resp
+        handler = ChatChunks(pmap, json_content=json_format(kwargs.get("response_format")))
+        return guard_stream(resp, sc, handler)
 
     if is_async:
         @functools.wraps(original)
         async def acompletion(*args, **kwargs):
             kwargs = _bind(original, args, kwargs)
             pmap, call = start(kwargs)
+            if kwargs.get("stream"):
+                sc, request = open_stream(call, kwargs, pmap)
+                try:
+                    resp = await sc.arun(original(**request))
+                except BaseException as e:
+                    sc.end(None, exc=e, check=False)
+                    raise
+                return stream(sc, kwargs, resp, pmap)
             with call:
                 resp = await original(**send(call, kwargs, pmap))
                 return end(call, kwargs, resp, pmap)
@@ -128,6 +165,14 @@ def _wrap(original, ward: Ward, is_async: bool):
     def completion(*args, **kwargs):
         kwargs = _bind(original, args, kwargs)
         pmap, call = start(kwargs)
+        if kwargs.get("stream"):
+            sc, request = open_stream(call, kwargs, pmap)
+            try:
+                resp = sc.run(original, **request)
+            except BaseException as e:
+                sc.end(None, exc=e, check=False)
+                raise
+            return stream(sc, kwargs, resp, pmap)
         with call:
             resp = original(**send(call, kwargs, pmap))
             return end(call, kwargs, resp, pmap)
@@ -182,7 +227,7 @@ class TaintwardGuardrail(CustomGuardrail):
         if not isinstance(messages, list):
             return data
         ward = self.ward
-        pmap = None if data.get("stream") or not ward.placeholders else ward.new_placeholder_map()
+        pmap = ward.new_placeholder_map() if ward.placeholders else None
         with llm_call(ward, _model(data), "litellm-proxy", "litellm",
                       {"messages": messages}, pmap) as call:
             line = instruction(pmap, ward, call.kwargs["messages"])
@@ -198,6 +243,24 @@ class TaintwardGuardrail(CustomGuardrail):
         ph.check_output(pmap, _view(response),
                         strict=getattr(self.ward, "placeholder_strict", False))
         return pmap.restore_inplace(response)
+
+    async def async_post_call_streaming_iterator_hook(self, user_api_key_dict, response,
+                                                      request_data: dict):
+        """Restore a streamed answer chunk by chunk (the client gets restored
+        copies; the chunks LiteLLM keeps for logging keep the placeholders)."""
+        pmap = self._take(request_data)
+        if pmap is None:
+            async for chunk in response:
+                yield chunk
+            return
+        chunks = ChatChunks(pmap, json_content=json_format(request_data.get("response_format")))
+        async for chunk in response:
+            for out in chunks.item(chunk):
+                yield out
+        for out in chunks.end():
+            yield out
+        ph.check_output(pmap, chunks.view(), spaced=False,
+                        strict=getattr(self.ward, "placeholder_strict", False))
 
     async def async_post_call_failure_hook(self, request_data: dict, *args, **kwargs):
         self._take(request_data)

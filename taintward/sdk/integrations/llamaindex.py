@@ -12,9 +12,11 @@ send the request redacted for the ``llm`` destination: message text blocks,
 tool call blocks and ``additional_kwargs`` (where OpenAI style tool calls
 live). ``chat_with_tools`` and agents go through these methods too. With
 placeholders on, the answer is restored: the message text, tool call
-arguments and ``additional_kwargs``. In a stream each chunk's message (the
-text so far) is restored, so the last chunk is complete; a placeholder split
-across two ``delta`` strings stays in the deltas.
+arguments and ``additional_kwargs``. A stream hands out restored copies of
+its chunks: each chunk's message (the text so far) is restored, and the
+``delta`` strings are restored piece by piece, so a placeholder split across
+two deltas is restored whole (text held back for that comes in one extra
+chunk at the end).
 
 ``response.raw`` (the provider's own response) is left as the provider sent
 it, with placeholders.
@@ -48,6 +50,7 @@ from taintward.sdk.integrations._common import (
     ward_of,
 )
 from taintward.sdk.integrations._payload import redact_structure
+from taintward.sdk.integrations._stream import Pieces
 
 FRAMEWORK = "llamaindex"
 
@@ -133,28 +136,48 @@ def _messages_redactor(pmap):
     return redact
 
 
-def _restore_delta(delta: str, full: Any, pmap) -> str:
-    # A streamed chunk carries the text so far: the part before the delta
-    # tells whether the delta continues a link address (gap G1).
-    before = full[:-len(delta)] if isinstance(full, str) and delta and full.endswith(delta) \
-        else ""
-    return pmap.restore_text(delta, before=before)
-
-
 def _restore_response(resp: Any, pmap) -> Any:
     if isinstance(resp, ChatResponse):
-        full = resp.message.content
         resp.message = _map_message(resp.message, pmap.restore_inplace)
-        if isinstance(resp.delta, str):
-            resp.delta = _restore_delta(resp.delta, full, pmap)
         resp.additional_kwargs = pmap.restore_inplace(resp.additional_kwargs)
     elif isinstance(resp, CompletionResponse):
-        full = resp.text
         resp.text = pmap.restore_text(resp.text)
-        if isinstance(resp.delta, str):
-            resp.delta = _restore_delta(resp.delta, full, pmap)
         resp.additional_kwargs = pmap.restore_inplace(resp.additional_kwargs)
     return resp
+
+
+class _Chunks:
+    """Restored copies of streamed responses (the stream's own chunks keep
+    the placeholders). The full text of each chunk is restored as a whole;
+    ``delta`` goes through a ``StreamRestorer``."""
+
+    def __init__(self, pmap) -> None:
+        self.p = Pieces(pmap)
+        self.pmap = self.p.pmap
+        self.last: Any = None
+
+    def chunk(self, resp: Any) -> Any:
+        if self.pmap is None or not isinstance(resp, (ChatResponse, CompletionResponse)):
+            return resp
+        new = resp.model_copy()
+        if isinstance(resp, ChatResponse):
+            new.message = _map_message(resp.message, self.pmap.restore_inplace)
+        else:
+            new.text = self.pmap.restore_text(resp.text, spaced=False)
+        new.additional_kwargs = self.pmap.restore_inplace(dict(resp.additional_kwargs))
+        if isinstance(resp.delta, str):
+            new.delta = self.p.push("delta", resp.delta)
+        self.last = new
+        return new
+
+    def end(self) -> Any:
+        """One extra chunk with the held end of the deltas, or None."""
+        rest = self.p.flush("delta")
+        if not rest or self.last is None:
+            return None
+        extra = self.last.model_copy()
+        extra.delta = rest
+        return extra
 
 
 def _view(resp: Any) -> Any:
@@ -203,9 +226,10 @@ class _Request:
             resp = _restore_response(resp, self.pmap)
         return resp
 
-    def chunk(self, resp: Any) -> Any:
-        return _restore_response(resp, self.pmap) if self.pmap is not None and len(self.pmap) \
-            else resp
+    def finish_stream(self, last: Any) -> None:
+        """Record the streamed answer (placeholder version) and check it."""
+        if last is not None:
+            finish_llm(self.call, self.ward, self.pmap, _view(last), spaced=False)
 
 
 def _llm_class(base: type) -> type:
@@ -250,17 +274,19 @@ def _llm_class(base: type) -> type:
 
             def gen():
                 with req:
-                    last = None
+                    last, chunks = None, _Chunks(req.pmap)
                     tok = _INSIDE.set(True)
                     try:
                         inner = original(self, req.value, *args, **kwargs)
                     finally:
                         _INSIDE.reset(tok)
                     for r in inner:
-                        last = req.chunk(r)
-                        yield last
-                    if last is not None:
-                        req.call.record_result(_view(last), view=_view(last))
+                        last = r
+                        yield chunks.chunk(r)
+                    extra = chunks.end()
+                    if extra is not None:
+                        yield extra
+                    req.finish_stream(last)
             return isolated_iter(gen())
         return method
 
@@ -275,17 +301,19 @@ def _llm_class(base: type) -> type:
 
             async def gen():
                 with req:
-                    last = None
+                    last, chunks = None, _Chunks(req.pmap)
                     tok = _INSIDE.set(True)
                     try:
                         inner = await original(self, req.value, *args, **kwargs)
                     finally:
                         _INSIDE.reset(tok)
                     async for r in inner:
-                        last = req.chunk(r)
-                        yield last
-                    if last is not None:
-                        req.call.record_result(_view(last), view=_view(last))
+                        last = r
+                        yield chunks.chunk(r)
+                    extra = chunks.end()
+                    if extra is not None:
+                        yield extra
+                    req.finish_stream(last)
             return isolated_aiter(gen())
         return method
 

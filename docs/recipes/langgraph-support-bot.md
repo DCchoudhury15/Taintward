@@ -161,9 +161,11 @@ def test_helpdesk_gets_no_raw_data(monkeypatch):
 
 - Run in audit mode for a week first if the bot is already live:
   [Audit mode first, then enforce](audit-then-enforce.md).
-- Streaming: if you use `model.stream()`, the streamed chunks are not
-  restored. Collect the text and call `tw.restore(text)` inside the same
-  `run()`.
+- Streaming: `model.stream()` / `astream()` chunks are restored. Tokens from
+  LangGraph `stream_mode="messages"` come from LangChain callbacks and keep
+  placeholders; the messages in the graph state are restored. If you show
+  those tokens to users, restore the text with `tw.restore(text)` inside the
+  same `run()`.
 - If the OpenAI Agents SDK or another library has its own tracing that
   uploads prompts, turn it off; Taintward only protects the calls it wraps.
 - Callbacks attached to an unprotected model or tool see raw data.

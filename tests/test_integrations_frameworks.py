@@ -258,6 +258,16 @@ class TestLlamaIndex:
         # CustomLLM.chat calls complete: still one llm span per request
         assert len([n for n, a in spans(otel[1], "llamaindex")]) == 2
 
+    def test_stream_deltas_restore_a_split_placeholder(self, ward, otel):
+        from taintward.sdk.integrations.llamaindex import protect_llm
+        llm = protect_llm(self._llm(lambda: "", []), ward=ward)
+        with ward.run():
+            chunks = list(llm.stream_complete(f"to {EMAIL}"))
+        assert "".join(c.delta for c in chunks) == f"Mail {EMAIL} now"
+        assert chunks[-1].text == f"Mail {EMAIL} now"
+        (a,) = [a for _, a in spans(otel[1], "llamaindex")]
+        assert a["gen_ai.output.messages"] == '"Mail <EMAIL_1> now"'  # placeholder version
+
     def test_context_param_passes_through(self, ward):
         from llama_index.core.tools import FunctionTool
 
@@ -313,6 +323,45 @@ class TestPydanticAI:
         check_spans(otel[1], "pydantic-ai")
         # the history keeps real values; the next request redacts them again
         assert EMAIL in repr(r.all_messages())
+
+    def test_run_stream_is_restored(self, ward, otel, caplog):
+        from pydantic_ai import Agent
+        from pydantic_ai.models.function import DeltaToolCall, FunctionModel
+
+        from taintward.sdk.integrations.pydanticai import protect_model, wrap_tools
+        tools, sent = Tools(), []
+
+        async def stream_fn(messages, info):
+            sent.append(repr(messages))
+            if len(sent) == 1:
+                yield {0: DeltaToolCall(name="lookup", json_args='{"ssn": "<SS')}
+                yield {0: DeltaToolCall(json_args='N_1>"}')}
+                yield {1: DeltaToolCall(name="send_email",
+                                        json_args='{"to": "<EMAIL_1>", "body": "SSN <SSN_1>"}')}
+                return
+            for piece in ["Mailed <EMA", "IL_1", "> about SS", "N_1 today"]:
+                yield piece
+
+        agent = Agent(protect_model(FunctionModel(stream_function=stream_fn), ward=ward),
+                      toolsets=[wrap_tools([tools.lookup, tools.send_email], ward=ward)])
+
+        async def go():
+            with ward.run():
+                async with agent.run_stream(ASK) as r:
+                    deltas = [t async for t in r.stream_text(delta=True)]
+                return deltas, await r.get_output(), r.all_messages()
+        deltas, output, history = asyncio.run(go())
+        # the span is entered and left in its own context, whatever task ends the stream
+        assert not [r for r in caplog.records if "Failed to detach context" in r.getMessage()]
+        want = f"Mailed {EMAIL} about {SSN} today"
+        assert "".join(deltas) == want and output == want
+        assert all(no_raw(s) for s in sent)
+        tools.check()
+        assert EMAIL in repr(history)  # real values; the next request redacts them again
+        llm = [a for _, a in spans(otel[1], "pydantic-ai")
+               if a.get("taintward.destination") == "llm"]
+        assert len(llm) == 2 and "Mailed <EMAIL_1> about SSN_1 today" in llm[1][
+            "gen_ai.output.messages"]
 
     def test_placeholders_off_sends_masks(self, otel):
         from pydantic_ai import Agent
@@ -383,6 +432,40 @@ class TestGoogleADK:
         assert out[-1] == f"Emailed {EMAIL}."
         tools.check()
         check_spans(otel[1], "google-adk")
+
+    def test_streamed_partials_restore_a_split_placeholder(self, ward, otel):
+        from google.adk.models.base_llm import BaseLlm
+        from google.adk.models.llm_request import LlmRequest
+        from google.adk.models.llm_response import LlmResponse
+        from google.genai import types
+
+        from taintward.sdk.integrations.google_adk import protect_model
+
+        pieces = ["Mailed <EMA", "IL_1> about <SS", "N_1> now"]
+
+        class Streaming(BaseLlm):
+            model: str = "scripted"
+
+            async def generate_content_async(self, llm_request, stream=False):
+                for p in pieces:
+                    yield LlmResponse(content=types.Content(role="model",
+                                                            parts=[types.Part(text=p)]),
+                                      partial=True)
+                yield LlmResponse(content=types.Content(
+                    role="model", parts=[types.Part(text="".join(pieces))]))
+
+        model = protect_model(Streaming(), ward=ward)
+        request = LlmRequest(model="scripted", contents=[
+            types.Content(role="user", parts=[types.Part(text=ASK)])])
+
+        async def go():
+            with ward.run():
+                return [r async for r in model.generate_content_async(request, stream=True)]
+        out = asyncio.run(go())
+        partial = "".join(p.text for r in out if r.partial for p in r.content.parts if p.text)
+        want = f"Mailed {EMAIL} about {SSN} now"
+        assert partial == want
+        assert out[-1].content.parts[0].text == want and not out[-1].partial
 
     def test_toolset_tools_are_wrapped(self, ward):
         from google.adk.tools import FunctionTool
@@ -463,13 +546,60 @@ class TestLiteLLM:
         assert g._pending == {}  # the map is dropped after the answer
         assert spans(otel[1], "litellm-proxy")
 
-    def test_proxy_stream_gets_masks(self, ward):
+    def test_sdk_stream_is_restored(self, ward, otel, fake_litellm):
+        from taintward.sdk.integrations.litellm import protect_litellm
+        litellm, sent = fake_litellm
+        protect_litellm(ward=ward)
+        with ward.run():
+            stream = litellm.completion("gpt-4o-mini", [{"role": "user", "content": ASK}],
+                                        stream=True)
+            text = "".join(c.choices[0].delta.content or "" for c in stream if c.choices)
+        # the mock answer comes in 3 character chunks: "<SS", "N_1", "> i" ...
+        assert text == f"Sent to {EMAIL} re {SSN}."
+        assert all(no_raw(s) for s in sent)
+        # LiteLLM keeps its own chunks for its logging callbacks: unchanged
+        kept = "".join(c.choices[0].delta.content or "" for c in stream.chunks if c.choices)
+        assert no_raw(kept) and "<SSN_1>" in kept
+        (a,) = [a for _, a in spans(otel[1], "litellm")]
+        assert "Sent to <EMAIL_1> re <SSN_1>." in a["gen_ai.output.messages"]
+
+    def test_proxy_stream_round_trip(self, ward):
+        from litellm.types.utils import ModelResponseStream
+
         from taintward.sdk.integrations.litellm import TaintwardGuardrail
         g = TaintwardGuardrail(ward=ward, guardrail_name="taintward")
         data = {"model": "m", "stream": True, "messages": [{"role": "user", "content": ASK}]}
         data = asyncio.run(g.async_pre_call_hook(None, None, data, "acompletion"))
-        assert "[PII]" in json.dumps(data["messages"]) and "<SSN_1>" not in json.dumps(data)
-        assert "taintward_request" not in data.get("metadata", {})
+        assert no_raw(data["messages"]) and "<SSN_1>" in json.dumps(data["messages"])
+
+        def chunk(content=None, tool=None, finish=None):
+            delta = {"content": content} if content is not None else {}
+            if tool:
+                delta["tool_calls"] = [tool]
+            return ModelResponseStream(choices=[{"index": 0, "delta": delta,
+                                                 "finish_reason": finish}])
+        source = [chunk("Re <SS"), chunk("N_1> to <EMA"), chunk("IL_1> done"),
+                  chunk(tool={"index": 0, "id": "t", "type": "function", "function": {
+                      "name": "send_email", "arguments": '{"to": "<EMAIL'}}),
+                  chunk(tool={"index": 0, "function": {"arguments": '_1>"}'}}),
+                  chunk(finish="stop")]
+
+        async def provider():
+            for c in source:
+                yield c
+
+        async def client():
+            text, args = "", ""
+            async for c in g.async_post_call_streaming_iterator_hook(None, provider(), data):
+                delta = c.choices[0].delta
+                text += delta.content or ""
+                args += "".join(t.function.arguments or "" for t in delta.tool_calls or [])
+            return text, args
+        text, args = asyncio.run(client())
+        assert text == f"Re {SSN} to {EMAIL} done"
+        assert json.loads(args) == {"to": EMAIL}
+        assert g._pending == {}
+        assert source[0].choices[0].delta.content == "Re <SS"  # the provider's chunk as it was
 
     def test_pending_maps_are_bounded(self, ward):
         from taintward.sdk.integrations.litellm import TaintwardGuardrail

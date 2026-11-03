@@ -26,7 +26,7 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             constraints.txt
-      - run: python -m pip install -c constraints.txt -e ".[dev]" build twine
+      - run: python -m pip install -c constraints.txt -e ".[dev,llm,langchain]" build twine
       - run: python -m spacy download en_core_web_sm
       - run: python -m pytest -q
       - run: python -m build -o dist .
@@ -47,7 +47,7 @@ jobs:
             constraints-adapters.txt
       - run: python -m pip install -c constraints-adapters.txt -e ".[dev,crewai,llamaindex,pydantic-ai,google-adk,litellm]"
       - run: python -m spacy download en_core_web_sm
-      - run: python -m pytest -q tests/test_integrations_frameworks.py tests/test_integrations.py tests/test_placeholders.py
+      - run: python -m pytest -q tests/test_integrations_frameworks.py tests/test_integrations.py tests/test_placeholders.py tests/test_link_restore.py tests/test_stream_restore.py
 
   ruff:
     runs-on: ubuntu-latest

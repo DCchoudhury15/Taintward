@@ -187,6 +187,37 @@ with `SQLiteVault`). Vault keys hold only keyed hashes (HMAC) of the value and
 the conversation id, never the value itself. Each entry is tagged with the
 conversation, so `PlaceholderMap.forget_conversation()` erases all of them.
 
+### Streamed answers
+
+Streamed answers are restored too: OpenAI and Anthropic `stream=True`
+(also the OpenAI `chat.completions.stream()` and `responses.stream()`
+helpers), LangChain `stream()` / `astream()`, Pydantic AI `run_stream`,
+LiteLLM `stream=True` and the LiteLLM proxy, LlamaIndex `stream_*` and
+Google ADK partial responses.
+
+A placeholder can be split across two chunks (`"<SS"` + `"N_1>"`). Each text
+of the answer (the message text, each tool call's arguments) goes through a
+small buffer that holds back a tail that may be the start of a placeholder,
+at most 64 characters, until the next chunk shows what it is. So the caller
+sees the same text as a restore of the whole answer, a little later. Tool
+call arguments are restored as JSON (a quote in a real value is escaped), and
+so is the text when the request asked for a JSON answer (`response_format`).
+
+- You get the SDK's own stream object back (`with`, `close()`, `.response`
+  and the helpers keep working); the chunks it hands out are restored copies.
+  The provider's own chunk objects are not changed, so a framework's logging
+  callbacks that keep them (LiteLLM does) see placeholders.
+- Text that was held back goes out with the next chunk, or in the chunk that
+  ends that text (`finish_reason`, `content_block_stop`, a `.done` event, the
+  last LangChain chunk). When a stream has no such chunk, one extra chunk
+  carries it at the end.
+- The span stays open while you read the stream. When the stream ends it
+  records the answer (placeholder version) and checks it, the same as a
+  normal answer; in strict mode `PlaceholderRestoreError` is raised after the
+  last chunk. Closing a stream early ends the span without the check.
+- "Person 1" style forms are not restored in a stream (whether they are
+  safe needs the whole answer); they are reported as `lost`.
+
 ### Turning it off
 
 ```python
@@ -234,7 +265,9 @@ agent = create_agent(model, tools)          # or langgraph create_react_agent
   Every request (user text, tool results, earlier tool call arguments) is
   redacted for the `llm` destination before it reaches the provider, and a
   `chat <model>` span is recorded. `bind_tools()` on the copy keeps the
-  protection. `invoke`, `ainvoke`, `batch`, `stream` and `astream` are covered.
+  protection. `invoke`, `ainvoke`, `batch`, `stream` and `astream` are covered,
+  and the answers of `invoke`, `ainvoke`, `stream` and `astream` are restored
+  (see [Streamed answers](#streamed-answers)).
 
 Why not a callback handler: LangChain callbacks only see the input; they
 cannot change what the tool or the provider receives. Redaction has to sit in
@@ -281,7 +314,10 @@ Each request is redacted for the `llm` destination. Protocol fields such as
 `role`, `type`, ids, `tool_call_id`, `tool_use_id`, tool names and base64
 image data are left as they are, so requests stay valid. The span records the
 redacted request, the masked response, `gen_ai.provider.name`,
-`gen_ai.request.model` and token usage.
+`gen_ai.request.model` and token usage. With `stream=True` the chunks are
+restored as they come (see [Streamed answers](#streamed-answers)).
+Anthropic's `messages.stream()` helper does not go through `create`, so it
+is not covered; use `messages.create(stream=True)`.
 
 ## CrewAI
 
@@ -324,9 +360,9 @@ with taintward.run("support.run"):
   `acomplete` and their `stream_*` versions, and so also
   `chat_with_tools` and the agents. Text blocks, tool call blocks and
   `additional_kwargs` (OpenAI style tool calls) are redacted and restored.
-  In a stream each chunk's message (the text so far) is restored, so the
-  last chunk is complete. `response.raw` keeps the provider's own
-  response, with placeholders.
+  In a stream each chunk's message (the text so far) and its `delta` are
+  restored. `response.raw` keeps the provider's own response, with
+  placeholders.
 
 ## Pydantic AI
 
@@ -342,7 +378,9 @@ with taintward.run("support.run"):
 - `protect_pydantic_ai_model(model)` returns a `TaintwardModel`, a Pydantic
   AI `WrapperModel` around a model object or name. Prompts, instructions,
   tool results, retry prompts and earlier responses are redacted; the
-  response is restored (text, thinking, tool call arguments). One
+  response is restored (text, thinking, tool call arguments), also in
+  `run_stream` / `iter`: the stream events and `get()` hold real values, so
+  `stream_text()`, the output and the message history do too. One
   instruction line is added to the request's `instructions`.
 - `wrap_pydantic_ai_tools(tools)` builds a `FunctionToolset` and wraps it;
   `wrap_pydantic_ai_toolset(toolset)` wraps any toolset, MCP servers
@@ -386,7 +424,7 @@ resp = litellm.completion(model="gpt-4.1", messages=[...])
 
 Call them as `litellm.completion(...)`: a name imported with `from litellm
 import completion` before the patch is not covered. The response is
-restored like the OpenAI client's.
+restored like the OpenAI client's, streamed or not.
 
 Proxy: add the guardrail to the proxy config and install `taintward` in the
 proxy's environment.
@@ -404,8 +442,8 @@ guardrails:
 span; `post_call` puts the real values back into the answer for the client.
 The placeholder map of each request stays in the proxy's memory between the
 two hooks (at most 10,000 requests in flight, oldest dropped first) and is
-never sent anywhere. Streaming requests get masks instead of placeholders,
-because the guardrail does not restore a stream.
+never sent anywhere. A streamed answer is restored chunk by chunk in the
+guardrail's streaming hook, so streaming requests get placeholders too.
 
 ## What the spans carry
 
@@ -458,12 +496,13 @@ gateway refuses those calls.
 - The LLM never gets reversible tokens. It gets placeholders (default) or
   masks. When the model passes a placeholder to an internal tool, the tool
   gets the reversible token of the real value (see Placeholders above).
-- Streaming: with `stream=True` (OpenAI, Anthropic) or LangChain
-  `stream()` / `astream()`, the request uses placeholders but the streamed
-  chunks are not restored, because a placeholder can be split across chunks.
-  Collect the text and call `taintward.restore(text)` inside the same
-  `run()`. Tool calls built from a stream are still fine: wrapped tools
-  restore placeholders in their arguments.
+- Streaming: a restored stream is a little behind the provider's (at most
+  64 characters per text are held back while they may be the start of a
+  placeholder). LangGraph `stream_mode="messages"` takes its tokens from
+  LangChain callbacks, which see the model's own chunks, so those tokens keep
+  placeholders; the messages in the graph state are restored. For any other
+  stream you read yourself, collect the text and call
+  `taintward.restore(text)` inside the same `run()`.
 - Placeholders across processes: the in-memory map belongs to one process.
   With a vault, two processes writing new placeholders for the same
   conversation at the same moment can pick the same number. Serve one
@@ -477,12 +516,6 @@ gateway refuses those calls.
 - Tool outputs are not redacted when they return to your code. They are
   redacted when they are sent on: to the LLM by the protected model or client,
   or to another tool by its own gate.
-- Streaming responses: the request is redacted and recorded, but the streamed
-  output is not scanned (and not restored, see above).
-- Streaming in the newer adapters: LlamaIndex and Google ADK restore
-  streamed chunks (a placeholder split across two chunks is complete in
-  the last one); Pydantic AI `run_stream` and LiteLLM `stream=True` keep
-  placeholders in the stream (the proxy guardrail sends masks instead).
 - Google ADK writes model requests, responses and tool arguments onto its
   own spans (`gcp.vertex.agent.*`) as ADK sees them, which is after
   Taintward restored them, so with real values. ADK 1.14 has no setting to
@@ -494,9 +527,10 @@ gateway refuses those calls.
   that run inside the model call. They see the redacted request and the
   model's answer with placeholders. Tool callbacks see what the tool got.
 - Not covered: LangChain `generate()` called directly with message lists,
-  OpenAI `with_raw_response` / `with_streaming_response`, OpenAI and Anthropic
-  `beta` endpoints, embeddings, other LLM providers, and other clients you
-  create without `protect_*`.
+  OpenAI `with_raw_response` / `with_streaming_response`, Anthropic's
+  `messages.stream()` helper, OpenAI and Anthropic `beta` endpoints,
+  embeddings, other LLM providers, and other clients you create without
+  `protect_*`.
 - The OpenAI Agents SDK has its own tracing, which by default uploads tool
   arguments to OpenAI. Turn it off with `set_tracing_disabled(True)` or set
   `RunConfig(trace_include_sensitive_data=False)`.
@@ -508,9 +542,11 @@ gateway refuses those calls.
 ## Packages used for the tests
 
 `langchain-core 1.7.0`, `langchain 1.4.7`, `langgraph 1.2.17`,
-`openai-agents 0.24.0`, `openai 3.6.0`, `anthropic 1.2.0`. The tests in
-`tests/test_integrations.py` run offline with fake models and mocked HTTP, and
-skip a framework that is not installed.
+`openai-agents 0.24.0`, `openai 3.37.0`, `anthropic 2.3.0`, pinned in
+`constraints.txt`. The tests in `tests/test_integrations.py` and
+`tests/test_stream_restore.py` run offline with fake models and mocked HTTP
+(streams as server-sent events), and skip a framework that is not installed.
+The main CI test job installs the `llm` and `langchain` extras.
 
 `crewai 1.15.33`, `llama-index-core 0.14.25`, `pydantic-ai-slim 2.63.0`,
 `google-adk 1.14.1`, `litellm 1.106.6`, pinned in `constraints-adapters.txt`.

