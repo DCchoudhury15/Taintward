@@ -48,7 +48,8 @@ classifiers = [
 # taintward/core/doe.py is pure stdlib; everything below is what taintward/sdk/, taintward/evidence/, and
 # taintward/fix_suggester/ actually import at runtime (Phase 2+). Presidio also needs
 # the spaCy model, which isn't a normal PyPI dependency: run
-# `python3 -m spacy download en_core_web_sm` once after installing.
+# `python3 -m spacy download en_core_web_sm` once after installing, and
+# `python3 -m spacy download xx_ent_wiki_sm` for names in other languages.
 dependencies = [
     "opentelemetry-api>=1.44",
     "opentelemetry-sdk>=1.44",

@@ -52,7 +52,7 @@ from collections import OrderedDict
 from typing import Iterable, Iterator, Mapping
 
 from taintward.core.doe import Sensitivity
-from taintward.sdk import _walk
+from taintward.sdk import _lang, _walk
 from taintward.sdk.recognizers_extra import (
     CONTEXT_RECOGNIZERS,
     EXTRA_CONTEXT,
@@ -61,6 +61,7 @@ from taintward.sdk.recognizers_extra import (
     KEY_PATTERNS,
     build_extra_recognizers,
 )
+from taintward.sdk.recognizers_intl import INTL_TYPES
 from taintward.sdk.taint import TaintLabel
 
 log = logging.getLogger("taintward.detect")
@@ -84,12 +85,21 @@ except Exception as _exc:  # noqa: BLE001
 _PII_TYPES = {
     "USA_SSN", "US_SSN", "EMAIL_ADDRESS", "PHONE_NUMBER", "US_BANK_NUMBER",
     "CREDIT_CARD", "IBAN_CODE", "IP_ADDRESS", "US_DRIVER_LICENSE",
-    "LOCATION", "PERSON", "STREET_ADDRESS", "IN_AADHAAR", "IN_PAN",
-}
+    "LOCATION", "PERSON", "STREET_ADDRESS",
+} | INTL_TYPES
 
 _SECRET_TYPES = frozenset({"AWS_ACCESS_KEY", "GITHUB_TOKEN", "GENERIC_API_KEY"}) | EXTRA_SECRET_TYPES
 
 _EXACT_SECRET_TYPES = frozenset({"AWS_ACCESS_KEY", "GITHUB_TOKEN", "JWT", "PRIVATE_KEY"})
+
+# Types an id found by an id word does not give way to: itself, names and
+# places (NER may cover the id word), and phone number guesses.
+_ID_BEATS = frozenset({"ID_NUMBER", "PERSON", "LOCATION", "PHONE_NUMBER"})
+
+# Kept only with one of their context words nearby. A UK NHS number is ten
+# digits with a mod-11 check, which one random ten-digit number in eleven
+# passes: on outside data it fired mostly on phone numbers.
+_NEEDS_CONTEXT = frozenset({"UK_NHS"})
 
 # Types that are NOT counted as sensitive unless turned back on. On the
 # benchmark they made up most false alarms: DATE_TIME fired on plain integer
@@ -321,16 +331,98 @@ _PRESIDIO_OK = _PatternRecognizer is not None and PatternRecognizer is not None
 _PERSON_BAD = re.compile(r"[\d_=@/\\:<>{}\[\]]")
 
 
+# Values with no function word at all (a lone name, a short label) stay with
+# the English model: sending them to the multilingual one brought false
+# alarms on English tool data.
+_EN_GUESS = (None, "en")
+
+
+def _ner_disable(nlp) -> list[str]:
+    keep = {"tok2vec", "ner"}
+    return [p for p in nlp.pipe_names if p not in keep]
+
+
+# The model for names in text that is not English. ``xx_ent_wiki_sm`` is
+# spaCy's small multilingual model (``python -m spacy download
+# xx_ent_wiki_sm``). When it is not installed all text goes to the English
+# model, as before. TAINTWARD_NER_MULTILINGUAL_MODEL picks another model;
+# "off" turns it off.
+_MULTILINGUAL_DEFAULT = "xx_ent_wiki_sm"
+
+
+def _load_multilingual():
+    name = os.environ.get("TAINTWARD_NER_MULTILINGUAL_MODEL", _MULTILINGUAL_DEFAULT).strip()
+    if not name or name.lower() in ("off", "0", "none", "false"):
+        return None
+    try:
+        import spacy
+
+        nlp = spacy.load(name)
+    except Exception as exc:  # noqa: BLE001 - not installed, or a version clash
+        log.info("taintward: multilingual name model %r not loaded (%s: %s); names in "
+                 "other languages use the English model", name, type(exc).__name__, exc)
+        return None
+    if "ner" not in nlp.pipe_names:
+        log.warning("taintward: model %r has no 'ner' step; not used", name)
+        return None
+    return nlp
+
+
+# A name hit made of words that open a sentence, greet or label a field
+# ("Please", "Bitte", "Numéro") is not a name.
+_NAME_WORD = re.compile(r"[^\W\d_][^\W\d_'’.-]*(?:['’.-][^\W\d_]+)*")
+# A word on its own: not part of an email, a user name, a path or a domain.
+_PLAIN_WORD = re.compile(r"(?<![\w@./-])[^\W\d_]+(?![\w@-]|\.\w)")
+_LOWER_SCAN = 20000
+
+
+def _lower_words(seg: "_Segment") -> frozenset:
+    if seg.lower_words is None:
+        seg.lower_words = frozenset(
+            w for w in _PLAIN_WORD.findall(seg.norm[:_LOWER_SCAN]) if w.islower())
+    return seg.lower_words
+
+
+def _name_filter(seg: "_Segment", a: int, b: int) -> tuple[int, int] | None:
+    """Trim greeting / label words off a PERSON or LOCATION hit and drop hits
+    that are clearly not a name. Returns the new span or None."""
+    text = seg.norm
+    words = list(_NAME_WORD.finditer(text, a, b))
+    while words and words[0].group(0).lower() in _lang.NOT_NAMES:
+        words.pop(0)
+    while words and words[-1].group(0).lower() in _lang.NOT_NAMES:
+        words.pop()
+    if not words or words[0].group(0).lower() in _lang.NOT_NAME_START:
+        return None
+    a2, b2 = words[0].start(), words[-1].end()
+    # A template slot such as "[City]", "<name>" or "{customer}" (not a name
+    # in parentheses, which is common: "Halle (Saale)", "your name (Anna Roth)").
+    before = text[max(0, a2 - 1):a2]
+    after = text[b2:b2 + 1]
+    if before + after in ("[]", "<>", "{}"):
+        return None
+    if len(words) == 1 and words[0].group(0).lower() in _lang.stop_words():
+        return None  # "Unsere", "Estoy", "Alguien"
+    # Words that are also written in lower case in the same text are common
+    # words in a heading or at the start of a line ("Policy" ... "policy",
+    # "Balance Sheet" ... "the balance sheet"), not a name.
+    lower = _lower_words(seg)
+    if all(not w.group(0).islower() and w.group(0).lower() in lower for w in words):
+        return None
+    return a2, b2
+
+
 class _Segment:
     """One string value being analyzed, with its JSON key (may be "")."""
 
-    __slots__ = ("text", "key", "norm", "pmap", "results")
+    __slots__ = ("text", "key", "norm", "pmap", "results", "lower_words")
 
     def __init__(self, text: str, key: str):
         self.text = text
         self.key = key
         self.norm, self.pmap = _normalize_for_detection(text)
         self.results: list[tuple] = []  # (entity_type, start, end, score, context_words)
+        self.lower_words: frozenset | None = None  # see _lower_words
 
 
 def _best_score(rec, has_context: bool) -> float:
@@ -355,11 +447,16 @@ class _Engine:
         """``analyzer``: a Presidio AnalyzerEngine (full mode, with spaCy NER).
         ``recognizers``: a plain recognizer list for the regex-only mode
         (``analyzer`` None, no NER)."""
+        self.nlp_other = None  # the multilingual name model, when installed
+        self.other_disable: list[str] = []
         if analyzer is not None:
             self.nlp = analyzer.nlp_engine.nlp["en"]
-            keep = {"tok2vec", "ner"}
-            self.ner_disable = [p for p in self.nlp.pipe_names if p not in keep]
+            self.ner_disable = _ner_disable(self.nlp)
             recs = analyzer.registry.get_recognizers(language="en", all_fields=True)
+            self.nlp_other = _load_multilingual()
+            if self.nlp_other is not None:
+                self.other_disable = _ner_disable(self.nlp_other)
+            _lang.stop_words()  # load now, not on the first call
         else:
             self.nlp = None
             self.ner_disable = []
@@ -479,10 +576,22 @@ class _Engine:
         wanted = {lbl for lbl, ent in _SPACY_TO_PRESIDIO.items() if ent not in _noise_types}
         if not wanted:
             return
+        segs = [s for s in segs if _CAPITALIZED.search(s.norm)]
+        if self.nlp_other is not None:
+            # Text in another language goes to the multilingual model: the
+            # English one calls capitalized German or Dutch words names and
+            # misses most names in French, Spanish or Italian sentences.
+            other = [s for s in segs if _lang.guess(s.norm) not in _EN_GUESS]
+            if other:
+                picked = set(map(id, other))
+                segs = [s for s in segs if id(s) not in picked]
+                self._ner_pass(self.nlp_other, self.other_disable, other, wanted)
+        self._ner_pass(self.nlp, self.ner_disable, segs, wanted)
+
+    def _ner_pass(self, nlp, disable: list[str], segs: list[_Segment], wanted: set) -> None:
+        """Run one spaCy model over ``segs`` and add its name and place hits."""
         jobs: list[tuple[_Segment, int, str]] = []
         for s in segs:
-            if not _CAPITALIZED.search(s.norm):
-                continue
             n = len(s.norm)
             if n <= _NER_WINDOW:
                 jobs.append((s, 0, s.norm))
@@ -518,7 +627,7 @@ class _Engine:
             cur_len += len(piece)
         if cur_parts:
             packs.append((cur_starts, cur_refs, _NER_SEP.join(cur_parts)))
-        docs = self.nlp.pipe((p[2] for p in packs), disable=self.ner_disable, batch_size=32)
+        docs = nlp.pipe((p[2] for p in packs), disable=disable, batch_size=32)
         for (starts, refs, packed), doc in zip(packs, docs):
             for ent in doc.ents:
                 if ent.label_ not in wanted:
@@ -541,7 +650,14 @@ class _Engine:
                     continue  # "info svc" in a log line
                 seg, off = refs[i]
                 base = off - starts[i]
+                if etype in ("PERSON", "LOCATION"):
+                    span = _name_filter(seg, base + a, base + a + len(text))
+                    if span is None:
+                        continue
+                    seg.results.append((etype, span[0], span[1], _NER_SCORE, ()))
+                    continue
                 seg.results.append((etype, base + a, base + b, _NER_SCORE, ()))
+
 
     # -- context recognizers (key / window based) -----------------------------
     @staticmethod
@@ -591,6 +707,8 @@ def _finish(seg: _Segment, threshold: float) -> list[Detection]:
     """Context boost, threshold, dedupe and map back to original offsets."""
     scored = []
     for etype, a, b, score, ctx in seg.results:
+        if etype in _NEEDS_CONTEXT and not (ctx and _context_hit(seg, a, ctx)):
+            continue
         if score < threshold and ctx and _context_hit(seg, a, ctx):
             score = min(1.0, max(score + _CONTEXT_BOOST, _CONTEXT_MIN))
         if score >= threshold and b > a:
@@ -602,6 +720,17 @@ def _finish(seg: _Segment, threshold: float) -> list[Detection]:
     if exact:
         kept = [r for r in kept if r[0] != "GENERIC_API_KEY"
                 or not any(r[1] < b and a < r[2] for a, b in exact)]
+    # An id found only by an id word ("Passnummer: ...") gives way to a
+    # recognizer that knows the exact format (a US SSN, a codice fiscale, a
+    # card number after "PAN"), and wins over a phone number guess:
+    # "Personnummer: 850730-5178" is an id even though it is also shaped like
+    # a phone number.
+    if any(r[0] == "ID_NUMBER" for r in kept):
+        exact_ids = [(a, b) for etype, a, b, _ in kept if etype not in _ID_BEATS]
+        ids = [(a, b) for etype, a, b, _ in kept if etype == "ID_NUMBER"]
+        kept = [r for r in kept
+                if not (r[0] == "ID_NUMBER" and any(r[1] < b and a < r[2] for a, b in exact_ids))
+                and not (r[0] == "PHONE_NUMBER" and any(r[1] < b and a < r[2] for a, b in ids))]
     text = seg.text
     out: list[Detection] = []
     for etype, a, b, score in kept:
@@ -639,7 +768,7 @@ class DetectionDegradedError(RuntimeError):
 
 # Detection health. "full": Presidio + spaCy NER. "regex_only": the model or
 # Presidio failed to load, only pattern and context recognizers run.
-_health: dict = {"ok": True, "mode": "not_loaded", "error": None}
+_health: dict = {"ok": True, "mode": "not_loaded", "error": None, "multilingual_model": None}
 _health_logged = False
 
 
@@ -682,7 +811,10 @@ def _build_engine() -> _Engine:
     if _PRESIDIO_OK:
         try:
             engine = _Engine(_get_analyzer())
-            _health.update(ok=True, mode="full", error=None)
+            other = engine.nlp_other
+            _health.update(ok=True, mode="full", error=None,
+                           multilingual_model=(f"{other.meta.get('lang', '')}_{other.meta.get('name', '')}"
+                                               if other is not None else None))
             return engine
         except Exception as exc:  # noqa: BLE001 - spaCy model missing, version clash, ...
             _degrade(exc)
@@ -706,20 +838,23 @@ def _reset_engine() -> None:
     global _engine, _health_logged
     with _engine_lock:
         _engine = None
-        _health.update(ok=True, mode="not_loaded", error=None)
+        _health.update(ok=True, mode="not_loaded", error=None, multilingual_model=None)
         _health_logged = False
         _key_memo.clear()
     clear_cache()
 
 
 def health(*, load: bool = True) -> dict:
-    """State of the detector: ``{"ok": bool, "mode": str, "error": str|None}``.
+    """State of the detector: ``{"ok": bool, "mode": str, "error": str|None,
+    "multilingual_model": str|None}``.
 
     ``mode`` is ``"full"`` (Presidio + spaCy NER), ``"regex_only"`` (the NER
     model or Presidio failed to load; patterns, checksums and key context
     still work), ``"broken"`` (detection itself raised) or ``"not_loaded"``
-    (``load=False`` before the first detection). With ``load=True``
-    (default) the detector is loaded first, so the answer is real.
+    (``load=False`` before the first detection). ``multilingual_model`` names
+    the model used for names in text that is not English (``xx_ent_wiki_sm``
+    when it is installed), or is None. With ``load=True`` (default) the
+    detector is loaded first, so the answer is real.
     """
     if load and _engine is None:
         try:

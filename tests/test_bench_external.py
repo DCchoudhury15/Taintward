@@ -73,6 +73,42 @@ class SampleTest(unittest.TestCase):
         self.assertEqual(rows[0]["entities"][0]["cls"], "PERSON")
 
 
+class DevSplitTest(unittest.TestCase):
+    """Rules are tuned on the dev rows; they must never overlap the test rows."""
+
+    def test_dev_rows_are_not_in_the_test_sample(self):
+        rows = [{"id": str(i), "lang": ("en", "de", "fr")[i % 3]} for i in range(300)]
+        test = ext.sample(rows, 40, 1337)
+        dev = ext.dev_sample(rows, test, 40, 1337)
+        self.assertEqual(len(dev), 120)
+        self.assertFalse({r["id"] for r in dev} & {r["id"] for r in test})
+
+
+class FloorsTest(unittest.TestCase):
+    """--check fails the CI job when a score drops under its floor."""
+
+    @staticmethod
+    def _res(recall=0.9, precision=0.9, ex_recall=0.99, fa=0.0, cls_recall=0.99):
+        return {"overall_strict": {"recall": recall, "precision": precision},
+                "binary": {"text": {"recall": ex_recall, "false_alarm_rate": fa}},
+                "per_class": {c: {"recall": cls_recall} for c in ext.CLASSES}}
+
+    def test_good_scores_pass(self):
+        for name in ext.FLOORS:
+            self.assertEqual(ext.check_floors(name, self._res()), [])
+
+    def test_each_kind_of_drop_fails(self):
+        self.assertTrue(ext.check_floors("gretel", self._res(recall=0.1)))
+        self.assertTrue(ext.check_floors("gretel", self._res(precision=0.1)))
+        self.assertTrue(ext.check_floors("gretel", self._res(ex_recall=0.1)))
+        self.assertTrue(ext.check_floors("gretel", self._res(fa=0.99)))
+        self.assertTrue(ext.check_floors("ai4privacy", self._res(cls_recall=0.1)))
+
+    def test_floors_only_name_known_classes(self):
+        for f in ext.FLOORS.values():
+            self.assertLessEqual(set(f["class_recall"]), set(ext.CLASSES))
+
+
 class CommittedResultsTest(unittest.TestCase):
     """The committed result files must not hold anything that looks like a value."""
 

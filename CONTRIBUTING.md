@@ -8,6 +8,7 @@ Thanks for helping. Small, focused pull requests are easiest to review.
 python3 -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev,mcp,langchain,openai-agents]"
 python -m spacy download en_core_web_sm
+python -m spacy download xx_ent_wiki_sm
 ```
 
 ## Before you open a pull request

@@ -4,14 +4,14 @@
   "n_entities_all": 11310,
   "per_class": {
     "PERSON": {
-      "precision": 0.24479029279873385,
-      "recall": 0.48129294986001525,
-      "f1": 0.3245243387983589,
-      "n_pred": 7582,
+      "precision": 0.4112274448652261,
+      "recall": 0.47951132603715957,
+      "f1": 0.44275207015055806,
+      "n_pred": 4489,
       "n_gold": 3929,
-      "tp_pred": 1856,
-      "tp_gold": 1891,
-      "recall_any_type": 0.5059811656910155
+      "tp_pred": 1846,
+      "tp_gold": 1884,
+      "recall_any_type": 0.5431407482820056
     },
     "EMAIL": {
       "precision": 0.9779411764705882,
@@ -21,17 +21,17 @@
       "n_gold": 419,
       "tp_pred": 399,
       "tp_gold": 399,
-      "recall_any_type": 0.9594272076372315
+      "recall_any_type": 0.9522673031026253
     },
     "PHONE": {
-      "precision": 0.8117154811715481,
-      "recall": 0.6643835616438356,
-      "f1": 0.7306967984934086,
-      "n_pred": 239,
+      "precision": 0.821875,
+      "recall": 0.8972602739726028,
+      "f1": 0.8579147887148585,
+      "n_pred": 320,
       "n_gold": 292,
-      "tp_pred": 194,
-      "tp_gold": 194,
-      "recall_any_type": 0.6678082191780822
+      "tp_pred": 263,
+      "tp_gold": 262,
+      "recall_any_type": 0.9006849315068494
     },
     "CREDIT_CARD": {
       "precision": 0.7368421052631579,
@@ -54,34 +54,34 @@
       "recall_any_type": 0.6774193548387096
     },
     "SSN": {
-      "precision": 0.2711864406779661,
-      "recall": 0.2909090909090909,
-      "f1": 0.2807017543859649,
-      "n_pred": 59,
+      "precision": 0.96875,
+      "recall": 0.6909090909090909,
+      "f1": 0.8065730914070524,
+      "n_pred": 32,
       "n_gold": 55,
-      "tp_pred": 16,
-      "tp_gold": 16,
-      "recall_any_type": 0.3090909090909091
+      "tp_pred": 31,
+      "tp_gold": 38,
+      "recall_any_type": 0.6909090909090909
     },
     "GOV_ID": {
-      "precision": 0.375,
-      "recall": 0.06329113924050633,
-      "f1": 0.10830324909747294,
-      "n_pred": 16,
+      "precision": 0.456,
+      "recall": 0.620253164556962,
+      "f1": 0.5255927738050433,
+      "n_pred": 125,
       "n_gold": 79,
-      "tp_pred": 6,
-      "tp_gold": 5,
-      "recall_any_type": 0.12658227848101267
+      "tp_pred": 57,
+      "tp_gold": 49,
+      "recall_any_type": 0.6329113924050633
     },
     "ADDRESS": {
-      "precision": 0.25735294117647056,
-      "recall": 0.37833827893175076,
-      "f1": 0.30633258966878324,
-      "n_pred": 2584,
+      "precision": 0.34616163662143,
+      "recall": 0.7410979228486647,
+      "f1": 0.47190142893766346,
+      "n_pred": 4937,
       "n_gold": 1348,
-      "tp_pred": 665,
-      "tp_gold": 510,
-      "recall_any_type": 0.6135014836795252
+      "tp_pred": 1709,
+      "tp_gold": 999,
+      "recall_any_type": 0.8464391691394659
     },
     "IP_ADDRESS": {
       "precision": 1.0,
@@ -94,33 +94,33 @@
       "recall_any_type": 0.9560439560439561
     },
     "SECRET": {
-      "precision": 1.0,
-      "recall": 0.18461538461538463,
-      "f1": 0.3116883116883117,
-      "n_pred": 12,
+      "precision": 0.8787878787878788,
+      "recall": 0.4461538461538462,
+      "f1": 0.5918367346938775,
+      "n_pred": 33,
       "n_gold": 65,
-      "tp_pred": 12,
-      "tp_gold": 12,
-      "recall_any_type": 0.2
+      "tp_pred": 29,
+      "tp_gold": 29,
+      "recall_any_type": 0.46153846153846156
     }
   },
   "overall_strict": {
-    "precision": 0.29721669980119286,
-    "recall": 0.49717691342534504,
-    "f1": 0.3720303863608353,
-    "n_pred": 11066,
+    "precision": 0.4257849666983825,
+    "recall": 0.5964554579673776,
+    "f1": 0.4968728709603628,
+    "n_pred": 10510,
     "n_gold": 6376,
-    "tp_pred": 3289,
-    "tp_gold": 3170
+    "tp_pred": 4475,
+    "tp_gold": 3803
   },
   "overall_any_type": {
-    "precision": 0.38767395626242546,
-    "recall": 0.5638331242158093,
-    "f1": 0.45944675015278846,
-    "n_pred": 11066,
+    "precision": 0.5238820171265461,
+    "recall": 0.6584065244667503,
+    "f1": 0.5834909601036694,
+    "n_pred": 10510,
     "n_gold": 6376,
-    "tp_pred": 4290,
-    "tp_gold": 3595
+    "tp_pred": 5506,
+    "tp_gold": 4198
   },
   "other_detector_types": {
     "OTHER:CRYPTO": {
@@ -131,68 +131,68 @@
   },
   "binary": {
     "text": {
-      "precision": 0.8683870967741936,
-      "recall": 0.9347222222222222,
-      "f1": 0.9003344481605352,
-      "false_alarm_rate": 0.6580645161290323,
-      "tp": 1346,
-      "fp": 204,
-      "fn": 94,
-      "tn": 106
+      "precision": 0.8760490639122014,
+      "recall": 0.9423611111111111,
+      "f1": 0.9079959852793577,
+      "false_alarm_rate": 0.6193548387096774,
+      "tp": 1357,
+      "fp": 192,
+      "fn": 83,
+      "tn": 118
     },
     "payload": {
-      "precision": 0.8689477081988379,
-      "recall": 0.9347222222222222,
-      "f1": 0.9006356641017063,
-      "false_alarm_rate": 0.6548387096774193,
-      "tp": 1346,
-      "fp": 203,
-      "fn": 94,
-      "tn": 107
+      "precision": 0.8766149870801033,
+      "recall": 0.9423611111111111,
+      "f1": 0.9082998661311914,
+      "false_alarm_rate": 0.6161290322580645,
+      "tp": 1357,
+      "fp": 191,
+      "fn": 83,
+      "tn": 119
     },
     "correct_span": {
-      "precision": 0.8548042704626334,
-      "recall": 0.8340277777777778,
-      "f1": 0.8442882249560633,
-      "false_alarm_rate": 0.6580645161290323,
-      "tp": 1201,
-      "fp": 204,
-      "fn": 239,
-      "tn": 106
+      "precision": 0.8662952646239555,
+      "recall": 0.8638888888888889,
+      "f1": 0.8650904033379695,
+      "false_alarm_rate": 0.6193548387096774,
+      "tp": 1244,
+      "fp": 192,
+      "fn": 196,
+      "tn": 118
     }
   },
   "per_language": {
     "de": {
       "examples": 250,
       "strict": {
-        "precision": 0.15827338129496402,
-        "recall": 0.5460599334073252,
-        "f1": 0.24541435211427273,
-        "n_pred": 3197,
+        "precision": 0.40824468085106386,
+        "recall": 0.5982241953385128,
+        "f1": 0.48530431786020667,
+        "n_pred": 1504,
         "n_gold": 901,
-        "tp_pred": 506,
-        "tp_gold": 492
+        "tp_pred": 614,
+        "tp_gold": 539
       },
       "any_type": {
-        "precision": 0.2142633719111667,
-        "recall": 0.6193118756936737,
-        "f1": 0.31837761769447553,
-        "n_pred": 3197,
+        "precision": 0.49268617021276595,
+        "recall": 0.6481687014428413,
+        "f1": 0.559832390779423,
+        "n_pred": 1504,
         "n_gold": 901,
-        "tp_pred": 685,
-        "tp_gold": 558
+        "tp_pred": 741,
+        "tp_gold": 584
       },
       "recall_by_class": {
-        "PERSON": 0.5982905982905983,
+        "PERSON": 0.48205128205128206,
         "EMAIL": 0.9318181818181818,
-        "PHONE": 0.7037037037037037,
+        "PHONE": 0.9259259259259259,
         "CREDIT_CARD": 0.0,
         "IBAN": 0.2857142857142857,
-        "SSN": 0.2727272727272727,
-        "GOV_ID": 0.06666666666666667,
-        "ADDRESS": 0.32642487046632124,
+        "SSN": 0.8181818181818182,
+        "GOV_ID": 0.6,
+        "ADDRESS": 0.8082901554404145,
         "IP_ADDRESS": 1.0,
-        "SECRET": 0.3333333333333333
+        "SECRET": 0.6666666666666666
       },
       "gold_by_class": {
         "PERSON": 585,
@@ -207,47 +207,47 @@
         "SECRET": 6
       },
       "binary_text": {
-        "precision": 0.8903508771929824,
-        "recall": 0.9441860465116279,
-        "f1": 0.9164785553047403,
-        "false_alarm_rate": 0.7142857142857143,
-        "tp": 203,
-        "fp": 25,
-        "fn": 12,
-        "tn": 10
+        "precision": 0.8986784140969163,
+        "recall": 0.9488372093023256,
+        "f1": 0.923076923076923,
+        "false_alarm_rate": 0.6571428571428571,
+        "tp": 204,
+        "fp": 23,
+        "fn": 11,
+        "tn": 12
       }
     },
     "en": {
       "examples": 250,
       "strict": {
-        "precision": 0.5042016806722689,
-        "recall": 0.6621621621621622,
-        "f1": 0.5724856391782688,
-        "n_pred": 1071,
+        "precision": 0.5647716682199441,
+        "recall": 0.7135135135135136,
+        "f1": 0.6304887564730085,
+        "n_pred": 1073,
         "n_gold": 740,
-        "tp_pred": 540,
-        "tp_gold": 490
+        "tp_pred": 606,
+        "tp_gold": 528
       },
       "any_type": {
-        "precision": 0.6134453781512605,
-        "recall": 0.7243243243243244,
-        "f1": 0.6642898373569658,
-        "n_pred": 1071,
+        "precision": 0.6728797763280522,
+        "recall": 0.7648648648648648,
+        "f1": 0.7159297756303007,
+        "n_pred": 1073,
         "n_gold": 740,
-        "tp_pred": 657,
-        "tp_gold": 536
+        "tp_pred": 722,
+        "tp_gold": 566
       },
       "recall_by_class": {
-        "PERSON": 0.6631853785900783,
+        "PERSON": 0.6579634464751958,
         "EMAIL": 1.0,
-        "PHONE": 0.6388888888888888,
+        "PHONE": 0.8333333333333334,
         "CREDIT_CARD": 0.375,
         "IBAN": 1.0,
         "SSN": 0.5,
-        "GOV_ID": 0.1111111111111111,
-        "ADDRESS": 0.5647668393782384,
+        "GOV_ID": 0.6666666666666666,
+        "ADDRESS": 0.689119170984456,
         "IP_ADDRESS": 1.0,
-        "SECRET": 0.1111111111111111
+        "SECRET": 0.5555555555555556
       },
       "gold_by_class": {
         "PERSON": 383,
@@ -262,47 +262,47 @@
         "SECRET": 9
       },
       "binary_text": {
-        "precision": 0.8598130841121495,
-        "recall": 0.9435897435897436,
-        "f1": 0.8997555012224939,
-        "false_alarm_rate": 0.5454545454545454,
-        "tp": 184,
-        "fp": 30,
-        "fn": 11,
-        "tn": 25
+        "precision": 0.8644859813084113,
+        "recall": 0.9487179487179487,
+        "f1": 0.9046454767726161,
+        "false_alarm_rate": 0.5272727272727272,
+        "tp": 185,
+        "fp": 29,
+        "fn": 10,
+        "tn": 26
       }
     },
     "es": {
       "examples": 250,
       "strict": {
-        "precision": 0.253889234598631,
-        "recall": 0.44567627494456763,
-        "f1": 0.32349338776959263,
-        "n_pred": 1607,
+        "precision": 0.35341830822711473,
+        "recall": 0.582039911308204,
+        "f1": 0.43979208580237167,
+        "n_pred": 1726,
         "n_gold": 902,
-        "tp_pred": 408,
-        "tp_gold": 402
+        "tp_pred": 610,
+        "tp_gold": 525
       },
       "any_type": {
-        "precision": 0.3478531425015557,
-        "recall": 0.5110864745011087,
-        "f1": 0.41395933480315966,
-        "n_pred": 1607,
+        "precision": 0.4542294322132097,
+        "recall": 0.6574279379157428,
+        "f1": 0.5372574805597318,
+        "n_pred": 1726,
         "n_gold": 902,
-        "tp_pred": 559,
-        "tp_gold": 461
+        "tp_pred": 784,
+        "tp_gold": 593
       },
       "recall_by_class": {
-        "PERSON": 0.4156521739130435,
+        "PERSON": 0.4782608695652174,
         "EMAIL": 0.9024390243902439,
-        "PHONE": 0.6976744186046512,
+        "PHONE": 0.8837209302325582,
         "CREDIT_CARD": 0.5714285714285714,
         "IBAN": 0.75,
-        "SSN": 0.5,
-        "GOV_ID": 0.125,
-        "ADDRESS": 0.37435897435897436,
+        "SSN": 0.75,
+        "GOV_ID": 0.75,
+        "ADDRESS": 0.717948717948718,
         "IP_ADDRESS": 0.9166666666666666,
-        "SECRET": 0.2
+        "SECRET": 0.4
       },
       "gold_by_class": {
         "PERSON": 575,
@@ -317,47 +317,47 @@
         "SECRET": 5
       },
       "binary_text": {
-        "precision": 0.8377192982456141,
-        "recall": 0.9408866995073891,
-        "f1": 0.8863109048723898,
-        "false_alarm_rate": 0.7872340425531915,
-        "tp": 191,
-        "fp": 37,
-        "fn": 12,
-        "tn": 10
+        "precision": 0.84375,
+        "recall": 0.9310344827586207,
+        "f1": 0.8852459016393444,
+        "false_alarm_rate": 0.7446808510638298,
+        "tp": 189,
+        "fp": 35,
+        "fn": 14,
+        "tn": 12
       }
     },
     "fr": {
       "examples": 250,
       "strict": {
-        "precision": 0.4419512195121951,
-        "recall": 0.5185185185185185,
-        "f1": 0.47718295022760615,
-        "n_pred": 1025,
+        "precision": 0.518491124260355,
+        "recall": 0.6790123456790124,
+        "f1": 0.5879930761546732,
+        "n_pred": 1352,
         "n_gold": 810,
-        "tp_pred": 453,
-        "tp_gold": 420
+        "tp_pred": 701,
+        "tp_gold": 550
       },
       "any_type": {
-        "precision": 0.5297560975609756,
-        "recall": 0.5753086419753086,
-        "f1": 0.5515934952260539,
-        "n_pred": 1025,
+        "precision": 0.6057692307692307,
+        "recall": 0.7222222222222222,
+        "f1": 0.658889782783588,
+        "n_pred": 1352,
         "n_gold": 810,
-        "tp_pred": 543,
-        "tp_gold": 466
+        "tp_pred": 819,
+        "tp_gold": 585
       },
       "recall_by_class": {
-        "PERSON": 0.4449648711943794,
+        "PERSON": 0.5526932084309133,
         "EMAIL": 0.9605263157894737,
-        "PHONE": 0.8,
+        "PHONE": 0.9166666666666666,
         "CREDIT_CARD": 0.0,
         "IBAN": 0.5714285714285714,
-        "SSN": 0.42857142857142855,
-        "GOV_ID": 0.0,
-        "ADDRESS": 0.4494949494949495,
+        "SSN": 0.8571428571428571,
+        "GOV_ID": 0.4444444444444444,
+        "ADDRESS": 0.7929292929292929,
         "IP_ADDRESS": 1.0,
-        "SECRET": 0.18181818181818182
+        "SECRET": 0.36363636363636365
       },
       "gold_by_class": {
         "PERSON": 427,
@@ -372,47 +372,47 @@
         "SECRET": 11
       },
       "binary_text": {
-        "precision": 0.839622641509434,
-        "recall": 0.9035532994923858,
-        "f1": 0.8704156479217604,
-        "false_alarm_rate": 0.6415094339622641,
-        "tp": 178,
-        "fp": 34,
-        "fn": 19,
-        "tn": 19
+        "precision": 0.8657407407407407,
+        "recall": 0.949238578680203,
+        "f1": 0.9055690072639225,
+        "false_alarm_rate": 0.5471698113207547,
+        "tp": 187,
+        "fp": 29,
+        "fn": 10,
+        "tn": 24
       }
     },
     "it": {
       "examples": 250,
       "strict": {
-        "precision": 0.33085752869682644,
-        "recall": 0.5020833333333333,
-        "f1": 0.39887117666828237,
-        "n_pred": 1481,
+        "precision": 0.39631336405529954,
+        "recall": 0.628125,
+        "f1": 0.4859918186035396,
+        "n_pred": 1953,
         "n_gold": 960,
-        "tp_pred": 490,
-        "tp_gold": 482
+        "tp_pred": 774,
+        "tp_gold": 603
       },
       "any_type": {
-        "precision": 0.4415935178933153,
-        "recall": 0.5802083333333333,
-        "f1": 0.5014988742095202,
-        "n_pred": 1481,
+        "precision": 0.4874551971326165,
+        "recall": 0.7020833333333333,
+        "f1": 0.5754066150668851,
+        "n_pred": 1953,
         "n_gold": 960,
-        "tp_pred": 654,
-        "tp_gold": 557
+        "tp_pred": 952,
+        "tp_gold": 674
       },
       "recall_by_class": {
-        "PERSON": 0.515358361774744,
+        "PERSON": 0.5255972696245734,
         "EMAIL": 0.9423076923076923,
-        "PHONE": 0.8,
+        "PHONE": 0.925,
         "CREDIT_CARD": 0.5555555555555556,
         "IBAN": 0.5,
-        "SSN": 0.0,
-        "GOV_ID": 0.0,
-        "ADDRESS": 0.3269230769230769,
+        "SSN": 0.45454545454545453,
+        "GOV_ID": 0.8181818181818182,
+        "ADDRESS": 0.7836538461538461,
         "IP_ADDRESS": 0.9166666666666666,
-        "SECRET": 0.46153846153846156
+        "SECRET": 0.5384615384615384
       },
       "gold_by_class": {
         "PERSON": 586,
@@ -427,47 +427,47 @@
         "SECRET": 13
       },
       "binary_text": {
-        "precision": 0.8545454545454545,
+        "precision": 0.8506787330316742,
         "recall": 0.9261083743842364,
-        "f1": 0.8888888888888888,
-        "false_alarm_rate": 0.6808510638297872,
+        "f1": 0.8867924528301887,
+        "false_alarm_rate": 0.7021276595744681,
         "tp": 188,
-        "fp": 32,
+        "fp": 33,
         "fn": 15,
-        "tn": 15
+        "tn": 14
       }
     },
     "nl": {
       "examples": 250,
       "strict": {
-        "precision": 0.325225851285615,
-        "recall": 0.44713870029097963,
-        "f1": 0.376560690539294,
-        "n_pred": 1439,
+        "precision": 0.4,
+        "recall": 0.49078564500484967,
+        "f1": 0.4407665505226481,
+        "n_pred": 1380,
         "n_gold": 1031,
-        "tp_pred": 468,
-        "tp_gold": 461
+        "tp_pred": 552,
+        "tp_gold": 506
       },
       "any_type": {
-        "precision": 0.4405837387074357,
-        "recall": 0.5063045586808923,
-        "f1": 0.47116340122379363,
-        "n_pred": 1439,
+        "precision": 0.5173913043478261,
+        "recall": 0.562560620756547,
+        "f1": 0.5390313523813987,
+        "n_pred": 1380,
         "n_gold": 1031,
-        "tp_pred": 634,
-        "tp_gold": 522
+        "tp_pred": 714,
+        "tp_gold": 580
       },
       "recall_by_class": {
-        "PERSON": 0.42857142857142855,
+        "PERSON": 0.3620933521923621,
         "EMAIL": 0.9482758620689655,
-        "PHONE": 0.5789473684210527,
+        "PHONE": 0.868421052631579,
         "CREDIT_CARD": 0.2,
         "IBAN": 0.8461538461538461,
-        "SSN": 0.4444444444444444,
-        "GOV_ID": 0.0,
-        "ADDRESS": 0.2865853658536585,
+        "SSN": 0.8888888888888888,
+        "GOV_ID": 0.625,
+        "ADDRESS": 0.7134146341463414,
         "IP_ADDRESS": 1.0,
-        "SECRET": 0.0
+        "SECRET": 0.18181818181818182
       },
       "gold_by_class": {
         "PERSON": 707,
@@ -482,47 +482,47 @@
         "SECRET": 11
       },
       "binary_text": {
-        "precision": 0.9155555555555556,
+        "precision": 0.9237668161434978,
         "recall": 0.9671361502347418,
-        "f1": 0.9406392694063926,
-        "false_alarm_rate": 0.5135135135135135,
+        "f1": 0.944954128440367,
+        "false_alarm_rate": 0.4594594594594595,
         "tp": 206,
-        "fp": 19,
+        "fp": 17,
         "fn": 7,
-        "tn": 18
+        "tn": 20
       }
     },
     "sv": {
       "examples": 250,
       "strict": {
-        "precision": 0.3402889245585875,
-        "recall": 0.40988372093023256,
-        "f1": 0.37185810873851627,
-        "n_pred": 1246,
+        "precision": 0.4060446780551905,
+        "recall": 0.5348837209302325,
+        "f1": 0.46164339071126986,
+        "n_pred": 1522,
         "n_gold": 1032,
-        "tp_pred": 424,
-        "tp_gold": 423
+        "tp_pred": 618,
+        "tp_gold": 552
       },
       "any_type": {
-        "precision": 0.4478330658105939,
-        "recall": 0.4796511627906977,
-        "f1": 0.463196341518632,
-        "n_pred": 1246,
+        "precision": 0.5085413929040736,
+        "recall": 0.5968992248062015,
+        "f1": 0.5491890895687431,
+        "n_pred": 1522,
         "n_gold": 1032,
-        "tp_pred": 558,
-        "tp_gold": 495
+        "tp_pred": 774,
+        "tp_gold": 616
       },
       "recall_by_class": {
-        "PERSON": 0.37987987987987987,
+        "PERSON": 0.41291291291291293,
         "EMAIL": 0.9420289855072463,
-        "PHONE": 0.4166666666666667,
+        "PHONE": 0.9166666666666666,
         "CREDIT_CARD": 1.0,
         "IBAN": 1.0,
-        "SSN": 0.14285714285714285,
-        "GOV_ID": 0.09090909090909091,
-        "ADDRESS": 0.3096446700507614,
+        "SSN": 0.5714285714285714,
+        "GOV_ID": 0.36363636363636365,
+        "ADDRESS": 0.6751269035532995,
         "IP_ADDRESS": 0.875,
-        "SECRET": 0.0
+        "SECRET": 0.5
       },
       "gold_by_class": {
         "PERSON": 666,
@@ -537,14 +537,14 @@
         "SECRET": 10
       },
       "binary_text": {
-        "precision": 0.8789237668161435,
-        "recall": 0.9158878504672897,
-        "f1": 0.897025171624714,
-        "false_alarm_rate": 0.75,
-        "tp": 196,
-        "fp": 27,
-        "fn": 18,
-        "tn": 9
+        "precision": 0.8839285714285714,
+        "recall": 0.9252336448598131,
+        "f1": 0.9041095890410958,
+        "false_alarm_rate": 0.7222222222222222,
+        "tp": 198,
+        "fp": 26,
+        "fn": 16,
+        "tn": 10
       }
     }
   },
@@ -552,11 +552,12 @@
     "name": {
       "n": 3776,
       "class": "PERSON",
-      "recall_strict": 0.4870233050847458,
-      "recall_any_type": 0.510593220338983,
+      "recall_strict": 0.4769597457627119,
+      "recall_any_type": 0.5415783898305084,
       "found_as": {
-        "PERSON": 1839,
-        "LOCATION": 84,
+        "PERSON": 1801,
+        "LOCATION": 232,
+        "STREET_ADDRESS": 17,
         "EMAIL_ADDRESS": 7
       }
     },
@@ -564,33 +565,35 @@
       "n": 2098,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.020972354623450904,
+      "recall_any_type": 0.004289799809342231,
       "found_as": {
-        "PERSON": 38,
-        "LOCATION": 5,
-        "PHONE_NUMBER": 1
+        "PERSON": 4,
+        "LOCATION": 3,
+        "PHONE_NUMBER": 1,
+        "STREET_ADDRESS": 1
       }
     },
     "company": {
       "n": 1825,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.19123287671232878,
+      "recall_any_type": 0.17424657534246576,
       "found_as": {
-        "PERSON": 291,
-        "LOCATION": 63,
+        "PERSON": 174,
+        "LOCATION": 145,
+        "STREET_ADDRESS": 2,
         "EMAIL_ADDRESS": 1
       }
     },
     "street_address": {
       "n": 1348,
       "class": "ADDRESS",
-      "recall_strict": 0.37833827893175076,
-      "recall_any_type": 0.6135014836795252,
+      "recall_strict": 0.7410979228486647,
+      "recall_any_type": 0.8464391691394659,
       "found_as": {
-        "LOCATION": 497,
-        "PERSON": 440,
-        "STREET_ADDRESS": 53,
+        "STREET_ADDRESS": 738,
+        "LOCATION": 697,
+        "PERSON": 383,
         "CRYPTO": 2
       }
     },
@@ -598,57 +601,57 @@
       "n": 525,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.005714285714285714,
-      "found_as": {
-        "LOCATION": 2,
-        "PERSON": 1
-      }
+      "recall_any_type": 0.0,
+      "found_as": {}
     },
     "email": {
       "n": 419,
       "class": "EMAIL",
       "recall_strict": 0.9522673031026253,
-      "recall_any_type": 0.9594272076372315,
+      "recall_any_type": 0.9522673031026253,
       "found_as": {
         "EMAIL_ADDRESS": 399,
-        "PERSON": 3
+        "LOCATION": 1
       }
     },
     "phone_number": {
       "n": 292,
       "class": "PHONE",
-      "recall_strict": 0.6643835616438356,
-      "recall_any_type": 0.6678082191780822,
+      "recall_strict": 0.8972602739726028,
+      "recall_any_type": 0.9006849315068494,
       "found_as": {
-        "PHONE_NUMBER": 194,
-        "UK_NHS": 13,
-        "PERSON": 1
+        "PHONE_NUMBER": 262,
+        "ID_NUMBER": 1
       }
     },
     "first_name": {
       "n": 94,
       "class": "PERSON",
-      "recall_strict": 0.43617021276595747,
-      "recall_any_type": 0.5212765957446809,
+      "recall_strict": 0.7446808510638298,
+      "recall_any_type": 0.776595744680851,
       "found_as": {
-        "PERSON": 41,
-        "LOCATION": 8
+        "PERSON": 70,
+        "LOCATION": 3
       }
     },
     "date_of_birth": {
       "n": 80,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.0,
-      "found_as": {}
+      "recall_any_type": 0.025,
+      "found_as": {
+        "ID_NUMBER": 1,
+        "PERSON": 1
+      }
     },
     "customer_id": {
       "n": 64,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.03125,
+      "recall_any_type": 0.0625,
       "found_as": {
-        "US_DRIVER_LICENSE": 2
+        "US_DRIVER_LICENSE": 2,
+        "ID_NUMBER": 2
       }
     },
     "iban": {
@@ -664,16 +667,19 @@
       "n": 62,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.0,
-      "found_as": {}
+      "recall_any_type": 0.016129032258064516,
+      "found_as": {
+        "LOCATION": 1
+      }
     },
     "last_name": {
       "n": 59,
       "class": "PERSON",
-      "recall_strict": 0.1864406779661017,
-      "recall_any_type": 0.1864406779661017,
+      "recall_strict": 0.22033898305084745,
+      "recall_any_type": 0.2711864406779661,
       "found_as": {
-        "PERSON": 11
+        "PERSON": 13,
+        "LOCATION": 3
       }
     },
     "ipv4": {
@@ -688,12 +694,13 @@
     "ssn": {
       "n": 55,
       "class": "SSN",
-      "recall_strict": 0.2909090909090909,
-      "recall_any_type": 0.3090909090909091,
+      "recall_strict": 0.6909090909090909,
+      "recall_any_type": 0.6909090909090909,
       "found_as": {
         "US_SSN": 16,
-        "LOCATION": 1,
-        "US_ITIN": 1
+        "FR_NIR": 8,
+        "ID_NUMBER": 7,
+        "IT_FISCAL_CODE": 7
       }
     },
     "account_pin": {
@@ -706,11 +713,12 @@
     "passport_number": {
       "n": 43,
       "class": "GOV_ID",
-      "recall_strict": 0.023255813953488372,
-      "recall_any_type": 0.046511627906976744,
+      "recall_strict": 0.7906976744186046,
+      "recall_any_type": 0.7906976744186046,
       "found_as": {
-        "US_DRIVER_LICENSE": 1,
-        "PHONE_NUMBER": 1
+        "ID_NUMBER": 33,
+        "LOCATION": 1,
+        "US_DRIVER_LICENSE": 1
       }
     },
     "bban": {
@@ -724,10 +732,9 @@
       "n": 40,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.1,
+      "recall_any_type": 0.075,
       "found_as": {
-        "US_DRIVER_LICENSE": 3,
-        "LOCATION": 1
+        "US_DRIVER_LICENSE": 3
       }
     },
     "bank_routing_number": {
@@ -743,17 +750,21 @@
       "n": 38,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.0,
-      "found_as": {}
+      "recall_any_type": 0.02631578947368421,
+      "found_as": {
+        "ID_NUMBER": 1
+      }
     },
     "driver_license_number": {
       "n": 36,
       "class": "GOV_ID",
-      "recall_strict": 0.1111111111111111,
-      "recall_any_type": 0.2222222222222222,
+      "recall_strict": 0.4166666666666667,
+      "recall_any_type": 0.4444444444444444,
       "found_as": {
-        "PHONE_NUMBER": 4,
-        "US_DRIVER_LICENSE": 4
+        "ID_NUMBER": 11,
+        "US_DRIVER_LICENSE": 4,
+        "LOCATION": 1,
+        "PHONE_NUMBER": 1
       }
     },
     "credit_card_number": {
@@ -771,26 +782,29 @@
       "recall_strict": 0.9166666666666666,
       "recall_any_type": 0.9166666666666666,
       "found_as": {
-        "IP_ADDRESS": 33
+        "IP_ADDRESS": 33,
+        "LOCATION": 2
       }
     },
     "password": {
       "n": 33,
       "class": "SECRET",
-      "recall_strict": 0.0,
-      "recall_any_type": 0.030303030303030304,
+      "recall_strict": 0.24242424242424243,
+      "recall_any_type": 0.24242424242424243,
       "found_as": {
-        "LOCATION": 1
+        "GENERIC_API_KEY": 8,
+        "LOCATION": 2
       }
     },
     "api_key": {
       "n": 32,
       "class": "SECRET",
-      "recall_strict": 0.375,
-      "recall_any_type": 0.375,
+      "recall_strict": 0.65625,
+      "recall_any_type": 0.6875,
       "found_as": {
+        "GENERIC_API_KEY": 12,
         "AWS_ACCESS_KEY": 9,
-        "GENERIC_API_KEY": 3
+        "LOCATION": 1
       }
     },
     "local_latlng": {
@@ -817,88 +831,83 @@
   },
   "false_negative_reasons": {
     "PERSON": {
-      "capitalized name missed by NER": 1803,
+      "capitalized name missed by NER": 1657,
+      "found as another type: LOCATION": 232,
       "name not capitalized": 138,
-      "found as another type: LOCATION": 90,
+      "found as another type: STREET_ADDRESS": 11,
       "found as another type: EMAIL_ADDRESS": 7
     },
-    "GOV_ID": {
-      "GOV_ID format Ad8": 36,
-      "GOV_ID format d9": 20,
-      "GOV_ID format d2-d6-d2": 8,
-      "found as another type: PHONE_NUMBER": 5,
-      "GOV_ID format Ad3-d4-d3-d1": 3,
-      "GOV_ID format Ad2-d4-d3-d2": 2
-    },
     "EMAIL": {
-      "found as another type: PERSON": 3,
       "EMAIL [a a a a]": 2,
       "EMAIL [a-a]": 2,
       "EMAIL [A-Aa]": 1,
       "EMAIL a@[a-a].a": 1,
       "EMAIL a.a-a@a.a": 1,
+      "EMAIL Aa Aa": 1,
+      "EMAIL [Aa Aa a Aa]": 1,
+      "EMAIL &a;Aa Aa&a;": 1,
       "EMAIL [a a a a a]": 1,
       "EMAIL [Aa a a a a-a": 1,
       "EMAIL [Aa a-a": 1,
-      "EMAIL [Aa a a a]": 1,
-      "EMAIL [a]": 1,
-      "EMAIL [A-a a a a]": 1
+      "EMAIL [Aa a a a]": 1
     },
-    "ADDRESS": {
-      "address part: street_address": 521,
-      "found as another type: PERSON": 314,
-      "found as another type: CRYPTO": 2,
-      "found as another type: EMAIL_ADDRESS": 1
+    "GOV_ID": {
+      "GOV_ID format Ad8": 19,
+      "GOV_ID format d2-d6-d2": 5,
+      "GOV_ID format d9": 3,
+      "GOV_ID format Ad2-d4-d3-d2": 1,
+      "GOV_ID format Ad3-d4-d3-d1": 1,
+      "found as another type: PHONE_NUMBER": 1
     },
     "IBAN": {
       "IBAN fails its checksum (rejected on purpose)": 19,
       "IBAN format Ad22": 1
     },
-    "PHONE": {
-      "PHONE format d3-d3 d2 d2": 12,
-      "PHONE format +d2 d3 d3 d3": 8,
-      "PHONE format +d1-d3-d3-d4": 6,
-      "PHONE format d4-d4": 6,
-      "PHONE format (d3) d3-d4": 3,
-      "PHONE format d1-d3-d3-d4": 3,
-      "PHONE format [Aa Aa]": 3,
-      "PHONE format +d2 d1 d2 d2 d2 d2": 3,
-      "PHONE format +d2 d3 d6": 2,
-      "PHONE format d10": 2,
-      "PHONE format +d2 d2 d4 d4": 2,
-      "PHONE format +d2-d3-d3-d3": 2
+    "ADDRESS": {
+      "address part: street_address": 207,
+      "found as another type: PERSON": 140,
+      "found as another type: CRYPTO": 2
     },
     "CREDIT_CARD": {
       "CREDIT_CARD fails its checksum (rejected on purpose)": 21,
       "CREDIT_CARD format d16": 1
     },
     "SSN": {
-      "SSN format d15": 8,
-      "SSN format d6-d4": 7,
-      "SSN format Ad2Ad2Ad3A": 7,
-      "SSN format d9": 4,
+      "SSN format d9": 5,
       "SSN format d6": 4,
-      "SSN format A d2 d2 d2 A": 2,
+      "SSN format d6-d4": 3,
       "SSN format d3-d2-d4": 2,
-      "found as another type: LOCATION": 1,
       "SSN format *-*-d4": 1,
-      "SSN format Ad6A": 1,
       "SSN format A d6 A": 1,
-      "SSN format d3 d3 d2-d4": 1
+      "SSN format A d2 d2 d2 A": 1
     },
     "SECRET": {
       "SECRET _Aa!d1^Aa": 7,
       "SECRET aAaAd1Aad1ad4Ad2Ad1ad1aAad8a": 2,
       "SECRET Ad1": 2,
-      "found as another type: LOCATION": 1,
       "SECRET a.-AaAad1AaAaAad2aAaAad1": 1,
-      "SECRET ad2A#aA*Aa": 1,
       "SECRET d2@A@+a$d1Aa+": 1,
-      "SECRET d1ad2aAd2aAd1Ad3aAd1ad1ad1ad3": 1,
-      "SECRET A^d3!Aa$+!$Aad1A": 1,
       "SECRET Aad1_a*AaA!d1A": 1,
       "SECRET AaAad1AaAad1aAd1ad1aAd1Aad1Aa": 1,
-      "SECRET Ad1aAaAaAaAad1Aad1Ad1ad1AaAd1ad1aAaAaAd1": 1
+      "SECRET Ad1aAaAaAaAad1Aad1Ad1ad1AaAd1ad1aAaAaAd1": 1,
+      "SECRET ad1aAd1aA*ad1AaA@": 1,
+      "SECRET Ad1aAd1Aa@d1": 1,
+      "SECRET a*a&d1AaAd1a+A!(&a": 1,
+      "SECRET _aA+*Ad1AaAd1AaA": 1
+    },
+    "PHONE": {
+      "PHONE format (d3) d3-d4": 3,
+      "PHONE format d1-d3-d3-d4": 3,
+      "PHONE format [Aa Aa]": 3,
+      "PHONE format d10": 2,
+      "PHONE format d4-d4": 2,
+      "PHONE format a a": 1,
+      "PHONE format d3.d3.d4ad5": 1,
+      "PHONE format d2-d3": 1,
+      "PHONE format &a;Aa a Aa&a;": 1,
+      "PHONE format d4": 1,
+      "PHONE format d2 d2 d2 d2 d2": 1,
+      "PHONE format [A A A]": 1
     },
     "IP_ADDRESS": {
       "IP_ADDRESS format d2a:ad2a:d4:d3a:d3a:d2ad1:d1ad1a:ad3": 1,
@@ -928,13 +937,35 @@
         "shape": "Aa"
       }
     ],
-    "GOV_ID | GOV_ID format Ad8": [
+    "EMAIL | EMAIL [A-Aa]": [
       {
-        "id": "24072",
+        "id": "18821",
         "lang": "de",
-        "label": "passport_number",
-        "shape": "Ad8"
+        "label": "email",
+        "shape": "[A-Aa]"
+      }
+    ],
+    "PERSON | found as another type: LOCATION": [
+      {
+        "id": "29173",
+        "lang": "de",
+        "label": "name",
+        "shape": "Aa Aa"
       },
+      {
+        "id": "1326",
+        "lang": "de",
+        "label": "name",
+        "shape": "Aa Aa Aa"
+      },
+      {
+        "id": "8428",
+        "lang": "de",
+        "label": "name",
+        "shape": "Aa"
+      }
+    ],
+    "GOV_ID | GOV_ID format Ad8": [
       {
         "id": "29173",
         "lang": "de",
@@ -946,34 +977,12 @@
         "lang": "de",
         "label": "passport_number",
         "shape": "Ad8"
-      }
-    ],
-    "EMAIL | EMAIL [A-Aa]": [
-      {
-        "id": "18821",
-        "lang": "de",
-        "label": "email",
-        "shape": "[A-Aa]"
-      }
-    ],
-    "ADDRESS | address part: street_address": [
-      {
-        "id": "29173",
-        "lang": "de",
-        "label": "street_address",
-        "shape": "Aa d1, Aa"
       },
       {
-        "id": "21287",
+        "id": "15054",
         "lang": "de",
-        "label": "street_address",
-        "shape": "d2 Aa Aa"
-      },
-      {
-        "id": "1326",
-        "lang": "de",
-        "label": "street_address",
-        "shape": "Aa d2, d5 Aa"
+        "label": "passport_number",
+        "shape": "Ad8"
       }
     ],
     "IBAN | IBAN fails its checksum (rejected on purpose)": [
@@ -996,38 +1005,24 @@
         "shape": "Ad20"
       }
     ],
-    "PHONE | PHONE format +d2 d3 d6": [
+    "ADDRESS | address part: street_address": [
       {
-        "id": "15382",
-        "lang": "de",
-        "label": "phone_number",
-        "shape": "+d2 d3 d6"
-      },
-      {
-        "id": "6366",
-        "lang": "de",
-        "label": "phone_number",
-        "shape": "+d2 d3 d6"
-      }
-    ],
-    "ADDRESS | found as another type: PERSON": [
-      {
-        "id": "22570",
+        "id": "21287",
         "lang": "de",
         "label": "street_address",
-        "shape": "d2 Aa Aa Aa, Aa. d2"
+        "shape": "d2 Aa Aa"
       },
       {
-        "id": "8428",
+        "id": "19722",
         "lang": "de",
         "label": "street_address",
-        "shape": "d3 Aa Aa Aa, Aa d1"
+        "shape": "[Aa]"
       },
       {
-        "id": "15074",
+        "id": "4421",
         "lang": "de",
         "label": "street_address",
-        "shape": "d2 Aa, d4A, Aa"
+        "shape": "A d1, d5 A, A"
       }
     ],
     "CREDIT_CARD | CREDIT_CARD fails its checksum (rejected on purpose)": [
@@ -1050,24 +1045,24 @@
         "shape": "d4-d4-d4-d3"
       }
     ],
-    "PERSON | found as another type: LOCATION": [
+    "ADDRESS | found as another type: PERSON": [
+      {
+        "id": "8428",
+        "lang": "de",
+        "label": "street_address",
+        "shape": "d3 Aa Aa Aa, Aa d1"
+      },
       {
         "id": "25418",
         "lang": "de",
-        "label": "first_name",
-        "shape": "Aa"
+        "label": "street_address",
+        "shape": "Aa Aa Aa"
       },
       {
-        "id": "27555",
+        "id": "8690",
         "lang": "de",
-        "label": "name",
-        "shape": "Aa"
-      },
-      {
-        "id": "13443",
-        "lang": "de",
-        "label": "first_name",
-        "shape": "Aa"
+        "label": "street_address",
+        "shape": "d1 Aa a"
       }
     ],
     "PERSON | name not capitalized": [
@@ -1112,26 +1107,6 @@
         "shape": "d1AaAaAaAad1Aad1ad1Aad1aAaAd1"
       }
     ],
-    "GOV_ID | GOV_ID format d9": [
-      {
-        "id": "6128",
-        "lang": "de",
-        "label": "passport_number",
-        "shape": "d9"
-      },
-      {
-        "id": "3585",
-        "lang": "de",
-        "label": "passport_number",
-        "shape": "d9"
-      },
-      {
-        "id": "46931",
-        "lang": "en",
-        "label": "passport_number",
-        "shape": "d9"
-      }
-    ],
     "SSN | SSN format d9": [
       {
         "id": "13438",
@@ -1140,14 +1115,14 @@
         "shape": "d9"
       },
       {
-        "id": "3279",
-        "lang": "it",
+        "id": "12498",
+        "lang": "de",
         "label": "ssn",
         "shape": "d9"
       },
       {
-        "id": "6161",
-        "lang": "nl",
+        "id": "3279",
+        "lang": "it",
         "label": "ssn",
         "shape": "d9"
       }
@@ -1160,13 +1135,27 @@
         "shape": "a.a-a@a.a"
       }
     ],
-    "GOV_ID | GOV_ID format d2-d6-d2": [
+    "PERSON | found as another type: STREET_ADDRESS": [
       {
-        "id": "25129",
+        "id": "29105",
         "lang": "de",
-        "label": "driver_license_number",
-        "shape": "d2-d6-d2"
+        "label": "name",
+        "shape": "Aa"
       },
+      {
+        "id": "4524",
+        "lang": "es",
+        "label": "name",
+        "shape": "d2"
+      },
+      {
+        "id": "31466",
+        "lang": "es",
+        "label": "name",
+        "shape": "d2 a Aa"
+      }
+    ],
+    "GOV_ID | GOV_ID format d2-d6-d2": [
       {
         "id": "25273",
         "lang": "de",
@@ -1178,150 +1167,12 @@
         "lang": "es",
         "label": "driver_license_number",
         "shape": "d2-d6-d2"
-      }
-    ],
-    "PHONE | PHONE format +d2 d3 d3 d3": [
-      {
-        "id": "29922",
-        "lang": "de",
-        "label": "phone_number",
-        "shape": "+d2 d3 d3 d3"
       },
       {
-        "id": "22245",
-        "lang": "de",
-        "label": "phone_number",
-        "shape": "+d2 d3 d3 d3"
-      },
-      {
-        "id": "2441",
-        "lang": "de",
-        "label": "phone_number",
-        "shape": "+d2 d3 d3 d3"
-      }
-    ],
-    "SSN | SSN format d6-d4": [
-      {
-        "id": "5847",
-        "lang": "de",
-        "label": "ssn",
-        "shape": "d6-d4"
-      },
-      {
-        "id": "3095",
-        "lang": "es",
-        "label": "ssn",
-        "shape": "d6-d4"
-      },
-      {
-        "id": "29474",
-        "lang": "fr",
-        "label": "ssn",
-        "shape": "d6-d4"
-      }
-    ],
-    "GOV_ID | found as another type: PHONE_NUMBER": [
-      {
-        "id": "25273",
-        "lang": "de",
-        "label": "driver_license_number",
-        "shape": "d2-d6-d2"
-      },
-      {
-        "id": "24753",
-        "lang": "fr",
-        "label": "passport_number",
-        "shape": "d9"
-      },
-      {
-        "id": "15387",
+        "id": "23791",
         "lang": "it",
         "label": "driver_license_number",
         "shape": "d2-d6-d2"
-      }
-    ],
-    "SECRET | found as another type: LOCATION": [
-      {
-        "id": "22245",
-        "lang": "de",
-        "label": "password",
-        "shape": "A#Aa+a@d2&ad1Ad1a"
-      }
-    ],
-    "SSN | found as another type: LOCATION": [
-      {
-        "id": "12498",
-        "lang": "de",
-        "label": "ssn",
-        "shape": "d9"
-      }
-    ],
-    "PHONE | PHONE format +d1 d3 d7": [
-      {
-        "id": "2095",
-        "lang": "de",
-        "label": "phone_number",
-        "shape": "+d1 d3 d7"
-      }
-    ],
-    "GOV_ID | GOV_ID format Ad3-d4-d3-d1": [
-      {
-        "id": "3524",
-        "lang": "de",
-        "label": "driver_license_number",
-        "shape": "Ad3-d4-d3-d1"
-      },
-      {
-        "id": "26684",
-        "lang": "fr",
-        "label": "driver_license_number",
-        "shape": "Ad3-d4-d3-d1"
-      },
-      {
-        "id": "9266",
-        "lang": "nl",
-        "label": "driver_license_number",
-        "shape": "Ad3-d4-d3-d1"
-      }
-    ],
-    "SSN | SSN format Ad2Ad2Ad3A": [
-      {
-        "id": "30627",
-        "lang": "de",
-        "label": "ssn",
-        "shape": "Ad2Ad2Ad3A"
-      },
-      {
-        "id": "12758",
-        "lang": "de",
-        "label": "ssn",
-        "shape": "Ad2Ad2Ad3A"
-      },
-      {
-        "id": "30427",
-        "lang": "fr",
-        "label": "ssn",
-        "shape": "Ad2Ad2Ad3A"
-      }
-    ],
-    "SSN | SSN format d15": [
-      {
-        "id": "27806",
-        "lang": "de",
-        "label": "ssn",
-        "shape": "d15"
-      },
-      {
-        "id": "30411",
-        "lang": "de",
-        "label": "ssn",
-        "shape": "d15"
-      },
-      {
-        "id": "27333",
-        "lang": "es",
-        "label": "ssn",
-        "shape": "d15"
       }
     ],
     "SECRET | SECRET a.-AaAad1AaAaAad2aAaAad1": [
@@ -1330,14 +1181,6 @@
         "lang": "de",
         "label": "api_key",
         "shape": "a.-AaAad1AaAaAad2aAaAad1"
-      }
-    ],
-    "SECRET | SECRET ad2A#aA*Aa": [
-      {
-        "id": "8874",
-        "lang": "de",
-        "label": "password",
-        "shape": "ad2A#aA*Aa"
       }
     ],
     "PHONE | PHONE format d10": [
@@ -1362,20 +1205,6 @@
         "shape": "a a"
       }
     ],
-    "SSN | SSN format A d2 d2 d2 A": [
-      {
-        "id": "20562",
-        "lang": "de",
-        "label": "ssn",
-        "shape": "A d2 d2 d2 A"
-      },
-      {
-        "id": "11337",
-        "lang": "sv",
-        "label": "ssn",
-        "shape": "A d2 d2 d2 A"
-      }
-    ],
     "SECRET | SECRET d2@A@+a$d1Aa+": [
       {
         "id": "20562",
@@ -1396,22 +1225,6 @@
         "lang": "en",
         "label": "ssn",
         "shape": "d3-d2-d4"
-      }
-    ],
-    "SECRET | SECRET d1ad2aAd2aAd1Ad3aAd1ad1ad1ad3": [
-      {
-        "id": "52096",
-        "lang": "en",
-        "label": "api_key",
-        "shape": "d1ad2aAd2aAd1Ad3aAd1ad1ad1ad3"
-      }
-    ],
-    "SECRET | SECRET A^d3!Aa$+!$Aad1A": [
-      {
-        "id": "37800",
-        "lang": "en",
-        "label": "password",
-        "shape": "A^d3!Aa$+!$Aad1A"
       }
     ],
     "PHONE | PHONE format (d3) d3-d4": [
@@ -1450,14 +1263,6 @@
         "shape": "AaAad1AaAad1aAd1ad1aAd1Aad1Aa"
       }
     ],
-    "PHONE | PHONE format +d5 d3 d4": [
-      {
-        "id": "18587",
-        "lang": "en",
-        "label": "phone_number",
-        "shape": "+d5 d3 d4"
-      }
-    ],
     "PHONE | PHONE format d1-d3-d3-d4": [
       {
         "id": "47447",
@@ -1494,26 +1299,6 @@
         "shape": "ad1aAd1aA*ad1AaA@"
       }
     ],
-    "PHONE | PHONE format +d1-d3-d3-d4": [
-      {
-        "id": "48996",
-        "lang": "en",
-        "label": "phone_number",
-        "shape": "+d1-d3-d3-d4"
-      },
-      {
-        "id": "48996",
-        "lang": "en",
-        "label": "phone_number",
-        "shape": "+d1-d3-d3-d4"
-      },
-      {
-        "id": "34677",
-        "lang": "en",
-        "label": "phone_number",
-        "shape": "+d1-d3-d3-d4"
-      }
-    ],
     "PHONE | PHONE format [Aa Aa]": [
       {
         "id": "48710",
@@ -1534,22 +1319,6 @@
         "shape": "[Aa Aa]"
       }
     ],
-    "SECRET | SECRET ^d1Aad1a_Aa%AaAd2A": [
-      {
-        "id": "48710",
-        "lang": "en",
-        "label": "password",
-        "shape": "^d1Aad1a_Aa%AaAd2A"
-      }
-    ],
-    "SECRET | SECRET ^ad2aA@d1A$d1a": [
-      {
-        "id": "34677",
-        "lang": "en",
-        "label": "password",
-        "shape": "^ad2aA@d1A$d1a"
-      }
-    ],
     "PHONE | PHONE format d3.d3.d4ad5": [
       {
         "id": "33807",
@@ -1566,18 +1335,24 @@
         "shape": "*-*-d4"
       }
     ],
-    "PHONE | PHONE format +d2 d2 d4 d4": [
+    "GOV_ID | GOV_ID format d9": [
       {
-        "id": "6974",
-        "lang": "es",
-        "label": "phone_number",
-        "shape": "+d2 d2 d4 d4"
+        "id": "34300",
+        "lang": "en",
+        "label": "passport_number",
+        "shape": "d9"
       },
       {
-        "id": "23058",
-        "lang": "it",
-        "label": "phone_number",
-        "shape": "+d2 d2 d4 d4"
+        "id": "29243",
+        "lang": "fr",
+        "label": "passport_number",
+        "shape": "d9"
+      },
+      {
+        "id": "24753",
+        "lang": "fr",
+        "label": "passport_number",
+        "shape": "d9"
       }
     ],
     "IP_ADDRESS | IP_ADDRESS format d2a:ad2a:d4:d3a:d3a:d2ad1:d1ad1a:ad3": [
@@ -1588,6 +1363,26 @@
         "shape": "d2a:ad2a:d4:d3a:d3a:d2ad1:d1ad1a:ad3"
       }
     ],
+    "SSN | SSN format d6-d4": [
+      {
+        "id": "3095",
+        "lang": "es",
+        "label": "ssn",
+        "shape": "d6-d4"
+      },
+      {
+        "id": "29474",
+        "lang": "fr",
+        "label": "ssn",
+        "shape": "d6-d4"
+      },
+      {
+        "id": "12157",
+        "lang": "sv",
+        "label": "ssn",
+        "shape": "d6-d4"
+      }
+    ],
     "SECRET | SECRET Ad1aAd1Aa@d1": [
       {
         "id": "13609",
@@ -1596,40 +1391,12 @@
         "shape": "Ad1aAd1Aa@d1"
       }
     ],
-    "PHONE | PHONE format [+d2 d3 d3 d3]": [
-      {
-        "id": "22777",
-        "lang": "es",
-        "label": "phone_number",
-        "shape": "[+d2 d3 d3 d3]"
-      }
-    ],
-    "EMAIL | found as another type: PERSON": [
+    "EMAIL | EMAIL Aa Aa": [
       {
         "id": "26938",
         "lang": "es",
         "label": "email",
         "shape": "Aa Aa"
-      },
-      {
-        "id": "19574",
-        "lang": "es",
-        "label": "email",
-        "shape": "[Aa Aa a Aa]"
-      },
-      {
-        "id": "28023",
-        "lang": "es",
-        "label": "email",
-        "shape": "&a;Aa Aa&a;"
-      }
-    ],
-    "PHONE | PHONE format +d2 d10": [
-      {
-        "id": "5222",
-        "lang": "es",
-        "label": "phone_number",
-        "shape": "+d2 d10"
       }
     ],
     "SECRET | SECRET a*a&d1AaAd1a+A!(&a": [
@@ -1646,34 +1413,14 @@
         "lang": "es",
         "label": "driver_license_number",
         "shape": "Ad2-d4-d3-d2"
-      },
-      {
-        "id": "17170",
-        "lang": "it",
-        "label": "driver_license_number",
-        "shape": "Ad2-d4-d3-d2"
       }
     ],
-    "PHONE | PHONE format +d2-d3-d3-d3": [
+    "EMAIL | EMAIL [Aa Aa a Aa]": [
       {
-        "id": "27373",
+        "id": "19574",
         "lang": "es",
-        "label": "phone_number",
-        "shape": "+d2-d3-d3-d3"
-      },
-      {
-        "id": "9125",
-        "lang": "es",
-        "label": "phone_number",
-        "shape": "+d2-d3-d3-d3"
-      }
-    ],
-    "PHONE | PHONE format +d2 d4 d6": [
-      {
-        "id": "19662",
-        "lang": "es",
-        "label": "phone_number",
-        "shape": "+d2 d4 d6"
+        "label": "email",
+        "shape": "[Aa Aa a Aa]"
       }
     ],
     "SECRET | SECRET _aA+*Ad1AaAd1AaA": [
@@ -1682,14 +1429,6 @@
         "lang": "es",
         "label": "password",
         "shape": "_aA+*Ad1AaAd1AaA"
-      }
-    ],
-    "SECRET | SECRET d1_a_aAaAaAaA_ad1aAd1AaAaA_d1ad1Aad3aAd1": [
-      {
-        "id": "9125",
-        "lang": "es",
-        "label": "api_key",
-        "shape": "d1_a_aAaAaAaA_ad1aAd1AaAaA_d1ad1Aad3aAd1"
       }
     ],
     "PHONE | PHONE format d2-d3": [
@@ -1706,6 +1445,14 @@
         "lang": "es",
         "label": "phone_number",
         "shape": "&a;Aa a Aa&a;"
+      }
+    ],
+    "EMAIL | EMAIL &a;Aa Aa&a;": [
+      {
+        "id": "28023",
+        "lang": "es",
+        "label": "email",
+        "shape": "&a;Aa Aa&a;"
       }
     ],
     "CREDIT_CARD | CREDIT_CARD format d16": [
@@ -1748,14 +1495,6 @@
         "shape": "[Aa a a a a-a"
       }
     ],
-    "SECRET | SECRET Aad3Ad1AaAaAd1AaA_d1ad1aAaAd1aAaAaAad1": [
-      {
-        "id": "15767",
-        "lang": "fr",
-        "label": "api_key",
-        "shape": "Aad3Ad1AaAaAd1AaA_d1ad1aAaAd1aAaAaAad1"
-      }
-    ],
     "PHONE | PHONE format [A A A]": [
       {
         "id": "6095",
@@ -1780,30 +1519,6 @@
         "shape": "d1aAd1(AaA&d1"
       }
     ],
-    "SECRET | SECRET a.Ad1ad1Aad1aA-Aad2Ad1Ad1Aa": [
-      {
-        "id": "13625",
-        "lang": "fr",
-        "label": "api_key",
-        "shape": "a.Ad1ad1Aad1aA-Aad2Ad1Ad1Aa"
-      }
-    ],
-    "PHONE | PHONE format +d2 d2-d3 d2 d2": [
-      {
-        "id": "3272",
-        "lang": "fr",
-        "label": "phone_number",
-        "shape": "+d2 d2-d3 d2 d2"
-      }
-    ],
-    "PHONE | PHONE format d2-d3 d2 d2": [
-      {
-        "id": "3272",
-        "lang": "fr",
-        "label": "phone_number",
-        "shape": "d2-d3 d2 d2"
-      }
-    ],
     "SECRET | SECRET aAaAd1Aad1ad4Ad2Ad1ad1aAad8a": [
       {
         "id": "8960",
@@ -1818,24 +1533,12 @@
         "shape": "aAaAd1Aad1ad4Ad2Ad1ad1aAad8a"
       }
     ],
-    "PHONE | PHONE format +d2 d1 d2 d2 d2 d2": [
+    "GOV_ID | GOV_ID format Ad3-d4-d3-d1": [
       {
-        "id": "12331",
+        "id": "26684",
         "lang": "fr",
-        "label": "phone_number",
-        "shape": "+d2 d1 d2 d2 d2 d2"
-      },
-      {
-        "id": "26310",
-        "lang": "fr",
-        "label": "phone_number",
-        "shape": "+d2 d1 d2 d2 d2 d2"
-      },
-      {
-        "id": "14898",
-        "lang": "fr",
-        "label": "phone_number",
-        "shape": "+d2 d1 d2 d2 d2 d2"
+        "label": "driver_license_number",
+        "shape": "Ad3-d4-d3-d1"
       }
     ],
     "SECRET | SECRET aAad2A(ad1AaAaA": [
@@ -1860,26 +1563,6 @@
         "lang": "fr",
         "label": "phone_number",
         "shape": "(d5) d5"
-      },
-      {
-        "id": "22651",
-        "lang": "it",
-        "label": "phone_number",
-        "shape": "(d5) d5"
-      }
-    ],
-    "PHONE | PHONE format +d2 (d1)d1 d2 d2 d2 d2": [
-      {
-        "id": "31287",
-        "lang": "fr",
-        "label": "phone_number",
-        "shape": "+d2 (d1)d1 d2 d2 d2 d2"
-      },
-      {
-        "id": "29658",
-        "lang": "it",
-        "label": "phone_number",
-        "shape": "+d2 (d1)d1 d2 d2 d2 d2"
       }
     ],
     "SECRET | SECRET %A(&%AaA%d1A@$": [
@@ -1906,14 +1589,6 @@
         "shape": "Ad22"
       }
     ],
-    "PHONE | PHONE format +d4 d7": [
-      {
-        "id": "8426",
-        "lang": "fr",
-        "label": "phone_number",
-        "shape": "+d4 d7"
-      }
-    ],
     "EMAIL | EMAIL [Aa a a a]": [
       {
         "id": "3799",
@@ -1928,14 +1603,6 @@
         "lang": "it",
         "label": "phone_number",
         "shape": "(d5) d6"
-      }
-    ],
-    "SSN | SSN format Ad6A": [
-      {
-        "id": "21908",
-        "lang": "it",
-        "label": "ssn",
-        "shape": "Ad6A"
       }
     ],
     "SECRET | SECRET (d3Aa": [
@@ -1954,7 +1621,7 @@
         "shape": "+d2 d2"
       }
     ],
-    "SECRET | SECRET AaAd1AaAd1AaAaAaAad1a": [
+    "SECRET | found as another type: LOCATION": [
       {
         "id": "20892",
         "lang": "it",
@@ -1998,6 +1665,14 @@
         "shape": "Ad1A(Aa$a$d1)a"
       }
     ],
+    "GOV_ID | found as another type: PHONE_NUMBER": [
+      {
+        "id": "15387",
+        "lang": "it",
+        "label": "driver_license_number",
+        "shape": "d2-d6-d2"
+      }
+    ],
     "SECRET | SECRET Ad2(Ad1aA(aA+d1": [
       {
         "id": "22088",
@@ -2012,20 +1687,6 @@
         "lang": "it",
         "label": "ipv4",
         "shape": "d1.d3.d3.d3"
-      }
-    ],
-    "PHONE | PHONE format +d5 d2 d2 d2": [
-      {
-        "id": "29477",
-        "lang": "it",
-        "label": "phone_number",
-        "shape": "+d5 d2 d2 d2"
-      },
-      {
-        "id": "24412",
-        "lang": "nl",
-        "label": "phone_number",
-        "shape": "+d5 d2 d2 d2"
       }
     ],
     "EMAIL | EMAIL [a]": [
@@ -2074,20 +1735,6 @@
         "shape": "Ad1Ad2Aa&"
       }
     ],
-    "PHONE | PHONE format +d2 d9": [
-      {
-        "id": "17853",
-        "lang": "it",
-        "label": "phone_number",
-        "shape": "+d2 d9"
-      },
-      {
-        "id": "27645",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d2 d9"
-      }
-    ],
     "PERSON | found as another type: EMAIL_ADDRESS": [
       {
         "id": "2820",
@@ -2106,64 +1753,6 @@
         "lang": "it",
         "label": "name",
         "shape": "a"
-      }
-    ],
-    "SECRET | SECRET Aad1Aa%ad1": [
-      {
-        "id": "6232",
-        "lang": "it",
-        "label": "password",
-        "shape": "Aad1Aa%ad1"
-      }
-    ],
-    "PHONE | PHONE format d4-d4": [
-      {
-        "id": "12233",
-        "lang": "nl",
-        "label": "phone_number",
-        "shape": "d4-d4"
-      },
-      {
-        "id": "12233",
-        "lang": "nl",
-        "label": "phone_number",
-        "shape": "d4-d4"
-      },
-      {
-        "id": "12233",
-        "lang": "nl",
-        "label": "phone_number",
-        "shape": "d4-d4"
-      }
-    ],
-    "PHONE | PHONE format +d2 d2 d3 d4": [
-      {
-        "id": "22944",
-        "lang": "nl",
-        "label": "phone_number",
-        "shape": "+d2 d2 d3 d4"
-      },
-      {
-        "id": "9069",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d2 d2 d3 d4"
-      }
-    ],
-    "PHONE | PHONE format +d1 d3 d3 d4": [
-      {
-        "id": "22944",
-        "lang": "nl",
-        "label": "phone_number",
-        "shape": "+d1 d3 d3 d4"
-      }
-    ],
-    "SECRET | SECRET Ad1A": [
-      {
-        "id": "8899",
-        "lang": "nl",
-        "label": "api_key",
-        "shape": "Ad1A"
       }
     ],
     "SECRET | SECRET _Aa!d1^Aa": [
@@ -2194,14 +1783,6 @@
         "shape": "A"
       }
     ],
-    "PHONE | PHONE format +d2 d1 d8": [
-      {
-        "id": "28912",
-        "lang": "nl",
-        "label": "phone_number",
-        "shape": "+d2 d1 d8"
-      }
-    ],
     "EMAIL | EMAIL [A-a a a a]": [
       {
         "id": "5567",
@@ -2218,7 +1799,7 @@
         "shape": "d4-d6"
       }
     ],
-    "PHONE | found as another type: PERSON": [
+    "PHONE | PHONE format [Aa a a]": [
       {
         "id": "16357",
         "lang": "nl",
@@ -2234,12 +1815,18 @@
         "shape": "[Aa a-a a]"
       }
     ],
-    "SECRET | SECRET A._d1AaAaAaAad1AaAaAa.Ad1aAa_aAad1aAd1Aa": [
+    "PHONE | PHONE format d4-d4": [
       {
-        "id": "26356",
+        "id": "17867",
         "lang": "nl",
-        "label": "api_key",
-        "shape": "A._d1AaAaAaAad1AaAaAa.Ad1aAa_aAad1aAd1Aa"
+        "label": "phone_number",
+        "shape": "d4-d4"
+      },
+      {
+        "id": "9266",
+        "lang": "nl",
+        "label": "phone_number",
+        "shape": "d4-d4"
       }
     ],
     "SECRET | SECRET Ad1": [
@@ -2254,14 +1841,6 @@
         "lang": "sv",
         "label": "api_key",
         "shape": "Ad1"
-      }
-    ],
-    "PHONE | PHONE format +d12": [
-      {
-        "id": "29343",
-        "lang": "nl",
-        "label": "phone_number",
-        "shape": "+d12"
       }
     ],
     "EMAIL | EMAIL [Aa": [
@@ -2280,26 +1859,6 @@
         "shape": "[Aa Aa]"
       }
     ],
-    "PHONE | PHONE format d3-d3 d2 d2": [
-      {
-        "id": "29447",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "d3-d3 d2 d2"
-      },
-      {
-        "id": "18295",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "d3-d3 d2 d2"
-      },
-      {
-        "id": "17471",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "d3-d3 d2 d2"
-      }
-    ],
     "PHONE | PHONE format d3": [
       {
         "id": "13203",
@@ -2314,28 +1873,6 @@
         "lang": "sv",
         "label": "ipv6",
         "shape": "ad1ad1:ad3:d2ad1:ad2:d1ad1a:d1ad1:d1a:ad"
-      }
-    ],
-    "SSN | SSN format d3 d3 d2-d4": [
-      {
-        "id": "16253",
-        "lang": "sv",
-        "label": "ssn",
-        "shape": "d3 d3 d2-d4"
-      }
-    ],
-    "PHONE | PHONE format +d2 d2 d3 d2 d2": [
-      {
-        "id": "5159",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d2 d2 d3 d2 d2"
-      },
-      {
-        "id": "10881",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d2 d2 d3 d2 d2"
       }
     ],
     "EMAIL | EMAIL [a-a]": [
@@ -2368,6 +1905,14 @@
         "shape": "d2:d4:ad1a:ad1:d1ad2:ad3:ad1:ad1"
       }
     ],
+    "SSN | SSN format A d2 d2 d2 A": [
+      {
+        "id": "11337",
+        "lang": "sv",
+        "label": "ssn",
+        "shape": "A d2 d2 d2 A"
+      }
+    ],
     "SECRET | SECRET A+Aad1aA": [
       {
         "id": "14019",
@@ -2376,52 +1921,12 @@
         "shape": "A+Aad1aA"
       }
     ],
-    "PHONE | PHONE format d3-d6": [
-      {
-        "id": "19107",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "d3-d6"
-      }
-    ],
-    "ADDRESS | found as another type: EMAIL_ADDRESS": [
-      {
-        "id": "27443",
-        "lang": "sv",
-        "label": "street_address",
-        "shape": "d1 Aa, Aa"
-      }
-    ],
-    "SECRET | SECRET aAd1AaAd1#+Aa": [
-      {
-        "id": "9631",
-        "lang": "sv",
-        "label": "password",
-        "shape": "aAd1AaAd1#+Aa"
-      }
-    ],
-    "PHONE | PHONE format (d4)d7": [
+    "PHONE | found as another type: ID_NUMBER": [
       {
         "id": "5627",
         "lang": "sv",
         "label": "phone_number",
         "shape": "(d4)d7"
-      }
-    ],
-    "SECRET | SECRET Ad1Ad2A": [
-      {
-        "id": "9069",
-        "lang": "sv",
-        "label": "api_key",
-        "shape": "Ad1Ad2A"
-      }
-    ],
-    "PHONE | PHONE format +d11": [
-      {
-        "id": "25325",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d11"
       }
     ],
     "EMAIL | EMAIL a-a": [
@@ -2440,50 +1945,12 @@
         "shape": "aA&A*aAaAd1A&A"
       }
     ],
-    "PHONE | PHONE format +d2 d1 d3 d3 d2": [
-      {
-        "id": "27012",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d2 d1 d3 d3 d2"
-      },
-      {
-        "id": "8768",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d2 d1 d3 d3 d2"
-      }
-    ],
-    "SECRET | SECRET a.Ad1ad1aAad1A_Aad1A": [
-      {
-        "id": "27012",
-        "lang": "sv",
-        "label": "api_key",
-        "shape": "a.Ad1ad1aAad1A_Aad1A"
-      }
-    ],
-    "SECRET | SECRET ad1!d2Aa": [
-      {
-        "id": "21654",
-        "lang": "sv",
-        "label": "password",
-        "shape": "ad1!d2Aa"
-      }
-    ],
     "PHONE | PHONE format d3 d3 d2 d2": [
       {
         "id": "13723",
         "lang": "sv",
         "label": "phone_number",
         "shape": "d3 d3 d2 d2"
-      }
-    ],
-    "PHONE | PHONE format (d3)-d7": [
-      {
-        "id": "30685",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "(d3)-d7"
       }
     ],
     "SECRET | SECRET *ad2(aA(AaA": [
@@ -2494,20 +1961,6 @@
         "shape": "*ad2(aA(AaA"
       }
     ],
-    "PHONE | PHONE format +d2 d1 d3 d3 d1": [
-      {
-        "id": "8768",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d2 d1 d3 d3 d1"
-      },
-      {
-        "id": "8768",
-        "lang": "sv",
-        "label": "phone_number",
-        "shape": "+d2 d1 d3 d3 d1"
-      }
-    ],
     "SECRET | SECRET A.Ad1a_AaAaAaAa.aAad1AaAaAad1Ad2AaAd1ad1": [
       {
         "id": "10092",
@@ -2515,43 +1968,42 @@
         "label": "api_key",
         "shape": "A.Ad1a_AaAaAaAa.aAad1AaAaAad1Ad2AaAd1ad1"
       }
-    ],
-    "SECRET | SECRET A.AaAad1AaAaAd1Ad1aA.aAad1aAd1AaAaAd1aAa": [
-      {
-        "id": "4162",
-        "lang": "sv",
-        "label": "api_key",
-        "shape": "A.AaAad1AaAaAd1Ad1aA.aAad1aAd1AaAaAd1aAa"
-      }
     ]
   },
   "false_positive_types": {
     "LOCATION": {
-      "LOCATION on no label": 1731,
-      "LOCATION on name": 88,
-      "LOCATION on company": 59,
-      "LOCATION on first_name": 8,
-      "LOCATION on date": 5,
-      "LOCATION on time": 2,
-      "LOCATION on password": 1,
-      "LOCATION on employee_id": 1
+      "LOCATION on no label": 2683,
+      "LOCATION on name": 224,
+      "LOCATION on company": 155,
+      "LOCATION on date": 3,
+      "LOCATION on last_name": 2,
+      "LOCATION on password": 2,
+      "LOCATION on ipv6": 2,
+      "LOCATION on first_name": 2
     },
     "PERSON": {
-      "PERSON on no label": 4923,
-      "PERSON on street_address": 477,
-      "PERSON on company": 282,
-      "PERSON on date": 39,
-      "PERSON on email": 3,
-      "PERSON on time": 1,
-      "PERSON on phone_number": 1
+      "PERSON on no label": 2044,
+      "PERSON on street_address": 425,
+      "PERSON on company": 169,
+      "PERSON on date": 4,
+      "PERSON on date_of_birth": 1
+    },
+    "STREET_ADDRESS": {
+      "STREET_ADDRESS on no label": 135,
+      "STREET_ADDRESS on name": 10,
+      "STREET_ADDRESS on company": 2,
+      "STREET_ADDRESS on date": 1
+    },
+    "ID_NUMBER": {
+      "ID_NUMBER on no label": 52,
+      "ID_NUMBER on customer_id": 2,
+      "ID_NUMBER on date_of_birth": 1,
+      "ID_NUMBER on credit_card_security_code": 1,
+      "ID_NUMBER on phone_number": 1
     },
     "CRYPTO": {
       "CRYPTO on no label": 16,
       "CRYPTO on street_address": 2
-    },
-    "UK_NHS": {
-      "UK_NHS on no label": 30,
-      "UK_NHS on phone_number": 13
     },
     "US_DRIVER_LICENSE": {
       "US_DRIVER_LICENSE on no label": 4,
@@ -2559,14 +2011,10 @@
       "US_DRIVER_LICENSE on customer_id": 2
     },
     "PHONE_NUMBER": {
-      "PHONE_NUMBER on no label": 38,
-      "PHONE_NUMBER on driver_license_number": 4,
+      "PHONE_NUMBER on no label": 54,
       "PHONE_NUMBER on date": 1,
-      "PHONE_NUMBER on passport_number": 1,
-      "PHONE_NUMBER on bank_routing_number": 1
-    },
-    "STREET_ADDRESS": {
-      "STREET_ADDRESS on no label": 24
+      "PHONE_NUMBER on bank_routing_number": 1,
+      "PHONE_NUMBER on driver_license_number": 1
     },
     "IBAN_CODE": {
       "IBAN_CODE on no label": 2
@@ -2577,9 +2025,18 @@
     "CREDIT_CARD": {
       "CREDIT_CARD on no label": 5
     },
+    "ES_NIF": {
+      "ES_NIF on no label": 1
+    },
+    "GENERIC_API_KEY": {
+      "GENERIC_API_KEY on no label": 4
+    },
     "EMAIL_ADDRESS": {
       "EMAIL_ADDRESS on name": 7,
       "EMAIL_ADDRESS on no label": 2
+    },
+    "IT_FISCAL_CODE": {
+      "IT_FISCAL_CODE on no label": 1
     }
   },
   "false_positive_examples": {
@@ -2587,7 +2044,7 @@
       {
         "id": "14851",
         "lang": "de",
-        "shape": "Aa"
+        "shape": "Aa Aa a Aa"
       },
       {
         "id": "14851",
@@ -2596,108 +2053,115 @@
       },
       {
         "id": "14851",
-        "lang": "de",
-        "shape": "Aa"
-      }
-    ],
-    "PERSON on date": [
-      {
-        "id": "14851",
-        "lang": "de",
-        "shape": "a Aa"
-      },
-      {
-        "id": "22108",
-        "lang": "de",
-        "shape": "Aa"
-      },
-      {
-        "id": "28540",
-        "lang": "de",
-        "shape": "Aa"
-      }
-    ],
-    "PERSON on no label": [
-      {
-        "id": "14851",
-        "lang": "de",
-        "shape": "Aa"
-      },
-      {
-        "id": "14851",
-        "lang": "de",
-        "shape": "Aa"
-      },
-      {
-        "id": "14851",
-        "lang": "de",
-        "shape": "Aa"
-      }
-    ],
-    "PERSON on company": [
-      {
-        "id": "24072",
-        "lang": "de",
-        "shape": "Aa"
-      },
-      {
-        "id": "24072",
-        "lang": "de",
-        "shape": "a a.A. Aa"
-      },
-      {
-        "id": "24072",
         "lang": "de",
         "shape": "Aa"
       }
     ],
     "PERSON on street_address": [
       {
-        "id": "22570",
+        "id": "22108",
         "lang": "de",
         "shape": "Aa Aa"
       },
       {
-        "id": "19265",
+        "id": "15382",
         "lang": "de",
         "shape": "Aa"
       },
       {
-        "id": "19997",
+        "id": "29456",
+        "lang": "de",
+        "shape": "Aa Aa"
+      }
+    ],
+    "STREET_ADDRESS on no label": [
+      {
+        "id": "27927",
+        "lang": "de",
+        "shape": "Aa d1"
+      },
+      {
+        "id": "24072",
+        "lang": "de",
+        "shape": "d3 Aa Aa"
+      },
+      {
+        "id": "29173",
+        "lang": "de",
+        "shape": "d2 Aa Aa"
+      }
+    ],
+    "ID_NUMBER on no label": [
+      {
+        "id": "27927",
+        "lang": "de",
+        "shape": "d3/d3/d5"
+      },
+      {
+        "id": "27951",
+        "lang": "de",
+        "shape": "d3-d3-d4"
+      },
+      {
+        "id": "5896",
+        "lang": "de",
+        "shape": "d3 d3 d5"
+      }
+    ],
+    "PERSON on no label": [
+      {
+        "id": "18821",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "18821",
+        "lang": "de",
+        "shape": "Aa Aa"
+      },
+      {
+        "id": "29173",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
+    "LOCATION on name": [
+      {
+        "id": "29173",
         "lang": "de",
         "shape": "Aa Aa Aa"
-      }
-    ],
-    "LOCATION on date": [
-      {
-        "id": "21460",
-        "lang": "de",
-        "shape": "Aa"
       },
       {
-        "id": "25548",
+        "id": "1326",
         "lang": "de",
-        "shape": "Aa"
+        "shape": "Aa Aa Aa"
       },
       {
-        "id": "16625",
+        "id": "8428",
         "lang": "de",
         "shape": "Aa"
       }
     ],
-    "LOCATION on first_name": [
+    "LOCATION on swift_bic_code": [
       {
-        "id": "25418",
+        "id": "1326",
         "lang": "de",
-        "shape": "Aa"
+        "shape": "Ad3 Aa"
+      }
+    ],
+    "PERSON on company": [
+      {
+        "id": "1326",
+        "lang": "de",
+        "shape": "Aa Aa Aa"
       },
       {
-        "id": "13443",
+        "id": "12001",
         "lang": "de",
-        "shape": "Aa"
+        "shape": "Aa a A-Aa"
       },
       {
-        "id": "13443",
+        "id": "23972",
         "lang": "de",
         "shape": "Aa"
       }
@@ -2719,23 +2183,6 @@
         "shape": "d1AaAaAaAad1Aad1ad1Aad1aAaAd1"
       }
     ],
-    "UK_NHS on no label": [
-      {
-        "id": "12895",
-        "lang": "de",
-        "shape": "d10"
-      },
-      {
-        "id": "12895",
-        "lang": "de",
-        "shape": "d10"
-      },
-      {
-        "id": "50781",
-        "lang": "en",
-        "shape": "d10"
-      }
-    ],
     "US_DRIVER_LICENSE on no label": [
       {
         "id": "913",
@@ -2753,11 +2200,35 @@
         "shape": "Ad6"
       }
     ],
+    "LOCATION on company": [
+      {
+        "id": "25661",
+        "lang": "de",
+        "shape": "Aa A"
+      },
+      {
+        "id": "13443",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "13443",
+        "lang": "de",
+        "shape": "Aa"
+      }
+    ],
     "PHONE_NUMBER on date": [
       {
         "id": "25661",
         "lang": "de",
         "shape": "d2.d2.d4"
+      }
+    ],
+    "LOCATION on passport_number": [
+      {
+        "id": "8690",
+        "lang": "de",
+        "shape": "Ad8 Aa"
       }
     ],
     "CRYPTO on street_address": [
@@ -2770,23 +2241,6 @@
         "id": "53484",
         "lang": "en",
         "shape": "d1AaAaAaAad1Aad1ad1Aad1aAaAd1"
-      }
-    ],
-    "LOCATION on name": [
-      {
-        "id": "27555",
-        "lang": "de",
-        "shape": "Aa"
-      },
-      {
-        "id": "29280",
-        "lang": "de",
-        "shape": "Aa"
-      },
-      {
-        "id": "29280",
-        "lang": "de",
-        "shape": "Aa"
       }
     ],
     "US_DRIVER_LICENSE on employee_id": [
@@ -2823,38 +2277,40 @@
         "shape": "d4-d7"
       }
     ],
-    "PHONE_NUMBER on driver_license_number": [
+    "STREET_ADDRESS on name": [
       {
-        "id": "25273",
+        "id": "29105",
         "lang": "de",
-        "shape": "d2-d6-d2"
+        "shape": "d3 a Aa"
       },
       {
-        "id": "15387",
-        "lang": "it",
-        "shape": "d2-d6-d2"
+        "id": "15518",
+        "lang": "de",
+        "shape": "d1 Aa Aa"
       },
       {
-        "id": "31464",
-        "lang": "it",
-        "shape": "d2-d6-d2"
+        "id": "20083",
+        "lang": "es",
+        "shape": "Aa Aa d1"
       }
     ],
-    "LOCATION on company": [
+    "LOCATION on last_name": [
       {
-        "id": "14835",
+        "id": "7696",
         "lang": "de",
-        "shape": "Aa"
+        "shape": "Aa-Aa"
       },
       {
-        "id": "14835",
-        "lang": "de",
-        "shape": "Aa"
-      },
+        "id": "13948",
+        "lang": "sv",
+        "shape": "Aa-Aa"
+      }
+    ],
+    "LOCATION on last_name/name": [
       {
-        "id": "19384",
+        "id": "7696",
         "lang": "de",
-        "shape": "Aa Aa"
+        "shape": "Aa Aa Aa-Aa"
       }
     ],
     "LOCATION on password": [
@@ -2862,52 +2318,18 @@
         "id": "22245",
         "lang": "de",
         "shape": "A#Aa+a@d2&ad1Ad1a"
+      },
+      {
+        "id": "8874",
+        "lang": "de",
+        "shape": "ad2A#aA*Aa"
       }
     ],
-    "LOCATION on time": [
+    "STREET_ADDRESS on date": [
       {
-        "id": "4464",
+        "id": "12758",
         "lang": "de",
-        "shape": "Aa"
-      },
-      {
-        "id": "21641",
-        "lang": "fr",
-        "shape": "Aa"
-      }
-    ],
-    "STREET_ADDRESS on no label": [
-      {
-        "id": "2095",
-        "lang": "de",
-        "shape": "d4 Aa Aa"
-      },
-      {
-        "id": "55642",
-        "lang": "en",
-        "shape": "d1 Aa Aa"
-      },
-      {
-        "id": "54788",
-        "lang": "en",
-        "shape": "d3 Aa Aa"
-      }
-    ],
-    "UK_NHS on phone_number": [
-      {
-        "id": "30965",
-        "lang": "de",
-        "shape": "d10"
-      },
-      {
-        "id": "34059",
-        "lang": "en",
-        "shape": "d3-d3-d4"
-      },
-      {
-        "id": "50702",
-        "lang": "en",
-        "shape": "d3-d3-d4"
+        "shape": "d2 A A, A. d2, d5 A"
       }
     ],
     "IBAN_CODE on no label": [
@@ -2920,6 +2342,13 @@
         "id": "4244",
         "lang": "fr",
         "shape": "Ad2 d4 d4 d4 d4 d4 d4"
+      }
+    ],
+    "ID_NUMBER on date_of_birth": [
+      {
+        "id": "46931",
+        "lang": "en",
+        "shape": "A d4-d2-d2"
       }
     ],
     "US_ITIN on no label": [
@@ -2958,42 +2387,107 @@
         "shape": "d15"
       }
     ],
-    "PERSON on email": [
+    "PERSON on date": [
       {
-        "id": "26938",
+        "id": "14759",
         "lang": "es",
-        "shape": "Aa Aa"
+        "shape": "Aa"
       },
       {
-        "id": "19574",
+        "id": "14759",
         "lang": "es",
-        "shape": "Aa Aa a Aa"
+        "shape": "Aa"
       },
       {
-        "id": "28023",
+        "id": "2899",
         "lang": "es",
-        "shape": "&a;Aa Aa&a"
+        "shape": "Aa"
       }
     ],
-    "PERSON on time": [
+    "ID_NUMBER on customer_id": [
       {
-        "id": "14935",
+        "id": "11943",
         "lang": "es",
-        "shape": "Aa a a a a"
+        "shape": "A-d6-A"
+      },
+      {
+        "id": "5537",
+        "lang": "es",
+        "shape": "A-d6-A"
       }
     ],
-    "LOCATION on employee_id": [
+    "LOCATION on first_name/name": [
       {
-        "id": "410",
+        "id": "4672",
         "lang": "es",
-        "shape": "Aa-d5"
+        "shape": "Aa Aa Aa"
       }
     ],
-    "PHONE_NUMBER on passport_number": [
+    "LOCATION on ipv6": [
       {
-        "id": "24753",
+        "id": "28107",
+        "lang": "es",
+        "shape": "aAa>d1ad1:d2ad1:d4:d3a:d1a"
+      },
+      {
+        "id": "24200",
+        "lang": "es",
+        "shape": "a:d1ad1:d4:d1ad1a - Aa"
+      }
+    ],
+    "LOCATION on date": [
+      {
+        "id": "21461",
+        "lang": "es",
+        "shape": "Aa"
+      },
+      {
+        "id": "1276",
+        "lang": "es",
+        "shape": "Aa"
+      },
+      {
+        "id": "9806",
+        "lang": "es",
+        "shape": "Aa"
+      }
+    ],
+    "ES_NIF on no label": [
+      {
+        "id": "19599",
+        "lang": "es",
+        "shape": "d8A"
+      }
+    ],
+    "LOCATION on driver_license_number": [
+      {
+        "id": "28762",
+        "lang": "es",
+        "shape": "A"
+      }
+    ],
+    "GENERIC_API_KEY on no label": [
+      {
+        "id": "25136",
+        "lang": "es",
+        "shape": "Aa#d4"
+      },
+      {
+        "id": "25136",
+        "lang": "es",
+        "shape": "Aa#d4"
+      },
+      {
+        "id": "12640",
+        "lang": "es",
+        "shape": "A\\*ad1A$AaA^d1AaA"
+      }
+    ],
+    "PERSON on date_of_birth": [
+      {
+        "id": "31435",
         "lang": "fr",
-        "shape": "d9"
+        "shape": "a Aa"
       }
     ],
     "EMAIL_ADDRESS on no label": [
@@ -3015,6 +2509,27 @@
         "shape": "d9"
       }
     ],
+    "IT_FISCAL_CODE on no label": [
+      {
+        "id": "21255",
+        "lang": "it",
+        "shape": "Ad2Ad2Ad3A"
+      }
+    ],
+    "LOCATION on api_key": [
+      {
+        "id": "20892",
+        "lang": "it",
+        "shape": "AaAd1AaAd1AaAaAaAad1a"
+      }
+    ],
+    "PHONE_NUMBER on driver_license_number": [
+      {
+        "id": "15387",
+        "lang": "it",
+        "shape": "d2-d6-d2"
+      }
+    ],
     "EMAIL_ADDRESS on name": [
       {
         "id": "2820",
@@ -3032,10 +2547,48 @@
         "shape": "a.a@a.a"
       }
     ],
-    "PERSON on phone_number": [
+    "STREET_ADDRESS on company": [
       {
-        "id": "16357",
+        "id": "10945",
         "lang": "nl",
+        "shape": "A Aa d1"
+      },
+      {
+        "id": "8768",
+        "lang": "sv",
+        "shape": "a AaAa Aa d3"
+      }
+    ],
+    "LOCATION on company/name": [
+      {
+        "id": "4130",
+        "lang": "nl",
+        "shape": "Aa a Aa Aa"
+      }
+    ],
+    "ID_NUMBER on credit_card_security_code": [
+      {
+        "id": "3461",
+        "lang": "sv",
+        "shape": "d3-d6-d4"
+      }
+    ],
+    "ID_NUMBER on phone_number": [
+      {
+        "id": "5627",
+        "lang": "sv",
+        "shape": "d7"
+      }
+    ],
+    "LOCATION on first_name": [
+      {
+        "id": "8675",
+        "lang": "sv",
+        "shape": "Aa"
+      },
+      {
+        "id": "19652",
+        "lang": "sv",
         "shape": "Aa"
       }
     ]
@@ -3058,54 +2611,54 @@
     "detect_text_ms": {
       "1k-5k chars": {
         "n": 1208,
-        "p50": 16.108539999549976,
-        "p95": 22.883562999777492,
-        "p99": 27.288621621955862,
-        "mean": 16.89121468466781
+        "p50": 14.99079500354128,
+        "p95": 30.058885397738777,
+        "p99": 37.56651741598036,
+        "mean": 17.57972955657285
       },
       "200-999 chars": {
         "n": 492,
-        "p50": 13.033804500082624,
-        "p95": 21.987250749589293,
-        "p99": 25.80047251165524,
-        "mean": 13.435033813061082
+        "p50": 14.772665002965368,
+        "p95": 25.39875540023786,
+        "p99": 30.47171336584138,
+        "mean": 15.26755939189977
       },
       "<200 chars": {
         "n": 50,
-        "p50": 3.670147501907195,
-        "p95": 5.578781250005704,
-        "p99": 6.925043291703332,
-        "mean": 3.7135056401166366
+        "p50": 4.487019497901201,
+        "p95": 6.68375770037528,
+        "p99": 7.407060911064036,
+        "mean": 4.497944280446973
       }
     },
-    "chars_per_second": 77827.82020115449,
-    "ms_per_kb_mean": 12.848875857185655
+    "chars_per_second": 73066.33690014543,
+    "ms_per_kb_mean": 13.68619315577061
   },
-  "seconds": 27.4,
+  "seconds": 29.2,
   "wrapped_latency": {
     "1k-5k chars": {
       "n": 191,
-      "p50": 36.397601001226576,
-      "p95": 54.37235950012109,
-      "p99": 59.118360402135295
+      "p50": 28.737094995449297,
+      "p95": 56.55973199463915,
+      "p99": 61.41446051042291
     },
     "200-999 chars": {
       "n": 97,
-      "p50": 27.809880000859266,
-      "p95": 53.77984620208732,
-      "p99": 62.45584587872139
+      "p50": 26.065628000651486,
+      "p95": 49.454215398873195,
+      "p99": 54.025987037457455
     },
     "<200 chars": {
       "n": 12,
-      "p50": 8.042230001592543,
-      "p95": 12.20580610061006,
-      "p99": 12.867538821228665
+      "p50": 7.521367508161347,
+      "p95": 11.572493248968382,
+      "p99": 13.144844248308802
     },
     "all": {
       "n": 300,
-      "p50": 34.156029501900775,
-      "p95": 54.35319085045194,
-      "p99": 60.89597329071693
+      "p50": 27.446999003586825,
+      "p95": 56.382307540479815,
+      "p99": 61.03885008211362
     }
   },
   "source": {
@@ -3168,16 +2721,31 @@
       "IBAN_CODE"
     ],
     "SSN": [
+      "CH_AHV",
+      "ES_NIE",
+      "ES_NIF",
+      "FR_NIR",
+      "ID_NUMBER",
       "IN_AADHAAR",
+      "IN_PAN",
+      "IT_FISCAL_CODE",
       "UK_NHS",
+      "UK_NINO",
       "USA_SSN",
       "US_ITIN",
       "US_SSN"
     ],
     "GOV_ID": [
+      "CH_AHV",
+      "ES_NIE",
+      "ES_NIF",
+      "FR_NIR",
+      "ID_NUMBER",
       "IN_AADHAAR",
       "IN_PAN",
+      "IT_FISCAL_CODE",
       "UK_NHS",
+      "UK_NINO",
       "US_DRIVER_LICENSE",
       "US_ITIN",
       "US_PASSPORT",
@@ -3197,5 +2765,7 @@
       "JWT",
       "PRIVATE_KEY"
     ]
-  }
+  },
+  "split": "test",
+  "multilingual_model": "xx_ent_wiki_sm"
 }

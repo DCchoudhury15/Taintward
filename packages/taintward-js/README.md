@@ -58,7 +58,7 @@ model answers     : Hi, this is a note for <EMAIL_1> ...
 
 It finds emails, phone numbers, US SSNs, cards and IBANs (checksums
 checked), AWS keys, GitHub tokens, JWTs, private keys, generic API keys and
-street addresses, with the same rules as the Python SDK.
+US street addresses, with the same rules as the Python SDK for these.
 
 ## Install
 
@@ -116,6 +116,10 @@ map.restoreText("Sent to <EMAIL_1>");
 
 - **No name detection.** The Python SDK uses spaCy for names and places;
   this package does not. `Alice Lee` is sent as is.
+- **US formats only.** The Python SDK's rules for data outside the US
+  (`+` country code phone numbers, European street addresses, national ids
+  such as the codice fiscale or Aadhaar, ids after an id word, inline
+  passwords) are not ported yet.
 - **No reversible tokens.** Internal destinations get the mask (or the raw
   value with `internal: "raw"`); the Python SDK's FF1 tokens are not ported.
 - **File parts** (images, PDFs) in the prompt are not scanned.

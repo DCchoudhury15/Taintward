@@ -64,9 +64,37 @@
   version) and checks it; strict mode raises after the last chunk.
 - `PlaceholderMap.restore_json_fragment()` and
   `placeholders.StreamRestorer` (the Python version of the TypeScript one).
+- Detection outside US formats (gap G9). Text in another language goes to
+  spaCy's multilingual model `xx_ent_wiki_sm` when it is installed
+  (`python -m spacy download xx_ent_wiki_sm`; pick another one with
+  `TAINTWARD_NER_MULTILINGUAL_MODEL`, or `off`). New rules: phone numbers
+  with a `+` country code, or after a phone word in English, German,
+  French, Spanish, Italian, Dutch or Swedish; street addresses in the usual
+  European forms, joined with the postal code and city after them; national
+  ids with a check digit (Indian Aadhaar and PAN, Italian codice fiscale,
+  Spanish DNI / NIE, French NIR, Swiss AHV, UK National Insurance number);
+  any id right after an id word ("Passnummer", "numéro de passeport",
+  "Codice fiscale") or under an id key (`passport_number`, `tax_id`), never
+  the plain word "id"; passwords and API keys written inline ("Passwort:
+  ...", `<password>...</password>`). On the held-out outside data strict
+  recall went from 0.36 to 0.51 and from 0.50 to 0.60 (`docs/benchmark.md`).
+- `detect.health()` has a `multilingual_model` field.
+- CI job `detection-bench` runs the outside-data benchmark and fails when a
+  score drops under its floor. `bench/external/run_external.py --split dev`
+  gives rows that are never in the reported sample, for tuning rules.
 
 ### Changed
 
+- Fewer false name hits: greeting and form label words ("Bitte",
+  "Numéro"), template slots (`[City]`), words that are also written in lower
+  case in the same text ("Policy" ... "policy"), spaCy stop words
+  ("Unsere", "Estoy") and hits that start with a pronoun ("Meine Gedichte")
+  are dropped. False alarms on short outside texts went from 26% to 15%.
+- A UK NHS number is only flagged with its context word nearby: on outside
+  data the ten-digit check fired mostly on phone numbers.
+- More US street types from the USPS list (Junction, Creek, Crossing, ...).
+- An id found after an id word wins over a phone number guess on the same
+  characters, and gives way to a recognizer that knows the exact format.
 - The LiteLLM proxy guardrail sends placeholders for streaming requests too
   (it used to send masks, because it could not restore a stream).
 - LlamaIndex and Google ADK streams go through the same restorer, so a

@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import re
 
+from taintward.sdk.recognizers_intl import INTL_KEY_PATTERNS, INTL_RECOGNIZERS
+
 try:
     from presidio_analyzer import Pattern, PatternRecognizer
 except Exception:  # noqa: BLE001 - presidio missing or broken: regex-only fallback
@@ -163,8 +165,16 @@ def spaced_digits(text: str, key_words: str) -> list[tuple]:
     return out
 
 
+# Common street types, plus the less common USPS ones that are not also
+# everyday words ("Park", "Center" and "Club" are left out on purpose).
 _STREET_SUFFIX = (r"(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ln|Lane|Way|Ct|"
-                  r"Court|Pl|Place|Ter|Terrace|Pkwy|Parkway|Hwy|Highway|Cir|Circle|Sq|Square)")
+                  r"Court|Pl|Place|Ter|Terrace|Pkwy|Parkway|Hwy|Highway|Cir|Circle|Sq|Square|"
+                  r"Junction|Creek|Tunnel|Coves?|Harbors?|Island|Locks?|Village|Crossing|Ridge|"
+                  r"Heights|Hills|Valley|Gardens|Trail|Loop|Grove|Manor|Meadows|Mills|Springs|"
+                  r"Shoals|Shores|Summit|Plains|Pines|Lakes?|Knolls?|Fords?|Forge|Flats|Falls|"
+                  r"Estates|Expressway|Freeway|Canyon|Brooks?|Bridge|Bluffs?|Bayou|Alley|Causeway|"
+                  r"Cliffs?|Crest|Glen|Hollow|Landing|Orchard|Prairie|Ranch|Turnpike|Underpass|"
+                  r"Viaduct|Vista|Walk|Row|Mews|Crescent|Close)")
 _STREET = re.compile(
     r"\b\d{1,6}(?: [A-Z][a-zA-Z]+){1,4} " + _STREET_SUFFIX + r"\b\.?"
     r"(?:,? (?:Apt|Suite|Unit|Ste)\.? ?#?\w+)?"
@@ -218,11 +228,12 @@ def keyed_secret(text: str, key_words: str) -> list[tuple]:
     return []
 
 
-# Keys that the context recognizers above react to.
-KEY_PATTERNS = (_SSN_CONTEXT, _SECRET_KEY)
+# Keys that the context recognizers above (and the ones in
+# recognizers_intl) react to.
+KEY_PATTERNS = (_SSN_CONTEXT, _SECRET_KEY) + INTL_KEY_PATTERNS
 
 # Run for every value (key_words may be "").
-CONTEXT_RECOGNIZERS = (plain_ssn, spaced_digits, street_address, keyed_secret)
+CONTEXT_RECOGNIZERS = (plain_ssn, spaced_digits, street_address, keyed_secret) + INTL_RECOGNIZERS
 
 # Entity types the context recognizers can produce, with their Sensitivity
 # class as a string ("pii" / "secret"); detect.py maps them.

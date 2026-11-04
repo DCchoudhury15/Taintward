@@ -169,11 +169,16 @@ Python 3.11 or newer.
 python -m venv .venv && . .venv/bin/activate
 pip install "taintward[langchain]"      # or [openai-agents], [llm], [mcp]
 python -m spacy download en_core_web_sm
+python -m spacy download xx_ent_wiki_sm   # optional: names in other languages
 ```
 
 The spaCy model is needed for name detection. Without it Taintward still
 runs, logs one ERROR and falls back to regex-only detection (see
-[Detection health](integrations.md#detection-health)).
+[Detection health](integrations.md#detection-health)). The second model is
+spaCy's small multilingual one: text in German, French, Spanish, Italian,
+Dutch or Swedish goes to it, and without it that text uses the English
+model, which misses more names there and calls more capitalized words a
+name.
 
 Set a key so reversible tokens are stable across restarts (any 64 hex
 characters; this one is for the quickstart only):

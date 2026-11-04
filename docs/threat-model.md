@@ -260,7 +260,9 @@ them, but in `redact` mode the value itself goes through.
 | split across calls | first half in one call, second half in the next | not detected per call; chain taint does not help if neither half is found |
 | bare 9-digit SSN with no SSN word nearby | `ref 234121234` | not detected on purpose (looks like an order number) |
 | lower-case names, names in non-Latin scripts | `please email john smith`, `Иван Петров` | not detected: NER only runs on text with a capitalized Latin word (`_CAPITALIZED`) |
-| formats outside the US focus | non-US national IDs, passports, tax numbers, bank account numbers other than IBAN | mostly not detected; see the outside data numbers in `docs/benchmark.md` |
+| a one-word name that is also a common word in the same text, or a stop word | `Rose called. The rose garden is open.` | not detected on purpose: the name filters drop it, because on outside data such hits were mostly capitalized common words (checked 2026-11-04) |
+| ids with no check digit and no id word nearby | a passport or German ID card number on its own, `A1234567` | not detected: it looks like any other code. With a word in front (`Passnummer`, `passport`, `Personalausweis`, ...) or under a key such as `passport_number` it is found (checked 2026-11-04) |
+| bank account numbers other than IBAN | `Kontonummer 1234567890 BLZ 37040044` | not detected (checked 2026-11-04) |
 | meaning, not values | "her neighbor, the only cardiologist in town" | out of scope: there is no value to find |
 | numbers and non-string leaves are checked as strings, but `None` and booleans are skipped | `{"is_hiv_positive": true}` | the key name is data the detector does not judge; the boolean passes |
 | side channels | placeholder numbers and types, mask counts, payload shape, span timing, `taintward.policy.masked_values` | leak how many sensitive values there were and of which type |
@@ -368,7 +370,9 @@ Taintward handles it.
 
 Things a reader could reasonably expect from the rest of the docs, checked
 against the code and found missing or weaker. All but G9 are fixed (each
-row says how); G9 is open.
+row says how). G9 is improved, with the fixes it listed in place and checked
+in CI, but detection on outside data is still well below the synthetic
+numbers, so it stays open.
 
 | id | gap | where | suggested fix |
 |---|---|---|---|
@@ -380,7 +384,7 @@ row says how); G9 is open.
 | G6 | **Fixed.** The compliance report showed an unsalted `sha256(value)[:8]` for every raw value found, which can be brute forced for SSNs and phone numbers | `taintward/evidence/report.py` (`_fp`) | HMAC-SHA256 (12 hex characters) with `TAINTWARD_REPORT_KEY`, or a random key per report |
 | G7 | **Fixed.** The collector trusted `taintward.sensitive` and `taintward.args_redacted` from any producer | `collector/processor/taintpolicy/processor.go` (`trusted_services`), `collector/builder.yaml` (bearertokenauth) | `trusted_services`: other services are treated as sensitive and their marker is ignored; producer bearer tokens in `config.secure.yaml` and Helm `collector.auth` |
 | G8 | **Fixed.** The sidecar config listened on `0.0.0.0:4319` without auth | `collector/config.yaml`, `collector/config.secure.yaml`, `docker-compose.yml` | the sidecar listens on `127.0.0.1`, compose publishes on loopback, `config.secure.yaml` adds auth and TLS on both sides |
-| G9 | Detection quality on outside data is much lower than on the synthetic benchmark, especially names outside English, non-US ids and addresses (see "Results on outside data" in `docs/benchmark.md`). The README's "0% false alarms" and "0.94 recall" are synthetic-only numbers | `taintward/sdk/detect.py` | the ranked list of improvements in `docs/benchmark.md` |
+| G9 | **Improved, still open.** Detection quality on outside data was much lower than on the synthetic benchmark, especially names outside English, non-US ids and addresses. Now: text in other languages goes to a multilingual name model (`xx_ent_wiki_sm`), common words the model calls names are filtered, and there are rules for international phone numbers, European street addresses, national ids (with check digits, or after an id word) and inline passwords. On the held-out outside data strict recall went from 0.36 to 0.51 and from 0.50 to 0.60, and false alarms on short texts from 26% to 15%. Long documents still raise a false alarm on 62% of texts with nothing labeled, mostly for real place and company names. The README's "0% false alarms" and "0.94 recall" are synthetic-only numbers | `taintward/sdk/detect.py`, `taintward/sdk/recognizers_intl.py`, `taintward/sdk/_lang.py` | the CI job `detection-bench` fails when the outside-data scores drop (`FLOORS` in `bench/external/run_external.py`); what is left is listed under "Still weak on outside data" in `docs/benchmark.md` |
 | G10 | **Fixed.** There was no size cap on detection in the SDK or gateway; a few MB of capitalized prose could hold a call for seconds | `taintward/sdk/detect.py` (`max_chars`) | `TAINTWARD_DETECT_MAX_CHARS` (default 500000, 0 = off): a longer value is not scanned and is masked whole (`OVERSIZE_VALUE`, placeholder `<TOO_LARGE_1>`) |
 | G11 | **Fixed.** Token reversal (`Redactor.reverse`, `tw.restore`) was not logged | `taintward/sdk/redact.py` (`record_reversal`) | a `taintward.reverse` span event and a `taintward.audit` log line per call, with key id and caller |
 

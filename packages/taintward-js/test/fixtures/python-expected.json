@@ -621,14 +621,7 @@
      "fingerprint": "7ffcda0b"
     }
    ],
-   "out_of_scope": [
-    {
-     "type": "UK_NHS",
-     "start": 49,
-     "end": 59,
-     "fingerprint": "84d89877"
-    }
-   ]
+   "out_of_scope": []
   },
   "jwt": {
    "spans": [
@@ -1051,14 +1044,7 @@
      "fingerprint": "b23982be"
     }
    ],
-   "out_of_scope": [
-    {
-     "type": "UK_NHS",
-     "start": 6,
-     "end": 18,
-     "fingerprint": "88e0d594"
-    }
-   ]
+   "out_of_scope": []
   },
   "phone-ca": {
    "spans": [

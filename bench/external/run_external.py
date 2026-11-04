@@ -15,7 +15,6 @@ Both are themselves synthetic (written by LLMs), but neither was seen while
 the rules were written, and they use their own label sets and formats.
 
 Run bench/external/download.py first (it caches the files outside git).
-No detection rule was changed for this evaluation.
 
 What is measured, per dataset:
 
@@ -34,10 +33,16 @@ What is measured, per dataset:
 Committed result files never contain dataset text: values are shown only as
 their shape (``Aa Aa``, ``dd.dd.dd``), with the dataset row id.
 
+Rules are tuned on ``--split dev`` (rows that are never in the test sample)
+and reported on the test sample. ``--check`` fails when the test numbers
+drop under the floors in ``FLOORS`` (CI runs it).
+
 Usage:
     python bench/external/download.py
     python bench/external/run_external.py                 # both datasets
     python bench/external/run_external.py --source gretel --per-language 100
+    python bench/external/run_external.py --split dev     # for tuning rules
+    python bench/external/run_external.py --check --wrapped 0   # CI
 """
 
 from __future__ import annotations
@@ -69,6 +74,12 @@ from taintward.sdk import detect  # noqa: E402
 # Label mapping
 # ---------------------------------------------------------------------------
 
+# Non-US national ids and "an id after an id word". The datasets do not
+# agree on which label an id gets (a codice fiscale is a SOCIALNUM in one
+# text and a TAXNUM in another), so all of them fit both id classes.
+NATIONAL_IDS = {"IN_AADHAAR", "IN_PAN", "IT_FISCAL_CODE", "ES_NIF", "ES_NIE", "FR_NIR",
+                "CH_AHV", "UK_NINO", "ID_NUMBER"}
+
 # Taintward class -> detector entity types that count as the right type.
 ACCEPT = {
     "PERSON": {"PERSON"},
@@ -78,10 +89,9 @@ ACCEPT = {
     "IBAN": {"IBAN_CODE"},
     # Social security / national insurance numbers. Taintward only has US
     # (and two Presidio extras) formats for this.
-    "SSN": {"US_SSN", "USA_SSN", "UK_NHS", "US_ITIN", "IN_AADHAAR"},
+    "SSN": {"US_SSN", "USA_SSN", "UK_NHS", "US_ITIN"} | NATIONAL_IDS,
     # Other government ids: passport, driver license, id card, tax number.
-    "GOV_ID": {"US_DRIVER_LICENSE", "US_PASSPORT", "US_ITIN", "IN_PAN", "IN_AADHAAR",
-               "UK_NHS", "US_SSN"},
+    "GOV_ID": {"US_DRIVER_LICENSE", "US_PASSPORT", "US_ITIN", "UK_NHS", "US_SSN"} | NATIONAL_IDS,
     "ADDRESS": {"LOCATION", "STREET_ADDRESS"},
     "IP_ADDRESS": {"IP_ADDRESS"},
     "SECRET": {"AWS_ACCESS_KEY", "GITHUB_TOKEN", "GENERIC_API_KEY", "JWT", "PRIVATE_KEY"},
@@ -95,7 +105,8 @@ PRIMARY = {
     "CREDIT_CARD": "CREDIT_CARD", "IBAN_CODE": "IBAN",
     "US_SSN": "SSN", "USA_SSN": "SSN", "UK_NHS": "SSN", "IN_AADHAAR": "SSN",
     "US_DRIVER_LICENSE": "GOV_ID", "US_PASSPORT": "GOV_ID", "US_ITIN": "GOV_ID",
-    "IN_PAN": "GOV_ID",
+    "IN_PAN": "GOV_ID", "ID_NUMBER": "GOV_ID", "IT_FISCAL_CODE": "SSN", "ES_NIF": "GOV_ID",
+    "ES_NIE": "GOV_ID", "FR_NIR": "SSN", "CH_AHV": "SSN", "UK_NINO": "SSN",
     "LOCATION": "ADDRESS", "STREET_ADDRESS": "ADDRESS",
     "IP_ADDRESS": "IP_ADDRESS",
     "AWS_ACCESS_KEY": "SECRET", "GITHUB_TOKEN": "SECRET", "GENERIC_API_KEY": "SECRET",
@@ -135,6 +146,48 @@ LABEL_MAP = {
         "credit_card_security_code": None, "local_latlng": None, "user_name": None,
     },
 }
+
+# Minimum scores for ``--check`` (CI), on the full test sample. They sit a
+# little under the numbers measured when they were set (docs/benchmark.md),
+# so a rule that stops working fails the job. "max_false_alarm" is the
+# example-level false alarm rate on texts with nothing to find.
+FLOORS = {
+    "ai4privacy": {
+        "strict_recall": 0.49, "strict_precision": 0.75,
+        "example_recall": 0.72, "max_false_alarm": 0.17,
+        "class_recall": {"PERSON": 0.51, "PHONE": 0.60, "ADDRESS": 0.46},
+    },
+    "gretel": {
+        "strict_recall": 0.57, "strict_precision": 0.40,
+        "example_recall": 0.92, "max_false_alarm": 0.65,
+        "class_recall": {"PERSON": 0.45, "PHONE": 0.87, "SSN": 0.66, "GOV_ID": 0.58,
+                         "ADDRESS": 0.70, "SECRET": 0.40, "EMAIL": 0.92},
+    },
+}
+
+
+def check_floors(name: str, res: dict) -> list[str]:
+    """The floors in FLOORS that ``res`` does not meet, as readable lines."""
+    f = FLOORS[name]
+    got = {
+        "strict_recall": res["overall_strict"]["recall"],
+        "strict_precision": res["overall_strict"]["precision"],
+        "example_recall": res["binary"]["text"]["recall"],
+    }
+    bad = [f"{name}: {k} {got[k]:.3f} < {f[k]}" for k in got if got[k] < f[k]]
+    fa = res["binary"]["text"]["false_alarm_rate"]
+    if fa > f["max_false_alarm"]:
+        bad.append(f"{name}: false alarm rate {fa:.3f} > {f['max_false_alarm']}")
+    for c, floor in f["class_recall"].items():
+        r = res["per_class"][c]["recall"] or 0.0
+        if r < floor:
+            bad.append(f"{name}: {c} recall {r:.3f} < {floor}")
+    return bad
+
+
+# Rows per language in the dev split (gretel has about 400 rows per
+# non-English language, 250 of them in the test sample).
+DEV_PER_LANGUAGE = {"ai4privacy": 500, "gretel": 140}
 
 GRETEL_LANG = {"English": "en", "Spanish": "es", "Swedish": "sv", "German": "de",
                "Italian": "it", "Dutch": "nl", "French": "fr", "France": "fr"}
@@ -188,6 +241,7 @@ def load_gretel(path: Path) -> list[dict]:
 
 
 def sample(rows: list[dict], per_language: int, seed: int) -> list[dict]:
+    """The test sample: ``per_language`` rows per language, fixed by ``seed``."""
     by_lang = defaultdict(list)
     for r in rows:
         by_lang[r["lang"]].append(r)
@@ -197,6 +251,14 @@ def sample(rows: list[dict], per_language: int, seed: int) -> list[dict]:
         group = by_lang[lang]
         out.extend(rng.sample(group, min(per_language, len(group))))
     return out
+
+
+def dev_sample(rows: list[dict], test: list[dict], per_language: int, seed: int) -> list[dict]:
+    """Rows for tuning the rules: never in the test sample, picked with
+    another seed. Rules are written while looking at this set only, so the
+    test numbers stay a fair measure."""
+    used = {r["id"] for r in test}
+    return sample([r for r in rows if r["id"] not in used], per_language, seed + 1)
 
 
 def clean_entities(rows: list[dict], label_map: dict) -> dict:
@@ -577,8 +639,12 @@ def to_markdown(res: dict, synthetic: dict | None) -> str:
          f"{res['n_examples']} examples sampled ({res['per_language_sample']} per language, "
          f"seed {res['seed']}), {res['n_entities_all']} labeled values, "
          f"{res['n_entities_mapped']} of them in a Taintward class.", "",
-         "Generated by `bench/external/run_external.py`. No detection rule was changed for "
-         "this run. Values are shown only as shapes (A = capitalized word, a = lower case, "
+         "Generated by `bench/external/run_external.py`. "
+         + ("This is the dev sample, used for tuning rules. " if res.get("split") == "dev" else
+            "This is the test sample: rules were tuned on other rows (`--split dev`), never "
+            "on these. ")
+         + f"Name model for text that is not English: `{res.get('multilingual_model') or 'none'}`. "
+         "Values are shown only as shapes (A = capitalized word, a = lower case, "
          "d3 = three digits, X = non-Latin letters).", "",
          "## Per class (span overlap)", "",
          "| class | gold | pred | precision | recall | F1 | recall (any type) | synthetic recall |",
@@ -683,16 +749,23 @@ def main() -> int:
     ap.add_argument("--per-language", type=int, default=None,
                     help="examples per language (default 500 for ai4privacy, 250 for gretel)")
     ap.add_argument("--seed", type=int, default=1337)
+    ap.add_argument("--split", choices=["test", "dev"], default="test",
+                    help="test = the reported sample; dev = other rows, for tuning rules")
     ap.add_argument("--wrapped", type=int, default=300,
                     help="examples to time through a wrapped tool (0 = skip)")
     ap.add_argument("--out-dir", default=str(ROOT / "bench" / "results"))
+    ap.add_argument("--check", action="store_true",
+                    help="exit 1 when a score is under its floor in FLOORS (test split only)")
     args = ap.parse_args()
+    if args.check and (args.split != "test" or args.per_language):
+        ap.error("--check needs the full test sample (no --split dev, no --per-language)")
 
     syn_path = ROOT / "bench" / "results" / "detection_after_fast_path.json"
     synthetic = json.loads(syn_path.read_text()) if syn_path.exists() else None
     detect.detect_text("warm up")
 
     sources = ["ai4privacy", "gretel"] if args.source == "all" else [args.source]
+    failed: list[str] = []
     for name in sources:
         path = download.path_for(name)
         if not path.exists():
@@ -700,7 +773,12 @@ def main() -> int:
             return 2
         per_lang = args.per_language or (500 if name == "ai4privacy" else 250)
         rows = load_ai4privacy(path) if name == "ai4privacy" else load_gretel(path)
-        rows = sample(rows, per_lang, args.seed)
+        test = sample(rows, per_lang, args.seed)
+        if args.split == "dev":
+            per_lang = DEV_PER_LANGUAGE[name]
+            rows = dev_sample(rows, test, per_lang, args.seed)
+        else:
+            rows = test
         stats = clean_entities(rows, LABEL_MAP[name])
         print(f"{name}: {len(rows)} examples, evaluating ...", flush=True)
         t0 = time.perf_counter()
@@ -718,10 +796,25 @@ def main() -> int:
         res["accept"] = {c: sorted(v) for c, v in ACCEPT.items()}
         out = Path(args.out_dir)
         out.mkdir(parents=True, exist_ok=True)
-        (out / f"external_{name}.json").write_text(json.dumps(res, indent=2, sort_keys=False) + "\n")
+        res["split"] = args.split
+        res["multilingual_model"] = detect.health().get("multilingual_model")
+        stem = f"external_{name}" + ("_dev" if args.split == "dev" else "")
+        (out / f"{stem}.json").write_text(json.dumps(res, indent=2, sort_keys=False) + "\n")
         md = to_markdown(res, synthetic)
-        (out / f"external_{name}.md").write_text(md)
+        (out / f"{stem}.md").write_text(md)
         print(md)
+        if args.check:
+            failed += check_floors(name, res)
+    if args.check:
+        health = detect.health()
+        if health.get("multilingual_model") is None:
+            failed.append("the multilingual name model is not loaded "
+                          "(python -m spacy download xx_ent_wiki_sm)")
+        for line in failed:
+            print("FLOOR NOT MET: " + line, file=sys.stderr)
+        if failed:
+            return 1
+        print("all floors met")
     return 0
 
 

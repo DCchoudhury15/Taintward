@@ -486,7 +486,10 @@ If spaCy or Presidio fail to load, detection does not stop. It logs one
 ERROR and falls back to regex-only detection: SSNs, cards, emails, phone
 numbers, IBANs, IP addresses and every secret pattern are still found, but
 names and places are not. `taintward.sdk.detect.health()` returns
-`{"ok": bool, "mode": "full" | "regex_only" | "broken", "error": str | None}`.
+`{"ok": bool, "mode": "full" | "regex_only" | "broken", "error": str | None,
+"multilingual_model": str | None}`. `multilingual_model` is the model used
+for names in text that is not English (`xx_ent_wiki_sm` when it is
+installed), or None when that text uses the English model.
 With `TAINTWARD_FAIL_CLOSED=1` a degraded SDK raises
 `DetectionDegradedError` for external, llm, log and rag sinks, and the
 gateway refuses those calls.

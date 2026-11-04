@@ -5,9 +5,11 @@ how much sensitive data it finds, how often it raises a false alarm, and how
 much time it adds to every tool call. Everything here can be re-run from the
 `bench/` folder.
 
-Two rounds of work are recorded here. Round 1 added JWT and private key
+Three rounds of work are recorded here. Round 1 added JWT and private key
 recognizers. Round 2 (the "fast path") fixed the two problems round 1 found:
 detection was far too slow, and half of all clean payloads were flagged.
+Round 3 (gap G9) is about data outside the US formats and is measured on
+outside data only: see [Results on outside data](#results-on-outside-data).
 
 ## Summary
 
@@ -330,23 +332,30 @@ no longer shifts every later offset.
 
 ## Results on outside data
 
-Every number above comes from `bench/data/detection.jsonl`, which was written
-together with the detection rules, so it flatters them. To see how the
-detector does on data written by other people, `bench/external/` runs the
-same detector, scored the same way, on two public labeled PII datasets. No
-detection rule was changed for this run.
+The synthetic dataset above was written together with the detection rules,
+so it flatters them. `bench/external/` runs the same detector, scored the
+same way, on two public labeled PII datasets written by other people:
 
-| dataset | what it is | sample |
+| dataset | what it is | test sample |
 |---|---|---|
 | [ai4privacy/open-pii-masking-500k-ai4privacy](https://huggingface.co/datasets/ai4privacy/open-pii-masking-500k-ai4privacy), validation split (CC-BY-4.0 + Llama 3.1/3.3 license) | short texts in en, fr, de, es, it, nl, hi, te | 4,000 examples, 500 per language, 7,824 labeled values in a Taintward class |
 | [gretelai/synthetic_pii_finance_multilingual](https://huggingface.co/datasets/gretelai/synthetic_pii_finance_multilingual), test split (Apache-2.0) | full financial documents (emails, statements, XML, JSON) in 7 European languages | 1,750 examples, 250 per language, 6,376 labeled values in a Taintward class |
 
-Both are also synthetic (written by LLMs), but neither was seen while the
-rules were written, and they use their own label sets and formats.
+Both are also synthetic (written by LLMs), with their own label sets and
+formats.
+
+**How round 3 was kept honest.** The first run on these datasets (before
+round 3) changed no rule. Round 3 then changed the rules while looking only
+at a **dev sample**: other rows of the same two datasets, never in the test
+sample (`--split dev`, 500 rows per language for ai4privacy, 140 for
+gretel). The numbers below are on the same test sample as the first run.
+The first run's list of misses did choose which areas to work on.
 
 ```bash
-python bench/external/download.py      # caches the files in ~/.cache/taintward-bench/external
-python bench/external/run_external.py  # a few minutes, both datasets
+python bench/external/download.py                  # caches the files in ~/.cache/taintward-bench/external
+python bench/external/run_external.py              # test sample, a few minutes
+python bench/external/run_external.py --split dev  # dev sample, for tuning rules
+python bench/external/run_external.py --check --wrapped 0   # what CI runs
 ```
 
 Full results: `bench/results/external_ai4privacy.md` and
@@ -354,79 +363,122 @@ Full results: `bench/results/external_ai4privacy.md` and
 (`Aa Aa`, `d3-d2-d4`), never dataset text; `tests/test_bench_external.py`
 checks that.
 
+### What round 3 changed
+
+* **Names in other languages.** Text whose common function words are
+  German, French, Spanish, Italian, Dutch or Swedish goes to spaCy's small
+  multilingual model `xx_ent_wiki_sm`; English text and text with no such
+  word (a lone name in a JSON field) stay with `en_core_web_sm`. Sending
+  that second group to the multilingual model too was tried and dropped: it
+  brought false alarms back on the English synthetic set (6.5% of clean
+  payloads).
+* **Fewer false name hits.** Greeting and form label words ("Bitte",
+  "Numéro"), template slots (`[City]`), words also written in lower case in
+  the same text ("Policy" ... "policy"), spaCy stop words ("Unsere",
+  "Estoy") and hits that start with a pronoun ("Meine Gedichte") are
+  dropped. A stricter rule, keeping a one-word name only after a title or
+  greeting, was tried and dropped: on the dev sample it removed more real
+  first names (248) than false ones (201).
+* **Phone numbers**: a `+` country code with 9 to 15 digits, or a local
+  number after a phone word in one of the seven languages.
+* **Street addresses** in the usual European forms ("Musterstraße 12",
+  "12 rue de la Paix", "Via Roma 10", "Calle Mayor 5", "Kerkstraat 12a"),
+  joined with a flat number and the postal code and city right after them,
+  and more US street types from the USPS list.
+* **National ids**: with a check digit, anywhere (Aadhaar, codice fiscale,
+  DNI / NIE, French NIR, Swiss AHV, UK National Insurance number, Indian
+  PAN); any id-shaped value after an id word in the seven languages
+  ("Passnummer", "numéro de passeport", "Codice fiscale") or under a key
+  like `passport_number`. The plain word "id" is never enough.
+* **Passwords and API keys written inline** ("Passwort: ...", "API key:
+  ...", `<password>...</password>`), when the value has a digit or symbol.
+* **UK NHS numbers** need their context word: the ten-digit check fired
+  mostly on phone numbers.
+
 ### Span recall per class, strict
 
-| class | synthetic | ai4privacy | gretel |
-|---|---:|---:|---:|
-| EMAIL | 1.00 | 0.97 | 0.95 |
-| PERSON | 0.94 | 0.50 | 0.48 |
-| PHONE | 0.97 | 0.11 | 0.66 |
-| CREDIT_CARD | 0.90 | 0.06 | 0.39 |
-| IBAN | 1.00 | - | 0.68 |
-| SSN | 0.81 | 0.06 | 0.29 |
-| ADDRESS | 1.00 | 0.09 | 0.38 |
-| GOV_ID (non-US ids) | - | 0.02 | 0.06 |
-| IP_ADDRESS | - | - | 0.96 |
-| SECRET | 0.95 | - | 0.18 |
-| **overall** | 0.94 | 0.36 | 0.50 |
+| class | synthetic | ai4privacy before | ai4privacy after | gretel before | gretel after |
+|---|---:|---:|---:|---:|---:|
+| EMAIL | 1.00 | 0.97 | 0.97 | 0.95 | 0.95 |
+| PERSON | 0.94 | 0.50 | 0.54 | 0.48 | 0.48 |
+| PHONE | 0.97 | 0.11 | **0.63** | 0.66 | **0.90** |
+| CREDIT_CARD | 0.90 | 0.06 | 0.06 | 0.39 | 0.39 |
+| IBAN | 1.00 | - | - | 0.68 | 0.68 |
+| SSN | 0.81 | 0.06 | 0.09 | 0.29 | **0.69** |
+| ADDRESS | 1.00 | 0.09 | **0.49** | 0.38 | **0.74** |
+| GOV_ID (non-US ids) | - | 0.02 | 0.07 | 0.06 | **0.62** |
+| IP_ADDRESS | - | - | - | 0.96 | 0.96 |
+| SECRET | 0.95 | - | - | 0.18 | **0.45** |
+| **overall recall** | 0.94 | 0.36 | **0.51** | 0.50 | **0.60** |
+| **overall precision** | 0.96 | 0.57 | **0.78** | 0.30 | **0.43** |
+
+Precision counts real PII that the dataset did not label as wrong (gretel
+labels no city or company), so it is a lower bound.
 
 ### Example level: was anything sensitive found?
 
 This is the number that matters most for taint, because one hit is enough to
 taint the call chain.
 
-| | synthetic | ai4privacy | gretel |
-|---|---:|---:|---:|
-| recall | 0.94 | 0.68 | 0.93 |
-| precision | 1.00 | 0.97 | 0.87 |
-| false alarm rate on examples with nothing to find | 0.00 | 0.26 | 0.65 |
+| | synthetic | ai4privacy before | ai4privacy after | gretel before | gretel after |
+|---|---:|---:|---:|---:|---:|
+| recall | 0.94 | 0.68 | 0.75 | 0.94 | 0.94 |
+| precision | 1.00 | 0.97 | 0.98 | 0.87 | 0.88 |
+| false alarm rate on examples with nothing to find | 0.00 | 0.26 | **0.15** | 0.66 | 0.62 |
 
-The false alarm rate on outside data is far from the 0% measured on the
-synthetic hard negatives. Almost all of it is spaCy calling capitalized
-German, Dutch and Italian words a PERSON or LOCATION (in gretel, 4,923 PERSON
-and 1,731 LOCATION hits overlap no label at all). The small English spaCy
-model does not know these languages.
+Per language on ai4privacy, the false alarm rate dropped most where the
+English model was worst: German 0.85 to 0.28, Italian 0.39 to 0.25, Dutch
+0.22 to 0.09. Strict recall rose in every language, most in Italian (0.38
+to 0.66), Spanish (0.30 to 0.55) and French (0.39 to 0.61).
 
-### What the misses are
+### Still weak on outside data
 
-* **Checksums are working as designed.** Many card and IBAN labels in both
-  datasets fail their checksum (87 of 101 cards in ai4privacy, 21 of 21
-  invalid cards and 21 of 62 IBANs in gretel). Taintward rejects those on
-  purpose. On the labels that pass, recall is 0.93 (cards) and 0.98 (IBAN)
-  in gretel, 0.43 (cards) in ai4privacy.
-* **Phone numbers outside US formats**: `+d7.d4`, `+d2-d9`, `+d2 d3 d3 d3`,
-  Swedish `d3-d3 d2 d2`.
-* **Addresses split into parts**: ai4privacy labels building number, street,
-  city and zip code separately. A lone `d2` or `Aa` is not an address to the
-  detector.
-* **Non-US national ids**: German `Ad8`, Italian and Spanish formats, plain
-  `d9`. There is no recognizer for them yet.
-* **Names in lower case or non-Latin scripts** (hi, te): NER only runs on
-  text with a capitalized Latin word.
+1. **False alarms on long documents** (0.62 of gretel documents with nothing
+   labeled). Most are real place and company names the dataset does not
+   label ("Berlin", "Stockholm", "ABCDEF GmbH") and title-case headings. A
+   place name on its own counts as sensitive today (`LOCATION`); treating a
+   lone city or country as not sensitive would remove a large part of these,
+   but it is a product decision, not a detection fix.
+2. **Names**: about half are found. The small models miss many one-word
+   first names in running text, and names in non-Latin scripts (hi, te) or
+   in lower case are not looked for at all.
+3. **Ids with no id word and no check digit**: most ai4privacy ids are
+   random strings with nothing before them ("please send your RQ7118854"),
+   so GOV_ID is 0.07 and SSN 0.09 there.
+4. **Cards and IBANs that fail their checksum** are still rejected on
+   purpose (87 of 101 cards in ai4privacy fail it).
+5. **Address parts on their own**: a lone postal code or house number.
 
 ### Latency on outside data
 
-Measured on an idle laptop (the first run was taken while other jobs used
-the CPU and was 2 to 3 times slower, so it was redone).
-
-| | ai4privacy (short texts) | gretel (1 to 5 KB documents) |
+| | before | after |
 |---|---:|---:|
-| `detect_text`, p50 / p99 | 2.8 / 4.9 ms (<200 chars) | 16.1 / 27.3 ms (1k-5k chars) |
-| wrapped tool call, all sizes, p50 / p99 | 5.8 / 10.4 ms | 34.2 / 60.9 ms |
+| `detect_text`, short texts (<200 chars), p50 / p99 | 2.8 / 4.9 ms | 2.1 / 4.2 ms |
+| `detect_text`, gretel documents (1k-5k chars), p50 / p99 | 16.1 / 27.3 ms | 15.0 / 37.6 ms |
+| wrapped tool call, ai4privacy, p50 / p99 | 5.8 / 10.4 ms | 4.3 / 8.3 ms |
+| wrapped tool call, gretel, p50 / p99 | 34.2 / 60.9 ms | 27.4 / 61.0 ms |
 
-### What to improve next, ranked by how many values it would catch
-
-1. A multilingual NER model (or per-language spaCy models) for PERSON, and a
-   stop list of capitalized common nouns for German and Dutch. This is the
-   biggest source of both misses and false alarms.
-2. International phone formats with a `+` country code.
-3. Joining address parts that sit next to each other in the text.
-4. Recognizers for the most common non-US ids (German Personalausweis,
-   Italian codice fiscale, Spanish DNI/NIE).
-
-The threat model lists this as gap G9 (`docs/threat-model.md`).
+The "after" run had a load average of about 1.5. Run back to back on the
+same 600 documents of 1k-5k characters, twice each, the old code took 15 to
+20 ms (p50) and 23 to 40 ms (p99), the new code 16 ms and 30 to 31 ms: the
+multilingual model is cheaper than the English one on text in other
+languages, and the new rules add about 1 ms per document. On short texts
+both took 2.6 to 3.4 ms.
 
 ## Regression guard
+
+* The CI job `detection-bench` (GitHub and GitLab) downloads the two outside
+  datasets at their pinned commit, runs the test sample with
+  `run_external.py --check` and fails when a score drops under its floor
+  (`FLOORS`: overall strict recall and precision, example recall, false
+  alarm rate, and recall of the classes round 3 improved), or when the
+  multilingual model is not loaded. The floors sit 0.01 to 0.03 under the
+  numbers above.
+* `tests/test_detect_intl.py` covers every round 3 rule, with cases that
+  must be found and cases that must be left alone. Each rule was also
+  checked by putting its bug back: 44 of 47 such changes make a test fail;
+  the other 3 remove a quick pre-check whose condition the inner check
+  repeats, or code that no longer exists.
 
 * `tests/test_bench_smoke.py` runs detection on 25 fixed positive examples and
   7 hard negatives. It fails if recall on US SSN (including plain and spaced

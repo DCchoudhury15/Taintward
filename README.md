@@ -59,11 +59,11 @@ leaves your process.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/coverage-dark.svg">
-  <img alt="Detector coverage: reliable for email, IP address, valid cards and IBANs, AWS keys, GitHub tokens, JWTs, private keys; partial for English names, US SSNs, US phones, street addresses; weak for names in other languages, non-US phones, national ids, plain passwords" src=".github/assets/coverage-light.svg" width="100%">
+  <img alt="Detector coverage: reliable for email, IP address, valid cards and IBANs, AWS keys, GitHub tokens, JWTs, private keys; partial for names in English and other languages, US SSNs, phone numbers, street addresses, national ids, passwords in text; weak for names in non-Latin scripts, lower-case names, ids with no id word" src=".github/assets/coverage-light.svg" width="100%">
 </picture>
 
-Measured on one laptop, and on public datasets the rules were never tuned
-on. How: [benchmark](docs/benchmark.md) ·
+Measured on one laptop, and on held-out rows of public datasets (the rules
+were tuned on other rows of them). How: [benchmark](docs/benchmark.md) ·
 [placeholders with real models](docs/placeholders-eval.md).
 
 ## Where it runs
@@ -92,6 +92,7 @@ Pydantic AI, Google ADK, LiteLLM, OpenAI, Anthropic
 ```bash
 pip install "taintward[langchain] @ git+https://github.com/DCchoudhury15/Taintward"
 python -m spacy download en_core_web_sm
+python -m spacy download xx_ent_wiki_sm   # optional: names in other languages
 ```
 
 ```python
