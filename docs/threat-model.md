@@ -162,7 +162,9 @@ values.
 | not handled | values the detector misses (see bypasses) and the meaning of the text around them. "The patient with the rare condition in the small town" can identify a person with every name removed | | |
 | not handled | placeholders leak **type and count**: `<SSN_1>`, `<SSN_2>` tell the provider there are two SSNs; the same placeholder across turns tells it the same person is mentioned again | `placeholder_for` | |
 | prevented | streamed answers through the same clients (and LangChain `stream()`, Pydantic AI `run_stream`, LiteLLM, LlamaIndex, Google ADK) are restored chunk by chunk and recorded on the span (placeholder version) when the stream ends | `taintward/sdk/placeholders.py` (`StreamRestorer`), `taintward/sdk/integrations/_stream.py` | `tests/test_stream_restore.py`, `tests/test_integrations_frameworks.py::*stream*` |
-| not handled | other clients, Anthropic's `messages.stream()` helper (it does not call `create`, so its request is **not redacted**; use `messages.create(stream=True)`), and the `with_raw_response` / `with_streaming_response` helpers are not patched (documented in `llm_clients.py`) | | |
+| prevented | Anthropic's `messages.stream()` helper, which builds its own request instead of calling `create`: the request is redacted when its `with` block starts, its events and final message are restored, and the SDK's own span (content mode) gets no answer text | `taintward/sdk/integrations/llm_clients.py` (`_wrap_message_stream`) | `tests/test_stream_restore.py::TestAnthropicStreams::test_stream_helper_redacts_and_restores`, `::test_stream_helper_keeps_real_values_off_the_sdk_span` |
+| prevented | LiteLLM's logging callbacks read the answer object after the call returns (thread pool, logging worker): the caller gets a restored copy, LiteLLM's object and the proxy's keep the placeholders | `taintward/sdk/integrations/litellm.py` | `tests/test_integrations_frameworks.py::TestLiteLLM::test_sdk_completion_leaves_litellm_object_unchanged`, `::test_proxy_guardrail_round_trip` |
+| not handled | other clients, the `parse()` helpers (OpenAI `chat.completions.parse` / `responses.parse`, Anthropic `messages.parse`: they do not call `create`, so their request is **not redacted**; use `create` with `response_format` / `output_config`), and the `with_raw_response` / `with_streaming_response` helpers are not patched (documented in `llm_clients.py`) | | |
 
 ### 4. External API or service
 
@@ -266,7 +268,7 @@ them, but in `redact` mode the value itself goes through.
 | meaning, not values | "her neighbor, the only cardiologist in town" | out of scope: there is no value to find |
 | numbers and non-string leaves are checked as strings, but `None` and booleans are skipped | `{"is_hiv_positive": true}` | the key name is data the detector does not judge; the boolean passes |
 | side channels | placeholder numbers and types, mask counts, payload shape, span timing, `taintward.policy.masked_values` | leak how many sensitive values there were and of which type |
-| a stream helper that skips `create` | `client.messages.stream(...)` on a protected Anthropic client | the request goes to the provider unredacted; `messages.create(stream=True)` is covered (`llm_clients.py`, `docs/integrations.md`) |
+| a helper that skips `create` | `client.chat.completions.parse(...)`, `client.responses.parse(...)`, `client.messages.parse(...)` on a protected client | the request goes to the provider unredacted (checked 2026-11-04); `create` and the `stream()` helpers are covered (`llm_clients.py`, `docs/integrations.md`) |
 | collector input trust | a producer sets `taintward.sensitive=false` or `taintward.args_redacted=true` | without `trusted_services`: `sensitive=false` records no violation (the regex backstop still runs), and `args_redacted=true` makes the collector skip the backstop on `gen_ai.tool.call.arguments` (`hardening_test.go::TestArgs_SkippedWhenMarkerSet`, by design). With `trusted_services` both only work for listed services, and with producer auth only for token holders |
 
 ## Non-goals
@@ -414,8 +416,8 @@ Agent and SDK
       want.
 - [ ] Keep allow lists (`passthrough=`) as short as possible and review them.
 - [ ] Wrap **every** LLM client the agent uses with `protect_*`. Use
-      `messages.create(stream=True)`, not Anthropic's `messages.stream()`
-      helper, which the patch does not cover.
+      `create` (or the `stream()` helpers), not the `parse()` helpers,
+      which the patch does not cover.
 - [ ] Leave `TAINTWARD_RESTORE_IN_URLS` off, so placeholders inside links
       in the model's answer are not restored (G1). Alert on
       `taintward.placeholders.blocked`: it usually means an injection try.

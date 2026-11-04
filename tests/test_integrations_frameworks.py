@@ -494,19 +494,25 @@ class TestLiteLLM:
     @pytest.fixture
     def fake_litellm(self, monkeypatch):
         """The real litellm.completion with a fixed mock answer, recording the
-        messages it was called with. The patch is undone after the test."""
+        messages it was called with (and, in ``self.returned``, the objects
+        LiteLLM returned). The patch is undone after the test."""
         import litellm
         sent = []
+        self.returned = []
         real = litellm.completion
         real_async = litellm.acompletion
 
         def completion(*args, **kwargs):
             sent.append(json.dumps(kwargs.get("messages"), default=str))
-            return real(*args, **kwargs, mock_response="Sent to <EMAIL_1> re <SSN_1>.")
+            r = real(*args, **kwargs, mock_response="Sent to <EMAIL_1> re <SSN_1>.")
+            self.returned.append(r)
+            return r
 
         async def acompletion(*args, **kwargs):
             sent.append(json.dumps(kwargs.get("messages"), default=str))
-            return await real_async(*args, **kwargs, mock_response="ok <SSN_1>")
+            r = await real_async(*args, **kwargs, mock_response="ok <SSN_1>")
+            self.returned.append(r)
+            return r
         monkeypatch.setattr(litellm, "completion", completion)
         monkeypatch.setattr(litellm, "acompletion", acompletion)
         return litellm, sent
@@ -526,6 +532,23 @@ class TestLiteLLM:
         llm = [a for _, a in spans(otel[1], "litellm")]
         assert len(llm) == 2 and all(a["taintward.violation"] for a in llm)
 
+    def test_sdk_completion_leaves_litellm_object_unchanged(self, ward, fake_litellm):
+        """LiteLLM's logging callbacks read the object it returned after the
+        call (thread pool / logging worker): only the caller's copy is restored."""
+        from taintward.sdk.integrations.litellm import protect_litellm
+        litellm, _ = fake_litellm
+        protect_litellm(ward=ward)
+        with ward.run():
+            r = litellm.completion("gpt-4o-mini", [{"role": "user", "content": ASK}])
+            a = asyncio.run(litellm.acompletion(model="gpt-4o-mini",
+                                                messages=[{"role": "user", "content": ASK}]))
+        kept_r, kept_a = self.returned
+        assert r is not kept_r and a is not kept_a
+        assert r.choices[0].message.content == f"Sent to {EMAIL} re {SSN}."
+        assert kept_r.choices[0].message.content == "Sent to <EMAIL_1> re <SSN_1>."
+        assert kept_a.choices[0].message.content == "ok <SSN_1>"
+        assert r._hidden_params == kept_r._hidden_params  # the copy keeps LiteLLM's extras
+
     def test_proxy_guardrail_round_trip(self, ward, otel):
         import litellm
 
@@ -542,6 +565,9 @@ class TestLiteLLM:
         out = asyncio.run(g.async_post_call_success_hook(data, None, resp))
         msg = out.choices[0].message
         assert msg.content == f"Done: {EMAIL}"
+        # the proxy logs its own object: it keeps the placeholders
+        assert resp.choices[0].message.content == "Done: <EMAIL_1>"
+        assert resp.choices[0].message.tool_calls[0].function.arguments == '{"to": "<EMAIL_1>"}'
         assert json.loads(msg.tool_calls[0].function.arguments) == {"to": EMAIL}
         assert g._pending == {}  # the map is dropped after the answer
         assert spans(otel[1], "litellm-proxy")

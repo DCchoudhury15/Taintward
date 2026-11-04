@@ -47,6 +47,17 @@
   require a producer token, and the Helm routing tier and gateway send it.
 - The sidecar config listens on `127.0.0.1:4319`, and `docker-compose.yml`
   publishes the collector and Jaeger ports on `127.0.0.1` only (gap G8).
+- Anthropic's `messages.stream()` helper is patched on a protected client.
+  It builds its own request instead of calling `messages.create`, so its
+  request used to reach Anthropic unredacted. The request is now redacted
+  when the `with` block starts, the events, `text_stream` and
+  `get_final_message()` are restored, and the SDK's own span (content mode)
+  gets no answer text. A JSON answer (`output_format`, `output_config`) is
+  restored JSON-escaped, also for `messages.create(stream=True)`.
+- LiteLLM: the caller gets a restored copy of a non-streamed answer, and
+  the `TaintwardGuardrail` post-call hook returns one too. Restoring
+  LiteLLM's own response object in place let its logging callbacks, which
+  read it after the call returns, see the real values.
 
 ### Added
 

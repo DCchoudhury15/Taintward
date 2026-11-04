@@ -383,18 +383,35 @@ ANTHROPIC_EVENTS = [
 ]
 
 
-def _anthropic(bodies, *, is_async=False):
+def _anthropic(bodies, *, is_async=False, events=ANTHROPIC_EVENTS, status=200, **options):
     import anthropic
     httpx = _httpx("anthropic")
 
     def handler(request):
         bodies.append(json.loads(request.content))
+        if status != 200:
+            return httpx.Response(status, json={"type": "error", "error": {
+                "type": "invalid_request_error", "message": "bad"}})
         return httpx.Response(200, headers={"content-type": "text/event-stream"},
-                              content=_sse(ANTHROPIC_EVENTS, named=True))
+                              content=_sse(events, named=True))
     cls = anthropic.AsyncAnthropic if is_async else anthropic.Anthropic
     client_cls = httpx.AsyncClient if is_async else httpx.Client
-    return cls(api_key="test", base_url="http://fake.local",
-               http_client=client_cls(transport=httpx.MockTransport(handler)))
+    return cls(api_key="test", base_url="http://fake.local", max_retries=0,
+               http_client=client_cls(transport=httpx.MockTransport(handler)), **options)
+
+
+def _json_events(pieces):
+    """An answer whose text is JSON, cut into ``pieces``."""
+    return [ANTHROPIC_EVENTS[0],
+            {"type": "content_block_start", "index": 0,
+             "content_block": {"type": "text", "text": ""}},
+            *[{"type": "content_block_delta", "index": 0,
+               "delta": {"type": "text_delta", "text": t}} for t in pieces],
+            {"type": "content_block_stop", "index": 0},
+            {"type": "message_delta", "delta": {"stop_reason": "end_turn",
+                                                "stop_sequence": None},
+             "usage": {"output_tokens": 5}},
+            {"type": "message_stop"}]
 
 
 @needs_anthropic
@@ -436,6 +453,114 @@ class TestAnthropicStreams:
             return text
         assert asyncio.run(go()) == f"Hi {SSN} bye"
         assert len(llm_spans(otel[1])) == 1
+
+    # messages.stream() builds and sends its own request (it does not call
+    # messages.create), so it is patched on its own.
+
+    def test_stream_helper_redacts_and_restores(self, ward, otel):
+        bodies = []
+        client = ward.protect_anthropic(_anthropic(bodies))
+        with ward.run():
+            manager = client.messages.stream(model="claude-test", max_tokens=50,
+                                             messages=[{"role": "user", "content": ASK}])
+            assert bodies == []  # nothing is sent before the with block
+            with manager as stream:
+                text = "".join(stream.text_stream)
+                final = stream.get_final_message()
+        assert SSN not in json.dumps(bodies[0]) and "<SSN_1>" in json.dumps(bodies[0])
+        assert "<SSN_1>" in bodies[0]["system"]  # the placeholder line
+        assert text == f"Hi {SSN} bye"
+        assert final.content[0].text == f"Hi {SSN} bye"
+        assert final.content[1].input == {"ssn": SSN}
+        assert stream.get_final_text() == f"Hi {SSN} bye"
+        (a,) = llm_spans(otel[1])
+        out = json.loads(a["gen_ai.output.messages"])
+        assert out[0] == {"type": "text", "text": "Hi <SSN_1> bye"}
+        assert a["gen_ai.usage.output_tokens"] == 12 and a["taintward.violation"] is True
+
+    def test_async_stream_helper_redacts_and_restores(self, ward, otel):
+        bodies = []
+        client = ward.protect_anthropic(_anthropic(bodies, is_async=True))
+
+        async def go():
+            with ward.run():
+                async with client.messages.stream(
+                        model="claude-test", max_tokens=50,
+                        messages=[{"role": "user", "content": ASK}]) as stream:
+                    text = "".join([t async for t in stream.text_stream])
+                    final = await stream.get_final_message()
+            return text, final
+        text, final = asyncio.run(go())
+        assert SSN not in json.dumps(bodies[0])
+        assert text == f"Hi {SSN} bye" and final.content[1].input == {"ssn": SSN}
+        (a,) = llm_spans(otel[1])
+        assert "Hi <SSN_1> bye" in a["gen_ai.output.messages"]
+
+    def test_stream_helper_keeps_real_values_off_the_sdk_span(self, ward):
+        """The SDK's own tracing (content mode) reads the helper's snapshot,
+        which holds the real values: it must get none of them."""
+        provider = TracerProvider()
+        exporter = InMemorySpanExporter()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        client = ward.protect_anthropic(_anthropic([], open_telemetry={
+            "tracer_provider": provider, "traces": {"content_mode": "content"}}))
+        with client.messages.stream(model="claude-test", max_tokens=50,
+                                    messages=[{"role": "user", "content": ASK}]) as stream:
+            assert "".join(stream.text_stream) == f"Hi {SSN} bye"
+        sdk = [s for s in exporter.get_finished_spans()
+               if "anthropic" in s.instrumentation_scope.name]
+        assert sdk, "the SDK made no span: this test checks nothing"
+        attrs = json.dumps([dict(s.attributes or {}) for s in sdk], default=str)
+        assert "<SSN_1>" in attrs  # content mode is on: the request is recorded
+        assert SSN not in attrs
+
+    def test_stream_helper_json_answer_stays_valid_json(self, ward, otel):
+        import pydantic
+
+        class Out(pydantic.BaseModel):
+            ssn: str
+
+        client = ward.protect_anthropic(_anthropic(
+            [], events=_json_events(['{"ssn": "<SS', 'N_1>"}'])))
+        with client.messages.stream(model="claude-test", max_tokens=50, output_format=Out,
+                                    messages=[{"role": "user", "content": ASK}]) as stream:
+            final = stream.get_final_message()
+        assert final.parsed_output == Out(ssn=SSN)
+
+    def test_json_answer_values_are_json_escaped(self):
+        from anthropic.types import RawMessageStreamEvent
+        from pydantic import TypeAdapter
+
+        from taintward.sdk.integrations.llm_clients import (
+            _anthropic_json,
+            _AnthropicEvents,
+        )
+        assert _anthropic_json({"output_config": {"format": {"type": "json_schema"}}})
+        assert not _anthropic_json({"output_config": {"effort": "low"}})
+        events = TypeAdapter(list[RawMessageStreamEvent]).validate_python(
+            _json_events(['{"who": "<PERS', 'ON_1>"}']))
+        h = _AnthropicEvents(_map(), json_text=True)
+        out = [o for e in events for o in h.item(e)] + h.end()
+        text = "".join(o.delta.text for o in out if o.type == "content_block_delta")
+        assert json.loads(text) == {"who": 'Bo "B" Lee\\Jr'}
+
+    def test_stream_helper_error_ends_the_span(self, ward, otel):
+        import anthropic
+        client = ward.protect_anthropic(_anthropic([], status=400))
+        with pytest.raises(anthropic.BadRequestError):
+            with client.messages.stream(model="claude-test", max_tokens=50,
+                                        messages=[{"role": "user", "content": ASK}]):
+                pass
+        (span,) = [s for s in otel[1].get_finished_spans()
+                   if (s.attributes or {}).get("taintward.destination") == "llm"]
+        assert span.status.status_code.name == "ERROR"
+
+    def test_protecting_twice_keeps_one_stream_patch(self, ward):
+        client = _anthropic([])
+        ward.protect_anthropic(client)
+        first = client.messages.stream
+        ward.protect_anthropic(client)
+        assert client.messages.stream is first
 
 
 # ---------------------------------------------------------------------------

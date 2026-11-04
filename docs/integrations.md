@@ -316,8 +316,18 @@ image data are left as they are, so requests stay valid. The span records the
 redacted request, the masked response, `gen_ai.provider.name`,
 `gen_ai.request.model` and token usage. With `stream=True` the chunks are
 restored as they come (see [Streamed answers](#streamed-answers)).
-Anthropic's `messages.stream()` helper does not go through `create`, so it
-is not covered; use `messages.create(stream=True)`.
+
+Anthropic's `messages.stream()` helper builds its own request instead of
+calling `create`, so it is patched as well. The request is redacted when the
+`with` block starts, and the events, `text_stream` and `get_final_message()`
+carry the real values. The SDK's own tracing, in its `"content"` mode, takes
+the answer from that helper; Taintward keeps it from the SDK's span, so that
+span has no answer text (as with `create(stream=True)`).
+
+The `parse()` helpers (OpenAI `chat.completions.parse` and `responses.parse`,
+Anthropic `messages.parse`) also skip `create`, and they are **not** patched:
+their request goes to the provider unredacted. Use `create` with
+`response_format` / `output_config` instead.
 
 ## CrewAI
 
@@ -528,10 +538,14 @@ gateway refuses those calls.
 - CrewAI, LlamaIndex and LiteLLM have their own callbacks and logging
   (LiteLLM success callbacks, LlamaIndex callback handlers, CrewAI events)
   that run inside the model call. They see the redacted request and the
-  model's answer with placeholders. Tool callbacks see what the tool got.
+  model's answer with placeholders. LiteLLM runs its success callbacks after
+  the call returns (in a thread or a background task) on the object it
+  returned, so Taintward hands the caller a restored copy and leaves
+  LiteLLM's object (and the proxy's) with the placeholders. Tool callbacks
+  see what the tool got.
 - Not covered: LangChain `generate()` called directly with message lists,
-  OpenAI `with_raw_response` / `with_streaming_response`, Anthropic's
-  `messages.stream()` helper, OpenAI and Anthropic `beta` endpoints,
+  OpenAI `with_raw_response` / `with_streaming_response`, the OpenAI and
+  Anthropic `parse()` helpers, OpenAI and Anthropic `beta` endpoints,
   embeddings, other LLM providers, and other clients you create without
   `protect_*`.
 - The OpenAI Agents SDK has its own tracing, which by default uploads tool

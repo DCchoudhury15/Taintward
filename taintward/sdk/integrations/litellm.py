@@ -4,12 +4,13 @@ SDK. ``protect_litellm()`` patches ``litellm.completion`` and
 ``litellm.acompletion`` in place (call them as ``litellm.completion(...)``;
 a name imported before the patch is not covered). Each request is redacted
 for the ``llm`` destination and recorded as a ``chat <model>`` span, the same
-way as ``protect_openai``. With placeholders on, the returned
-``ModelResponse`` is restored: message text and tool call arguments get the
-real values back. With ``stream=True`` each chunk is handed out as a
-restored copy (a placeholder split across chunks is restored whole), and
-LiteLLM's own copies of the chunks, which its logging callbacks read, keep
-the placeholders.
+way as ``protect_openai``. With placeholders on, the caller gets a restored
+copy of the ``ModelResponse``: message text and tool call arguments get the
+real values back. LiteLLM's own response object is not changed: its logging
+callbacks read it after the call returns (in a thread or a background task),
+so they must see the placeholders. With ``stream=True`` each chunk is handed
+out as a restored copy (a placeholder split across chunks is restored
+whole), and LiteLLM's own copies of the chunks keep the placeholders too.
 
 Proxy. ``TaintwardGuardrail`` is a LiteLLM custom guardrail. In the proxy
 config::
@@ -23,8 +24,10 @@ config::
 
 ``pre_call`` redacts ``messages`` before the request goes to the provider and
 records the span; ``post_call`` restores the placeholders in the answer, so
-the client gets real values and the provider never sees them. A streamed
-answer is restored chunk by chunk (``async_post_call_streaming_iterator_hook``).
+the client gets real values and the provider never sees them. The hook
+returns a restored copy, so the proxy's logging keeps the placeholders. A
+streamed answer is restored chunk by chunk
+(``async_post_call_streaming_iterator_hook``).
 Each request has its own placeholder map, kept in memory between the two
 hooks (at most ``max_pending`` requests, oldest dropped first) and never sent
 anywhere.
@@ -49,6 +52,7 @@ from taintward.sdk.integrations._payload import to_plain
 from taintward.sdk.integrations._stream import (
     ChatChunks,
     StreamCall,
+    clone,
     guard_stream,
     is_stream,
     json_format,
@@ -118,7 +122,8 @@ def _wrap(original, ward: Ward, is_async: bool):
 
     def end(call, kwargs, resp, pmap):
         if finish_llm(call, ward, pmap, _view(resp)):
-            resp = pmap.restore_inplace(resp)
+            # A copy: LiteLLM's logging callbacks read its own object later.
+            resp = pmap.restore_inplace(clone(resp))
         return resp
 
     def open_stream(call, kwargs, pmap):
@@ -242,7 +247,7 @@ class TaintwardGuardrail(CustomGuardrail):
             return response
         ph.check_output(pmap, _view(response),
                         strict=getattr(self.ward, "placeholder_strict", False))
-        return pmap.restore_inplace(response)
+        return pmap.restore_inplace(clone(response))  # the proxy logs its own object
 
     async def async_post_call_streaming_iterator_hook(self, user_api_key_dict, response,
                                                       request_data: dict):

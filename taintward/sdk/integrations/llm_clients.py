@@ -10,7 +10,8 @@ destination before it is sent, and a ``chat <model>`` span is recorded with
 Patched methods (sync and async clients):
 
 * OpenAI: ``client.chat.completions.create`` and ``client.responses.create``
-* Anthropic: ``client.messages.create``
+* Anthropic: ``client.messages.create`` and the ``client.messages.stream()``
+  helper
 
 Use the protected OpenAI client with the OpenAI Agents SDK too
 (``agents.set_default_openai_client(client)`` or
@@ -31,8 +32,19 @@ The span stays open until the stream ends and then records the answer. The
 OpenAI ``chat.completions.stream()`` and ``responses.stream()`` helpers call
 ``create``, so they are covered too.
 
-The patch is applied to one client object only. Other clients, Anthropic's
-``messages.stream()`` helper, and the ``with_raw_response`` /
+Anthropic's ``messages.stream()`` helper does not call ``create``: it builds
+the request itself and sends it when its ``with`` block starts. The patched
+helper redacts the request at that moment (the span opens then too) and
+hands the redacted fields to the SDK's own helper, so the SDK still builds
+the request (headers, ``output_format``). The event stream inside the SDK's
+``MessageStream`` gets the same restore as ``create(stream=True)``, so its
+events, ``text_stream``, snapshots and ``get_final_message()`` carry the
+real values. The SDK's own tracing reads that snapshot for its span when its
+``content_mode`` is ``"content"``; the snapshot is kept from it, so that span
+gets no answer text, as for ``create(stream=True)``.
+
+The patch is applied to one client object only. Other clients, the
+``parse()`` helpers, and the ``with_raw_response`` /
 ``with_streaming_response`` helpers are not covered.
 """
 
@@ -40,6 +52,7 @@ from __future__ import annotations
 
 import functools
 import inspect
+import logging
 from typing import Any, Callable, Mapping
 
 from opentelemetry import trace
@@ -60,6 +73,8 @@ from taintward.sdk.integrations._stream import (
     json_format,
     set_usage,
 )
+
+log = logging.getLogger("taintward.sdk")
 
 _PATCHED_MARK = "__taintward_patched__"
 
@@ -179,8 +194,9 @@ class _AnthropicEvents:
     and thinking deltas are restored piece by piece per content block; the
     held end goes out as one extra delta event before ``content_block_stop``."""
 
-    def __init__(self, pmap) -> None:
+    def __init__(self, pmap, *, json_text: bool = False) -> None:
         self.p = Pieces(pmap)
+        self.text_mode = "json" if json_text else "text"
         self.last: dict = {}
         self.blocks: dict = {}
         self.usage: dict = {}
@@ -211,12 +227,15 @@ class _AnthropicEvents:
             self.blocks[ev.index] = (get(block, "type"), get(block, "name"))
             if isinstance(get(block, "text"), str) and block.text:
                 ev = clone(ev)
-                ev.content_block.text = self.p.push((ev.index, "text"), block.text)
+                ev.content_block.text = self.p.push((ev.index, "text"), block.text,
+                                                    self.text_mode)
             elif get(block, "input"):
                 ev = clone(ev)
                 self.p.restore_full(ev.content_block.input)
         elif t == "content_block_delta":
             field, mode = _ANTHROPIC_DELTAS.get(get(ev.delta, "type"), (None, None))
+            if field == "text":
+                mode = self.text_mode
             value = get(ev.delta, field) if field else None
             if isinstance(value, str) and value:
                 key = (ev.index, field)
@@ -261,7 +280,13 @@ def _stream_handler(provider: str, kwargs: dict, pmap):
         return ChatChunks(pmap, json_content=json_format(kwargs.get("response_format")))
     if provider == "openai.responses":
         return _ResponseEvents(pmap, json_text=json_format(kwargs.get("text")))
-    return _AnthropicEvents(pmap)
+    return _AnthropicEvents(pmap, json_text=_anthropic_json(kwargs))
+
+
+def _anthropic_json(kwargs: dict) -> bool:
+    """Does an Anthropic request ask for a JSON answer (``output_format`` or
+    ``output_config.format``)? Its text is then restored JSON-escaped."""
+    return json_format(kwargs.get("output_format")) or json_format(kwargs.get("output_config"))
 
 
 def _guard_request(provider: str, system: str, fields: tuple[str, ...],
@@ -322,6 +347,26 @@ def with_instruction(provider: str, content: dict, pmap, ward: Ward) -> dict:
     return content
 
 
+def _send_fields(provider: str, call: GuardedCall, pmap, ward: Ward) -> dict:
+    """The redacted request fields to send (with the placeholder line)."""
+    send = with_instruction(provider, call.kwargs, pmap, ward)
+    if send is not call.kwargs:
+        call.span.set_attribute("taintward.placeholders.instruction", True)
+    return send
+
+
+def _open_stream(provider: str, system: str, fields: tuple[str, ...], kwargs: dict,
+                 ward: Ward, pmap) -> tuple[StreamCall, dict]:
+    """Open the span of a streamed request and redact it."""
+    sc = StreamCall(_guard_request(provider, system, fields, kwargs, ward, pmap), ward, pmap)
+    call = sc.enter()
+    try:
+        return sc, _send_fields(provider, call, pmap, ward)
+    except BaseException as e:
+        sc.end(None, exc=e, check=False)
+        raise
+
+
 def _wrap_create(original: Callable, provider: str, system: str,
                  fields: tuple[str, ...], ward: Ward) -> Callable:
     is_async = inspect.iscoroutinefunction(inspect.unwrap(original))
@@ -338,19 +383,10 @@ def _wrap_create(original: Callable, provider: str, system: str,
         return resp
 
     def request(call: GuardedCall, pmap) -> dict:
-        send = with_instruction(provider, call.kwargs, pmap, ward)
-        if send is not call.kwargs:
-            call.span.set_attribute("taintward.placeholders.instruction", True)
-        return send
+        return _send_fields(provider, call, pmap, ward)
 
     def open_stream(kwargs: dict, pmap) -> tuple[StreamCall, dict]:
-        sc = StreamCall(_guard_request(provider, system, fields, kwargs, ward, pmap), ward, pmap)
-        call = sc.enter()
-        try:
-            return sc, request(call, pmap)
-        except BaseException as e:
-            sc.end(None, exc=e, check=False)
-            raise
+        return _open_stream(provider, system, fields, kwargs, ward, pmap)
 
     def stream(sc: StreamCall, kwargs: dict, resp: Any, pmap) -> Any:
         if not is_stream(resp):  # a full answer after all
@@ -401,6 +437,116 @@ def _wrap_create(original: Callable, provider: str, system: str,
     return create
 
 
+# --- Anthropic messages.stream() ---------------------------------------------
+
+
+class _MessageStreamManager:
+    """What a protected client's ``messages.stream()`` returns. ``with`` sends
+    the redacted request and gives the SDK's own ``MessageStream``."""
+
+    def __init__(self, start: Callable[[], Any]) -> None:
+        self._start = start
+        self._stream: Any = None
+
+    def __enter__(self) -> Any:
+        self._stream = self._start()
+        return self._stream
+
+    def __exit__(self, *exc: Any) -> None:
+        if self._stream is not None:
+            self._stream.close()
+
+
+class _AsyncMessageStreamManager:
+    """The async client's version: ``async with``."""
+
+    def __init__(self, start: Callable[[], Any]) -> None:
+        self._start = start
+        self._stream: Any = None
+
+    async def __aenter__(self) -> Any:
+        self._stream = await self._start()
+        return self._stream
+
+    async def __aexit__(self, *exc: Any) -> None:
+        if self._stream is not None:
+            await self._stream.close()
+
+
+def _guard_message_stream(sc: StreamCall, ms: Any, kwargs: dict, pmap) -> Any:
+    """Restore the events the SDK's ``MessageStream`` reads, and keep its
+    snapshot (real values) out of the SDK's own span."""
+    raw = getattr(ms, "_raw_stream", None)
+    if raw is None or not is_stream(raw):
+        # Not the SDK layout this was written for: the request was redacted,
+        # but the answer keeps its placeholders.
+        log.warning("taintward: cannot restore Anthropic messages.stream() answers "
+                    "with this SDK version; they keep their placeholders")
+        sc.end(None, check=False)
+        return ms
+    guarded = guard_stream(raw, sc, _AnthropicEvents(pmap, json_text=_anthropic_json(kwargs)))
+    if guarded is not raw:
+        ms._raw_stream = guarded
+    try:
+        from anthropic.lib._tracing import withhold_message_snapshot
+    except ImportError:  # an SDK without tracing of its own
+        return ms
+    withhold_message_snapshot(raw)
+    return ms
+
+
+def _wrap_message_stream(original: Callable, ward: Ward, is_async: bool) -> Callable:
+    provider = system = "anthropic"
+
+    def open_(args: tuple, kwargs: dict) -> tuple[StreamCall, Any, Any]:
+        pmap = ward.llm_placeholder_map()
+        sc, send = _open_stream(provider, system, _ANTHROPIC_FIELDS, kwargs, ward, pmap)
+        try:
+            manager = sc.run(original, *args, **{**kwargs, **send})
+        except BaseException as e:
+            sc.end(None, exc=e, check=False)
+            raise
+        return sc, manager, pmap
+
+    if is_async:
+        @functools.wraps(original)
+        def astream(*args, **kwargs):
+            async def start():
+                sc, manager, pmap = open_(args, kwargs)
+                try:
+                    ms = await sc.arun(manager.__aenter__())
+                except BaseException as e:
+                    sc.end(None, exc=e, check=False)
+                    raise
+                return _guard_message_stream(sc, ms, kwargs, pmap)
+            return _AsyncMessageStreamManager(start)
+        setattr(astream, _PATCHED_MARK, True)
+        return astream
+
+    @functools.wraps(original)
+    def stream(*args, **kwargs):
+        def start():
+            sc, manager, pmap = open_(args, kwargs)
+            try:
+                ms = sc.run(manager.__enter__)
+            except BaseException as e:
+                sc.end(None, exc=e, check=False)
+                raise
+            return _guard_message_stream(sc, ms, kwargs, pmap)
+        return _MessageStreamManager(start)
+    setattr(stream, _PATCHED_MARK, True)
+    return stream
+
+
+def _patch_message_stream(resource: Any, ward: Ward) -> bool:
+    original = getattr(resource, "stream", None) if resource is not None else None
+    if original is None or getattr(original, _PATCHED_MARK, False):
+        return False
+    is_async = inspect.iscoroutinefunction(inspect.unwrap(resource.create))
+    resource.stream = _wrap_message_stream(original, ward, is_async)
+    return True
+
+
 def _patch(resource: Any, provider: str, system: str, fields: tuple[str, ...],
            ward: Ward) -> bool:
     if resource is None:
@@ -428,10 +574,13 @@ def protect_openai(client: Any, *, ward: Ward | None = None) -> Any:
 
 def protect_anthropic(client: Any, *, ward: Ward | None = None) -> Any:
     """Patch an ``anthropic.Anthropic`` / ``anthropic.AsyncAnthropic``
-    instance in place and return it."""
+    instance in place (``messages.create`` and ``messages.stream``) and
+    return it."""
     w = ward or _resolve(None, None)
-    patched = _patch(getattr(client, "messages", None), "anthropic", "anthropic",
-                     _ANTHROPIC_FIELDS, w)
+    messages = getattr(client, "messages", None)
+    patched = _patch(messages, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w)
+    if patched or _already(client, "anthropic"):
+        patched |= _patch_message_stream(messages, w)
     if not patched and not _already(client, "anthropic"):
         raise TypeError("client has no messages.create")
     return client
