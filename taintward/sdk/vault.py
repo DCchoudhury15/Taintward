@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import os
 import queue
 import sqlite3
@@ -56,7 +57,15 @@ from urllib.parse import urlsplit
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from taintward.sdk.keys import KeyRing, key_id_for, load_keys, parse_hex_key
+from taintward.sdk.keys import (
+    KeyConfigError,
+    KeyRing,
+    key_id_for,
+    kms_only,
+    load_keys,
+    parse_hex_key,
+    reload_seconds,
+)
 
 
 @runtime_checkable
@@ -132,6 +141,8 @@ _SUBJECT_INDEX_LABEL = b"taintward-vault-subject-index-v1"
 # each key in the ring (the GCM tag tells which one is right).
 _MAGIC = b"tw1"
 
+log = logging.getLogger("taintward.sdk")
+
 
 class _Sealer:
     """AES-GCM sealing and the subject blind index, shared by every
@@ -142,11 +153,19 @@ class _Sealer:
     key derived from the vault key.
 
     Keys come from a key ring (taintward/sdk/keys.py): new rows are sealed
-    with the active key, older rows are opened with the key they name.
+    with the active key, older rows are opened with the key they name. With
+    TAINTWARD_KEYS_RELOAD_SECONDS set, the ring is read again after that
+    long, so a rotated key is used for new rows without a restart.
     """
 
     def __init__(self, key_hex: str | None, backend: str) -> None:
+        self._backend = backend
+        self._fixed = bool(key_hex)
+        self._checked = time.monotonic()
         if key_hex:
+            if kms_only():
+                raise KeyConfigError("KMS-only mode: the vault key must come from a key ring "
+                                     "with wrapped keys (TAINTWARD_KEYS), not a plain key")
             key = _parse_key(key_hex, "TAINTWARD_VAULT_KEY")
             ring = KeyRing("vault", key_id_for(key), {key_id_for(key): key})
             keyset = load_keys("env")
@@ -159,6 +178,9 @@ class _Sealer:
                     "(hex, 32/48/64 chars), separate from TAINTWARD_FPE_KEY, "
                     "or a vault key ring in TAINTWARD_KEYS"
                 )
+        self._use(ring, keyset)
+
+    def _use(self, ring: KeyRing, keyset) -> None:
         fpe_keys = set(keyset.fpe.keys.values()) if keyset.fpe else set()
         if fpe_keys & set(ring.keys.values()):
             raise ValueError("TAINTWARD_VAULT_KEY must not be the same as TAINTWARD_FPE_KEY")
@@ -167,6 +189,24 @@ class _Sealer:
         self._index_keys = {kid: self._index_key(k) for kid, k in ring.keys.items()}
         self.aead = self._aeads[ring.active]
         self.index_key = self._index_keys[ring.active]
+
+    def refresh(self) -> None:
+        """Pick up a rotated ring (at most once per TAINTWARD_KEYS_RELOAD_SECONDS).
+        A ring that no longer loads keeps the current keys and logs why."""
+        ttl = reload_seconds()
+        if self._fixed or not ttl or time.monotonic() - self._checked < ttl:
+            return
+        self._checked = time.monotonic()
+        try:
+            keyset = load_keys()
+        except Exception as exc:  # noqa: BLE001 - keep working with the keys we have
+            log.warning("taintward: could not read the vault key ring again (%s); "
+                        "keeping the current keys", exc)
+            return
+        ring = keyset.vault
+        if ring is not None and (ring.active, sorted(ring.keys)) != (self.ring.active,
+                                                                     sorted(self.ring.keys)):
+            self._use(ring, keyset)
 
     @staticmethod
     def _index_key(key: bytes) -> bytes:
@@ -178,6 +218,7 @@ class _Sealer:
 
     def seal(self, token: str, original: str,
              subject: str | None = None) -> tuple[bytes, bytes]:
+        self.refresh()
         nonce = os.urandom(12)
         kid = self.ring.active.encode()
         sub = (subject or "").encode()
@@ -201,6 +242,7 @@ class _Sealer:
     def open_row(self, token: str, nonce: bytes, ct: bytes) -> tuple[str, str | None, bool]:
         """(original, subject, subject known). Legacy rows do not hold the
         subject, so for them the last value is False."""
+        self.refresh()
         nf, ct, aad = bytes(nonce), bytes(ct), token.encode()
         kid = self.sealed_by(nf)
         if kid is not None:
@@ -246,6 +288,7 @@ class _Sealer:
     def subject_idxs(self, subject: str) -> list[str]:
         """The subject's index under every key in the ring (active first), so
         erasure also finds rows written before a rotation."""
+        self.refresh()
         out = [self.subject_idx(subject)]
         for k in self._index_keys.values():
             idx = hmac.new(k, subject.encode(), hashlib.sha256).hexdigest()

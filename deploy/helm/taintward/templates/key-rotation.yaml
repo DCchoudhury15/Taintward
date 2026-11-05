@@ -1,0 +1,63 @@
+{{- if .Values.keyRotation.enabled }}
+{{- $k := .Values.keyRotation -}}
+{{- $secret := required "keyRotation.existingSecret is required (a Secret with VAULT_ADDR, VAULT_TOKEN and TAINTWARD_VAULT)" $k.existingSecret -}}
+{{- $keys := required "keyRotation.keys is required (for example vault-kv:secret/taintward)" $k.keys -}}
+{{- if not (hasPrefix "vault-kv:" $keys) }}
+{{- fail "keyRotation.keys must be vault-kv:<mount>/<path>: the job writes the rotated ring back" }}
+{{- end }}
+{{- $repo := $k.image.repository | default .Values.gateway.image.repository -}}
+{{- $tag := $k.image.tag | default .Values.gateway.image.tag | default .Chart.AppVersion -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ printf "%s-key-rotation" (include "taintward.fullname" .) | trunc 52 | trimSuffix "-" }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: key-rotation
+spec:
+  schedule: {{ $k.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: {{ $k.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ $k.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            {{- include "taintward.selectorLabels" (dict "ctx" . "component" "key-rotation") | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          {{- with $k.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: rotate
+              image: "{{ $repo }}:{{ $tag }}"
+              imagePullPolicy: {{ $k.image.pullPolicy }}
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  {{- range $k.purposes }}
+                  python -m taintward.keys_cli rotate --keys {{ $keys | quote }} --purpose {{ . }} --if-older-than {{ $k.maxAgeDays | int }}{{ if $k.kms }} --kms {{ $k.kms | quote }}{{ end }}{{ if and $k.reseal (eq . "vault") }} --reseal{{ end }}
+                  {{- end }}
+                  python -m taintward.keys_cli status --keys {{ $keys | quote }} --max-age {{ $k.maxAgeDays | int }}
+              envFrom:
+                - secretRef:
+                    name: {{ $secret }}
+              env:
+                - name: TAINTWARD_KEYS
+                  value: {{ $keys | quote }}
+              resources:
+                {{- toYaml $k.resources | nindent 16 }}
+              securityContext:
+                {{- include "taintward.containerSecurity" . | nindent 16 }}
+{{- end }}

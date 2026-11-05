@@ -130,3 +130,12 @@ jobs:
           helm template t deploy/helm/taintward
           --set gateway.enabled=true --set gateway.existingSecret=keys
           --set routingTier.enabled=true --set collector.fileExport.enabled=true > /dev/null
+      - run: >-
+          helm template t deploy/helm/taintward
+          --set keyRotation.enabled=true --set keyRotation.existingSecret=keys
+          --set keyRotation.keys=vault-kv:secret/taintward
+          --show-only templates/key-rotation.yaml | grep -q "taintward.keys_cli rotate"
+      - run: >-
+          ! helm template t deploy/helm/taintward
+          --set keyRotation.enabled=true --set keyRotation.existingSecret=keys
+          --set keyRotation.keys=file:/keys.json > /dev/null 2>&1

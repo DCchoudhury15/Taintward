@@ -248,3 +248,45 @@ gateway:
   tolerations: []
   affinity: {}
   extraEnv: []
+
+# Scheduled key rotation: a CronJob that runs
+#   python -m taintward.keys_cli rotate --keys <keys> --purpose <p> --if-older-than <maxAgeDays> [--reseal]
+# for each purpose. It only rotates when the active key is older than
+# maxAgeDays, so a daily schedule is safe. The ring must be one the job can
+# write: HashiCorp Vault KV (vault-kv:<mount>/<path>), written with
+# check-and-set. Running pods pick up the new vault key when they set
+# TAINTWARD_KEYS_RELOAD_SECONDS (put it in their Secret or extraEnv).
+# See docs/key-management.md.
+keyRotation:
+  enabled: false
+  schedule: "17 3 * * *"
+  maxAgeDays: 90
+  # vault: the key that seals originals at rest. fpe changes every new token,
+  # so rotate it on purpose, not on a timer.
+  purposes: [vault]
+  # The ring, for example vault-kv:secret/taintward. Required when enabled.
+  keys: ""
+  # Wrap new keys with this KMS (empty: the ring's top-level "kms"). The
+  # gateway image has no AWS or Google client libraries: use vault-transit,
+  # or an image with taintward[aws] / taintward[gcp].
+  kms: ""
+  # Re-encrypt vault rows right after a vault rotation (needs TAINTWARD_VAULT
+  # in the Secret).
+  reseal: true
+  # Name of an existing Secret with VAULT_ADDR, VAULT_TOKEN, TAINTWARD_VAULT,
+  # TAINTWARD_KEYS_KMS_ONLY ... passed as environment variables. Required.
+  existingSecret: ""
+  image:
+    # Empty: the gateway image (it has the taintward-keys command).
+    repository: ""
+    tag: ""
+    pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3

@@ -55,6 +55,8 @@ runs after `import taintward`.
 
 | `TAINTWARD_VAULT_KEY_ID` | string | a short hash of the key | id stored in each sealed vault row | `taintward/sdk/keys.py` |
 | `TAINTWARD_VAULT_KEY_PREVIOUS` | comma list of hex keys | empty | older vault keys, used only to open rows during a rotation | `taintward/sdk/keys.py` |
+| `TAINTWARD_KEYS_KMS_ONLY` | flag | off | every key must be wrapped by a KMS: plain keys in the ring, `TAINTWARD_FPE_KEY` / `TAINTWARD_VAULT_KEY`, keys passed in code, the demo key and the random per-process key are refused. `"kms_only": true` in the ring does the same | `taintward/sdk/keys.py` |
+| `TAINTWARD_KEYS_RELOAD_SECONDS` | number | `0` | read a file or Vault key ring again after this many seconds, so the vault uses a rotated key without a restart. `0`: once per process | `taintward/sdk/keys.py`, `taintward/sdk/vault.py` |
 | `TAINTWARD_KEYS` | `env`, `file:<path>` or `vault-kv:<mount>/<path>` | `env` | key ring source. Its active keys are used when `TAINTWARD_FPE_KEY` / `TAINTWARD_VAULT_KEY` are unset; its other keys stay readable. Keys in it can be wrapped by AWS KMS, GCP KMS or Vault Transit | `taintward/sdk/keys.py` |
 | `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_TOKEN_FILE`, `VAULT_NAMESPACE`, `VAULT_CACERT` | standard HashiCorp Vault settings | unset | used by `vault-kv:` rings and `vault-transit:` wrapped keys | `taintward/sdk/keys.py` |
 

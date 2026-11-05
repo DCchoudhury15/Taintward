@@ -52,7 +52,7 @@ from taintward.core.doe import Sensitivity
 from taintward.sdk import _walk
 from taintward.sdk.destinations import DEST_INTERNAL, DEST_LLM
 from taintward.sdk.ff1 import FF1
-from taintward.sdk.keys import key_id_for, load_keys
+from taintward.sdk.keys import KeyConfigError, key_id_for, kms_only, load_keys
 from taintward.sdk.vault import MemoryVault, Vault, get_vault
 
 # detect.OVERSIZE: a value too large to scan (gap G10). Not imported: detect
@@ -118,9 +118,18 @@ def _resolve_key(key_hex: str | None) -> tuple[str, str | None]:
     """(hex key, key id from a ring or None).
 
     Explicit key > TAINTWARD_FPE_KEY > active key of the TAINTWARD_KEYS ring
-    > demo key (opt-in) > random per process.
+    > demo key (opt-in) > random per process. In KMS-only mode only the ring
+    (with wrapped keys) is allowed.
     """
     key = key_hex or os.environ.get("TAINTWARD_FPE_KEY")
+    if kms_only():
+        if key:
+            raise KeyConfigError("KMS-only mode: the FPE key must come from a key ring with "
+                                 "wrapped keys (TAINTWARD_KEYS), not a plain key")
+        ring = load_keys().fpe
+        if ring is None:
+            raise KeyConfigError("KMS-only mode: the key ring has no fpe key")
+        return ring.active_key.hex(), ring.active
     if key:
         return key.strip(), None
     ring = load_keys().fpe

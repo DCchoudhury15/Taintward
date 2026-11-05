@@ -65,6 +65,14 @@
 
 ### Added
 
+- KMS-only key mode (`TAINTWARD_KEYS_KMS_ONLY=1` or `"kms_only": true` in
+  the ring): plain keys anywhere, the demo key and the random per-process
+  key are refused. Scheduled rotation: keys record the day they were made,
+  `taintward-keys rotate --if-older-than N [--reseal]` and `status
+  --max-age N` (exit 1) for cron, rings in Vault KV can be rotated (written
+  with check-and-set), `TAINTWARD_KEYS_RELOAD_SECONDS` lets running vaults
+  pick up a rotated key, and the Helm chart has a `keyRotation` CronJob.
+
 - TypeScript SDK: `protectOpenAI` and `protectAnthropic` for the official JS
   clients (chat, responses, `parse()` and `stream()` helpers, embeddings,
   Anthropic `messages.stream()`), streamed answers restored chunk by chunk;

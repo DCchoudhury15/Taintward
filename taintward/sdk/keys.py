@@ -41,9 +41,24 @@ AWS and GCP wraps are bound to the purpose ("taintward-key" = "fpe" or
 "vault" as encryption context / additional data), so a wrapped vault key
 cannot be passed off as an FPE key.
 
+KMS-only mode (TAINTWARD_KEYS_KMS_ONLY=1, or "kms_only": true in the ring):
+every key must be wrapped by a KMS. Plain hex keys in the ring, keys in
+TAINTWARD_FPE_KEY / TAINTWARD_VAULT_KEY, the demo key and the random
+per-process key are refused, so no key is ever stored in plain text.
+
+Scheduled rotation: each key made by taintward-keys records the day it was
+made ("created"). `taintward-keys rotate --if-older-than 90` only rotates
+when the active key is older than that, so it can run from cron or a
+Kubernetes CronJob; `taintward-keys status --max-age 90` exits 1 when a key
+is too old (for alerts). With TAINTWARD_KEYS_RELOAD_SECONDS set, running
+processes read the ring again after that many seconds, so the vault seals
+new rows with the new key without a restart (the FPE key is read once per
+process: a new FPE key makes new tokens, so restart deliberately).
+
 The taintward-keys command makes and rotates rings: generate, rotate,
-retire, show and reseal (re-encrypt vault rows under the active key).
-See docs/key-management.md.
+retire, show, status and reseal (re-encrypt vault rows under the active
+key). A ring in a file or in Vault KV (--keys vault-kv:..., written back
+with check-and-set) can be rotated. See docs/key-management.md.
 """
 
 from __future__ import annotations
@@ -57,10 +72,14 @@ import re
 import sys
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
 from typing import Any, Callable
+
+from taintward.sdk.envflags import env_flag
 
 PURPOSES = ("fpe", "vault")
 _KID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -92,6 +111,8 @@ class KeyRing:
     purpose: str
     active: str
     keys: dict[str, bytes] = field(default_factory=dict)
+    # Day each key was made (ISO date), when the ring says so.
+    created: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.active not in self.keys:
@@ -108,6 +129,17 @@ class KeyRing:
 
     def get(self, kid: str) -> bytes | None:
         return self.keys.get(kid)
+
+    def age_days(self, kid: str | None = None, today: date | None = None) -> int | None:
+        """Days since the key was made, or None when the ring does not say."""
+        made = self.created.get(kid or self.active)
+        if not made:
+            return None
+        try:
+            day = date.fromisoformat(made[:10])
+        except ValueError:
+            return None
+        return ((today or _today()) - day).days
 
     def __repr__(self) -> str:  # never print key bytes
         return f"KeyRing({self.purpose!r}, active={self.active!r}, ids={sorted(self.keys)})"
@@ -247,11 +279,27 @@ def wrap(spec: str, key: bytes, purpose: str) -> str:
 # loading
 # ---------------------------------------------------------------------------
 
+def _today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+def kms_only(doc: dict | None = None) -> bool:
+    """Is KMS-only mode on (TAINTWARD_KEYS_KMS_ONLY, or the ring says so)?"""
+    return env_flag("TAINTWARD_KEYS_KMS_ONLY", False) or bool(
+        isinstance(doc, dict) and doc.get("kms_only"))
+
+
+def _refuse_plain(what: str) -> KeyConfigError:
+    return KeyConfigError(f"{what}: a plain key is not allowed in KMS-only mode; "
+                          "wrap it with a KMS (taintward-keys rotate --kms ...)")
+
+
 def parse_ring_doc(doc: dict, source: str) -> KeySet:
     """Build a KeySet from key ring JSON, unwrapping wrapped keys."""
     if not isinstance(doc, dict):
         raise KeyConfigError(f"{source}: key ring must be a JSON object")
     default_kms = doc.get("kms")
+    only_kms = kms_only(doc)
     rings: dict[str, KeyRing] = {}
     for purpose in PURPOSES:
         sect = doc.get(purpose)
@@ -260,13 +308,18 @@ def parse_ring_doc(doc: dict, source: str) -> KeySet:
         if not isinstance(sect, dict) or not isinstance(sect.get("keys"), dict) or not sect["keys"]:
             raise KeyConfigError(f"{source}: {purpose} needs a non-empty 'keys' object")
         keys: dict[str, bytes] = {}
+        created: dict[str, str] = {}
         for kid, entry in sect["keys"].items():
             what = f"{source}: {purpose} key {kid!r}"
             if isinstance(entry, str):
                 entry = {"hex": entry}
             if not isinstance(entry, dict):
                 raise KeyConfigError(f"{what} must be hex or an object")
+            if isinstance(entry.get("created"), str):
+                created[kid] = entry["created"]
             if "hex" in entry:
+                if only_kms:
+                    raise _refuse_plain(what)
                 keys[kid] = parse_hex_key(entry["hex"], what)
             elif "wrapped" in entry:
                 kms = entry.get("kms") or default_kms
@@ -276,7 +329,7 @@ def parse_ring_doc(doc: dict, source: str) -> KeySet:
             else:
                 raise KeyConfigError(f"{what} needs 'hex' or 'wrapped'")
         active = sect.get("active") or next(iter(sect["keys"]))
-        rings[purpose] = KeyRing(purpose, active, keys)
+        rings[purpose] = KeyRing(purpose, active, keys, created)
     if rings.get("fpe") and rings.get("vault"):
         if set(rings["fpe"].keys.values()) & set(rings["vault"].keys.values()):
             raise KeyConfigError(f"{source}: a vault key must not also be an FPE key")
@@ -285,6 +338,10 @@ def parse_ring_doc(doc: dict, source: str) -> KeySet:
 
 def _env_keyset() -> KeySet:
     ks = KeySet(source="env")
+    if kms_only():
+        for name in ("TAINTWARD_FPE_KEY", "TAINTWARD_VAULT_KEY", "TAINTWARD_VAULT_KEY_PREVIOUS"):
+            if os.environ.get(name):
+                raise _refuse_plain(name)
     fpe = os.environ.get("TAINTWARD_FPE_KEY")
     if fpe:
         key = parse_hex_key(fpe, "TAINTWARD_FPE_KEY")
@@ -303,6 +360,33 @@ def _env_keyset() -> KeySet:
     return ks
 
 
+def _read_vault_kv(ref: str) -> tuple[dict, int | None]:
+    """The ring stored in Vault KV v2 and its version (for check-and-set)."""
+    mount, _, path = ref.strip("/").partition("/")
+    if not path:
+        raise KeyConfigError("vault-kv needs <mount>/<path>, e.g. vault-kv:secret/taintward")
+    body = _vault_request("GET", f"{mount}/data/{path}")["data"]
+    data = body["data"]
+    if isinstance(data.get("keyring"), str):
+        data = json.loads(data["keyring"])
+    version = (body.get("metadata") or {}).get("version")
+    return data, version if isinstance(version, int) else None
+
+
+def _write_vault_kv(ref: str, doc: dict, version: int | None) -> None:
+    mount, _, path = ref.strip("/").partition("/")
+    payload: dict[str, Any] = {"data": {"keyring": json.dumps(doc)}}
+    if version is not None:
+        payload["options"] = {"cas": version}  # fails if someone wrote in between
+    try:
+        _vault_request("POST", f"{mount}/data/{path}", payload)
+    except KeyConfigError as exc:
+        if version is not None and "HTTP 400" in str(exc):
+            raise KeyConfigError(f"the key ring at vault-kv:{ref} changed after it was read "
+                                 "(check-and-set); nothing was written, run again") from None
+        raise
+
+
 def _read_source(spec: str) -> tuple[dict, str]:
     if spec.startswith("file:"):
         path = spec[len("file:"):]
@@ -317,13 +401,7 @@ def _read_source(spec: str) -> tuple[dict, str]:
             raise KeyConfigError(f"key ring {path} is not valid JSON (line {exc.lineno})") from None
     if spec.startswith("vault-kv:"):
         ref = spec[len("vault-kv:"):].strip("/")
-        mount, _, path = ref.partition("/")
-        if not path:
-            raise KeyConfigError("vault-kv needs <mount>/<path>, e.g. vault-kv:secret/taintward")
-        data = _vault_request("GET", f"{mount}/data/{path}")["data"]["data"]
-        if isinstance(data.get("keyring"), str):
-            data = json.loads(data["keyring"])
-        return data, f"vault-kv:{ref}"
+        return _read_vault_kv(ref)[0], f"vault-kv:{ref}"
     raise KeyConfigError(f"unknown TAINTWARD_KEYS {spec.split(':')[0]!r}; use env, "
                          "file:<path> or vault-kv:<mount>/<path>")
 
@@ -342,24 +420,39 @@ def _merge_env(ks: KeySet) -> KeySet:
     return ks
 
 
-_CACHE: dict[str, KeySet] = {}
+_CACHE: dict[str, tuple[KeySet, float]] = {}
 _CACHE_LOCK = threading.Lock()
+
+
+def reload_seconds() -> float:
+    """TAINTWARD_KEYS_RELOAD_SECONDS: read a file or Vault ring again after
+    this many seconds (0, the default: once per process)."""
+    try:
+        return max(0.0, float(os.environ.get("TAINTWARD_KEYS_RELOAD_SECONDS", "0") or 0))
+    except ValueError:
+        return 0.0
 
 
 def load_keys(spec: str | None = None) -> KeySet:
     """Load the key rings named by spec or TAINTWARD_KEYS.
 
     A ring from a file or Vault is loaded (and unwrapped) once per process
-    and cached; call reload_keys() after rotating.
+    and cached, or again after TAINTWARD_KEYS_RELOAD_SECONDS; call
+    reload_keys() after rotating in the same process.
     """
     spec = (spec if spec is not None else os.environ.get("TAINTWARD_KEYS", "")).strip()
     if spec in ("", "env"):
+        if kms_only():
+            raise KeyConfigError("KMS-only mode needs a key ring with wrapped keys: set "
+                                 "TAINTWARD_KEYS to file:<path> or vault-kv:<mount>/<path>")
         return _env_keyset()
+    ttl = reload_seconds()
     with _CACHE_LOCK:
-        if spec not in _CACHE:
+        hit = _CACHE.get(spec)
+        if hit is None or (ttl and time.monotonic() - hit[1] >= ttl):
             doc, source = _read_source(spec)
-            _CACHE[spec] = parse_ring_doc(doc, source)
-        ks = _CACHE[spec]
+            _CACHE[spec] = (parse_ring_doc(doc, source), time.monotonic())
+        ks = _CACHE[spec][0]
     return _merge_env(KeySet(fpe=ks.fpe, vault=ks.vault, source=ks.source))
 
 
@@ -372,11 +465,14 @@ def reload_keys() -> None:
 # taintward-keys CLI
 # ---------------------------------------------------------------------------
 
-def _new_entry(kms: str | None, purpose: str) -> dict:
+def _new_entry(kms: str | None, purpose: str, *, only_kms: bool = False) -> dict:
     key = os.urandom(32)
+    made = _today().isoformat()
     if kms:
-        return {"wrapped": wrap(kms, key, purpose), "kms": kms}
-    return {"hex": key.hex()}
+        return {"wrapped": wrap(kms, key, purpose), "kms": kms, "created": made}
+    if only_kms:
+        raise KeyConfigError("KMS-only mode: give --kms (or a top-level 'kms' in the ring)")
+    return {"hex": key.hex(), "created": made}
 
 
 def _load_file(path: str) -> dict:
@@ -384,6 +480,45 @@ def _load_file(path: str) -> dict:
         return {}
     with open(path) as f:
         return json.load(f)
+
+
+class _Target:
+    """Where taintward-keys reads and writes a ring: a file or Vault KV."""
+
+    def __init__(self, file: str | None, keys: str | None) -> None:
+        if bool(file) == bool(keys):
+            raise KeyConfigError("give --file <path> or --keys vault-kv:<mount>/<path>")
+        self.file = file
+        self.ref = None
+        self.version: int | None = None
+        if keys:
+            if keys.startswith("file:"):
+                self.file = keys[len("file:"):]
+            elif keys.startswith("vault-kv:"):
+                self.ref = keys[len("vault-kv:"):].strip("/")
+            else:
+                raise KeyConfigError("--keys must be file:<path> or vault-kv:<mount>/<path>")
+
+    @property
+    def name(self) -> str:
+        return self.file or f"vault-kv:{self.ref}"
+
+    def load(self) -> dict:
+        if self.file:
+            return _load_file(self.file)
+        try:
+            doc, self.version = _read_vault_kv(self.ref or "")
+        except KeyConfigError as exc:
+            if "HTTP 404" not in str(exc):
+                raise
+            doc, self.version = {}, 0  # a new secret: the first write needs cas 0
+        return doc
+
+    def save(self, doc: dict) -> None:
+        if self.file:
+            _write_file(self.file, doc)
+        else:
+            _write_vault_kv(self.ref or "", doc, self.version)
 
 
 def _write_file(path: str, doc: dict) -> None:
@@ -409,10 +544,35 @@ def _default_id(sect: dict) -> str:
     return f"v{n}"
 
 
+def _parse_days(text: str | None) -> int | None:
+    if text is None:
+        return None
+    m = re.fullmatch(r"\s*(\d+)\s*d?\s*", text)
+    if not m:
+        raise KeyConfigError(f"bad number of days {text!r}; use for example 90 or 90d")
+    return int(m.group(1))
+
+
+def _entry_age(entry: Any) -> int | None:
+    made = entry.get("created") if isinstance(entry, dict) else None
+    try:
+        return (_today() - date.fromisoformat(str(made)[:10])).days if made else None
+    except ValueError:
+        return None
+
+
 def cmd_rotate(args) -> int:
-    doc = _load_file(args.file)
+    target = _Target(args.file, getattr(args, "keys", None))
+    doc = target.load()
     sect = doc.setdefault(args.purpose, {"keys": {}})
     sect.setdefault("keys", {})
+    max_age = _parse_days(getattr(args, "if_older_than", None))
+    if max_age is not None and sect.get("active") in sect["keys"]:
+        age = _entry_age(sect["keys"][sect["active"]])
+        if age is not None and age < max_age:
+            print(f"{args.purpose}: active key {sect['active']} is {age} days old; "
+                  f"not rotating (limit {max_age})")
+            return 0
     kid = args.id or _default_id(sect)
     if not _KID_RE.match(kid):
         print(f"bad key id {kid!r}", file=sys.stderr)
@@ -422,20 +582,25 @@ def cmd_rotate(args) -> int:
         return 2
     if args.kms and not doc.get("kms"):
         doc["kms"] = args.kms  # later rotations wrap with it too
-    sect["keys"][kid] = _new_entry(args.kms or doc.get("kms"), args.purpose)
+    sect["keys"][kid] = _new_entry(args.kms or doc.get("kms"), args.purpose,
+                                   only_kms=kms_only(doc))
     old = sect.get("active")
     sect["active"] = kid
-    parse_ring_doc(doc, args.file)  # refuse to write a ring that does not load
-    _write_file(args.file, doc)
+    parse_ring_doc(doc, target.name)  # refuse to write a ring that does not load
+    target.save(doc)
     print(f"{args.purpose}: active key is now {kid}" + (f" (was {old})" if old else ""))
     if args.purpose == "vault" and old:
+        if getattr(args, "reseal", False):
+            reload_keys()
+            return cmd_reseal(argparse.Namespace(vault=None))
         print("run `taintward-keys reseal` to move vault rows to the new key, "
-              f"then `taintward-keys retire --file {args.file} --purpose vault --id {old}`")
+              f"then `taintward-keys retire --file {target.name} --purpose vault --id {old}`")
     return 0
 
 
 def cmd_retire(args) -> int:
-    doc = _load_file(args.file)
+    target = _Target(args.file, getattr(args, "keys", None))
+    doc = target.load()
     sect = doc.get(args.purpose) or {}
     if args.id not in sect.get("keys", {}):
         print(f"no {args.purpose} key {args.id!r}", file=sys.stderr)
@@ -444,13 +609,13 @@ def cmd_retire(args) -> int:
         print("cannot retire the active key; rotate first", file=sys.stderr)
         return 2
     del sect["keys"][args.id]
-    _write_file(args.file, doc)
+    target.save(doc)
     print(f"{args.purpose}: retired {args.id}")
     return 0
 
 
 def cmd_generate(args) -> int:
-    print(json.dumps(_new_entry(args.kms, args.purpose)))
+    print(json.dumps(_new_entry(args.kms, args.purpose, only_kms=kms_only())))
     return 0
 
 
@@ -465,6 +630,28 @@ def cmd_show(args) -> int:
         ids = ", ".join(k + (" (active)" if k == ring.active else "") for k in ring.keys)
         print(f"{purpose}: {ids}")
     return 0
+
+
+def cmd_status(args) -> int:
+    """Active key ids and ages; exit 1 when one is older than --max-age (a
+    key with no "created" day counts as too old)."""
+    ks = load_keys(args.keys)
+    max_age = _parse_days(args.max_age)
+    stale = False
+    print(f"source: {ks.source}" + ("  (KMS-only)" if kms_only() else ""))
+    for purpose in PURPOSES:
+        ring = ks.ring(purpose)
+        if ring is None:
+            continue
+        age = ring.age_days()
+        made = ring.created.get(ring.active, "unknown")
+        print(f"{purpose}: active {ring.active}, made {made}"
+              + (f", {age} days old" if age is not None else ""))
+        if max_age is not None and (age is None or age >= max_age):
+            stale = True
+            print(f"{purpose}: rotate: the active key is older than {max_age} days"
+                  if age is not None else f"{purpose}: rotate: the active key's age is unknown")
+    return 1 if stale else 0
 
 
 def cmd_reseal(args) -> int:
@@ -484,13 +671,18 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def ring_args(sp, need_id=False):
-        sp.add_argument("--file", required=True, help="key ring JSON file")
+        sp.add_argument("--file", help="key ring JSON file")
+        sp.add_argument("--keys", help="or the ring in Vault KV: vault-kv:<mount>/<path>")
         sp.add_argument("--purpose", choices=PURPOSES, required=True)
         sp.add_argument("--id", required=need_id, help="key id (default v1, v2, ...)")
 
     sp = sub.add_parser("rotate", help="add a new key and make it active")
     ring_args(sp)
     sp.add_argument("--kms", help="wrap the new key with this KMS (default: the ring's kms)")
+    sp.add_argument("--if-older-than", metavar="DAYS",
+                    help="only rotate when the active key is older (for cron), e.g. 90 or 90d")
+    sp.add_argument("--reseal", action="store_true",
+                    help="vault keys: re-encrypt vault rows ($TAINTWARD_VAULT) right after")
     sp.set_defaults(fn=cmd_rotate)
 
     sp = sub.add_parser("retire", help="remove an old, inactive key")
@@ -505,6 +697,11 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("show", help="list key ids per purpose (never key bytes)")
     sp.add_argument("--keys", help="key source (default $TAINTWARD_KEYS)")
     sp.set_defaults(fn=cmd_show)
+
+    sp = sub.add_parser("status", help="active key ids and ages; exit 1 when one is too old")
+    sp.add_argument("--keys", help="key source (default $TAINTWARD_KEYS)")
+    sp.add_argument("--max-age", metavar="DAYS", help="exit 1 when an active key is this old")
+    sp.set_defaults(fn=cmd_status)
 
     sp = sub.add_parser("reseal", help="re-encrypt vault rows under the active vault key")
     sp.add_argument("--vault", help="vault spec (default $TAINTWARD_VAULT)")

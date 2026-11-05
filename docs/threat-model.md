@@ -404,8 +404,10 @@ Keys and crypto
       committed `.env`, or better, a key ring with KMS wrapped keys
       (`TAINTWARD_KEYS`, see `docs/key-management.md`). Never set
       `TAINTWARD_ALLOW_DEMO_KEY` outside demos.
-- [ ] Give the Taintward process KMS decrypt only, and rotate the vault
-      key with `taintward-keys rotate` and `reseal` on a schedule you set.
+- [ ] Give the Taintward process KMS decrypt only, turn on
+      `TAINTWARD_KEYS_KMS_ONLY=1`, and rotate the vault key on a schedule
+      (`taintward-keys rotate --if-older-than 90 --reseal`, or the Helm
+      `keyRotation` CronJob) with `TAINTWARD_KEYS_RELOAD_SECONDS` set.
 - [ ] Use a persistent vault (`postgresql://` for several replicas) with its
       own `TAINTWARD_VAULT_KEY`, different from the FPE key.
 - [ ] Limit who can read the vault table and who holds each key. Treat the

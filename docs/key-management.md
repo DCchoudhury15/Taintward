@@ -155,6 +155,73 @@ Keep old FPE keys in the ring as long as you want to be able to check who
 made a token. Retiring one makes erasure of its digit-only tokens final:
 no one can decrypt them without the vault any more.
 
+### Rotate on a schedule
+
+Each key that `taintward-keys` makes records the day it was made
+(`"created"` in the ring). Two commands use it:
+
+```bash
+# rotate only when the active key is older than 90 days: safe to run daily
+taintward-keys rotate --keys vault-kv:secret/taintward --purpose vault \
+    --if-older-than 90 --reseal
+# exit 1 when an active key is older than 90 days, for an alert
+taintward-keys status --keys vault-kv:secret/taintward --max-age 90
+```
+
+`--reseal` runs `reseal` on `$TAINTWARD_VAULT` right after a vault
+rotation. A key with no `"created"` day (made before this version, or by
+hand) counts as too old for `status --max-age` and is rotated by
+`--if-older-than`.
+
+`rotate` and `retire` work on a file (`--file`) or on a ring in Vault KV
+(`--keys vault-kv:<mount>/<path>`). Vault KV is written with
+check-and-set: if another job changed the ring after it was read, nothing
+is written and the command fails, so two schedules cannot lose a key.
+
+Running processes read a file or Vault ring once. Set
+`TAINTWARD_KEYS_RELOAD_SECONDS` (for example `300`) and they read it again
+after that long, so the vault seals new rows with the new key without a
+restart; rows sealed before still open, because the old key stays in the
+ring until you retire it. The FPE key is read once per process even then:
+a new FPE key changes every new token, so restart on purpose after an FPE
+rotation.
+
+On Kubernetes the Helm chart has a CronJob for this:
+
+```yaml
+keyRotation:
+  enabled: true
+  keys: vault-kv:secret/taintward
+  kms: vault-transit:taintward      # or empty: the ring's own kms
+  maxAgeDays: 90
+  purposes: [vault]
+  existingSecret: taintward-rotation   # VAULT_ADDR, VAULT_TOKEN, TAINTWARD_VAULT
+```
+
+It runs daily and only rotates when the key is old enough. It uses the
+gateway image, which has no AWS or Google client libraries: wrap with
+`vault-transit`, or set `keyRotation.image` to an image with
+`taintward[aws]` or `taintward[gcp]`.
+
+## KMS-only mode
+
+With `TAINTWARD_KEYS_KMS_ONLY=1`, or `"kms_only": true` at the top of the
+ring, every key must be wrapped by a KMS:
+
+- a plain hex key in the ring stops the process with a `KeyConfigError`,
+- so does `TAINTWARD_FPE_KEY`, `TAINTWARD_VAULT_KEY` or a key passed in
+  code (`Redactor(key_hex)`, `SQLiteVault(key_hex=...)`),
+- there is no demo key and no random per-process key: without a ring with
+  an fpe key the redactor does not start,
+- `taintward-keys rotate` and `generate` refuse to make a key without
+  `--kms` (or a `kms` in the ring).
+
+So key bytes only exist unwrapped in the memory of the process, and
+reading the ring, the environment or the Helm values gives an attacker
+nothing without KMS decrypt rights. Turn it on in production; put the flag
+in the ring as well, so a ring that holds plain keys cannot be loaded by
+mistake.
+
 ### Rows from before key rings
 
 Vault rows written by an earlier version have no key id. They are opened by
@@ -175,8 +242,10 @@ A vault row sealed with a key that is no longer in the ring raises
 
 ## Code
 
-- `taintward/sdk/keys.py`: rings, providers, KMS wrap and unwrap, the
-  `taintward-keys` command.
+- `taintward/sdk/keys.py`: rings, providers, KMS wrap and unwrap, KMS-only
+  mode, key ages, the `taintward-keys` command (also
+  `python -m taintward.keys_cli`).
+- `deploy/helm/taintward/templates/key-rotation.yaml`: the rotation CronJob.
 - `taintward/sdk/vault.py`: `_Sealer` (key id in each row, open with any
   key in the ring, erasure under every key, `reseal`).
 - `taintward/sdk/redact.py`: the Redactor takes its FPE key from the ring.
