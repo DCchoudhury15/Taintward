@@ -12,6 +12,7 @@
 // arguments, also when streamed in pieces. File parts are not scanned.
 
 import type {
+  EmbeddingModelV4Middleware,
   LanguageModelV4CallOptions,
   LanguageModelV4Content,
   LanguageModelV4Message,
@@ -253,6 +254,25 @@ export function taintwardMiddleware(options: TaintwardMiddlewareOptions = {}): L
       );
       return { ...result, stream };
     },
+  };
+}
+
+/**
+ * Embedding middleware: the texts sent to the embedding model are masked
+ * ([PII] / [SECRET]), because an embedding can be turned back into text close
+ * to the original (destination rag). Masks, not placeholders, so the same
+ * value looks the same in every document and query.
+ *
+ *   import { embedMany, wrapEmbeddingModel } from "ai";
+ *   const model = wrapEmbeddingModel({ model: openai.embedding("text-embedding-3-small"),
+ *                                      middleware: taintwardEmbeddingMiddleware() });
+ *
+ * Store the masked text too (`redactPayload(text, "rag")`), not the original.
+ */
+export function taintwardEmbeddingMiddleware(): EmbeddingModelV4Middleware {
+  return {
+    specificationVersion: "v4",
+    transformParams: async ({ params }) => ({ ...params, values: params.values.map((v) => redactString(v, "rag")) }),
   };
 }
 

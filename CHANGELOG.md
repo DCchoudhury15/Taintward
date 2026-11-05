@@ -65,6 +65,17 @@
 
 ### Added
 
+- TypeScript SDK: `protectOpenAI` and `protectAnthropic` for the official JS
+  clients (chat, responses, `parse()` and `stream()` helpers, embeddings,
+  Anthropic `messages.stream()`), streamed answers restored chunk by chunk;
+  `taintwardEmbeddingMiddleware` for the AI SDK; Mastra agents through the
+  middleware (tested). The detector has the Python rules for data outside
+  the US (national ids with a check digit, ids after an id word,
+  international phones, European addresses, inline passwords), checked
+  against Python on 204 cases, and finds names after a title, label,
+  greeting or sign-off or under a name key. Internal sinks can get FF1
+  tokens (`internal: "token"`), the same tokens as Python for the same key.
+
 - Embeddings and RAG ingestion (destination `rag`, masked): `protect_openai`
   covers `client.embeddings.create`, `protect_litellm` covers
   `litellm.embedding` / `aembedding`, and new `protect_langchain_embeddings`,

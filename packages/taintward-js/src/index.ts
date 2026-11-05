@@ -2,8 +2,9 @@
 // destination, and give the LLM placeholders it can work with.
 //
 // The detector is a port of the Python SDK's pattern recognizers and is
-// checked against it (test/crosscheck.test.ts). Names and places (spaCy NER
-// in Python) are not detected here.
+// checked against it (test/crosscheck.test.ts). Names (spaCy NER in Python)
+// are found here only after a title, label, greeting or sign-off, or under a
+// name key; places are not looked for.
 
 export {
   MASK_TOKEN,
@@ -45,3 +46,4 @@ export {
 } from "./redact.js";
 export { FF1, ff1MinLen } from "./ff1.js";
 export { Tokenizer, type TokenVault, type TokenizerOptions } from "./tokens.js";
+export { protectAnthropic, protectOpenAI, type ProtectClientOptions } from "./clients.js";

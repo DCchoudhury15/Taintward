@@ -1,9 +1,9 @@
 import type { LanguageModelV4GenerateResult, LanguageModelV4StreamPart, LanguageModelV4Usage } from "@ai-sdk/provider";
-import { generateText, streamText, tool, wrapLanguageModel } from "ai";
-import { MockLanguageModelV4, convertArrayToReadableStream } from "ai/test";
+import { embedMany, generateText, streamText, tool, wrapEmbeddingModel, wrapLanguageModel } from "ai";
+import { MockEmbeddingModelV4, MockLanguageModelV4, convertArrayToReadableStream } from "ai/test";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { PlaceholderMap, PlaceholderRestoreError, taintwardMiddleware } from "../src/ai-sdk.js";
+import { PlaceholderMap, PlaceholderRestoreError, taintwardEmbeddingMiddleware, taintwardMiddleware } from "../src/ai-sdk.js";
 
 const usage: LanguageModelV4Usage = {
   inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
@@ -199,5 +199,21 @@ describe("stream", () => {
     });
     await result.consumeStream();
     expect(received).toEqual({ to: EMAIL });
+  });
+});
+
+describe("embedding middleware", () => {
+  it("masks the texts sent to the embedding model", async () => {
+    const seen: string[][] = [];
+    const inner = new MockEmbeddingModelV4({
+      doEmbed: async ({ values }: { values: string[] }) => {
+        seen.push(values);
+        return { embeddings: values.map(() => [0.1, 0.2]), warnings: [] };
+      },
+    });
+    const model = wrapEmbeddingModel({ model: inner, middleware: taintwardEmbeddingMiddleware() });
+    const { embeddings } = await embedMany({ model, values: ["mail alice.lee@example.com", "plain text"] });
+    expect(embeddings).toHaveLength(2);
+    expect(seen.flat()).toEqual(["mail [PII]", "plain text"]); // the mock embeds one value per call
   });
 });

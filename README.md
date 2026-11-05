@@ -111,7 +111,9 @@ model: `tw.wrap_crewai_tools(...)` and `tw.protect_crewai_llm(...)`,
 `tw.wrap_adk_tools(...)` and `tw.protect_adk_model(...)`, and so on
 ([the full table](docs/integrations.md#install)).
 
-**TypeScript** · Vercel AI SDK, `generateText` and `streamText`
+**TypeScript** · Vercel AI SDK (`generateText`, `streamText`, embeddings),
+the OpenAI and Anthropic clients (`protectOpenAI`, `protectAnthropic`) and
+Mastra agents
 
 ```ts
 import { wrapLanguageModel } from "ai";
