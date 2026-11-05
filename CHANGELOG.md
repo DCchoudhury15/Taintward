@@ -54,6 +54,10 @@
   `get_final_message()` are restored, and the SDK's own span (content mode)
   gets no answer text. A JSON answer (`output_format`, `output_config`) is
   restored JSON-escaped, also for `messages.create(stream=True)`.
+- The `parse()` helpers (OpenAI `chat.completions.parse` and
+  `responses.parse`, Anthropic `messages.parse`) are patched on a protected
+  client. They send their own request instead of calling `create`, so it
+  used to reach the provider unredacted. The parsed answer is restored.
 - LiteLLM: the caller gets a restored copy of a non-streamed answer, and
   the `TaintwardGuardrail` post-call hook returns one too. Restoring
   LiteLLM's own response object in place let its logging callbacks, which

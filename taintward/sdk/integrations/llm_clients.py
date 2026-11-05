@@ -9,9 +9,15 @@ destination before it is sent, and a ``chat <model>`` span is recorded with
 
 Patched methods (sync and async clients):
 
-* OpenAI: ``client.chat.completions.create`` and ``client.responses.create``
-* Anthropic: ``client.messages.create`` and the ``client.messages.stream()``
-  helper
+* OpenAI: ``client.chat.completions.create`` / ``.parse`` and
+  ``client.responses.create`` / ``.parse``
+* Anthropic: ``client.messages.create`` / ``.parse`` and the
+  ``client.messages.stream()`` helper
+
+The ``parse()`` helpers send their own request (they do not call
+``create``), so they are patched the same way as ``create``: the request is
+redacted and the parsed answer (``.parsed``, ``parsed_output``) is restored
+with the rest of the response.
 
 Use the protected OpenAI client with the OpenAI Agents SDK too
 (``agents.set_default_openai_client(client)`` or
@@ -44,7 +50,7 @@ real values. The SDK's own tracing reads that snapshot for its span when its
 gets no answer text, as for ``create(stream=True)``.
 
 The patch is applied to one client object only. Other clients, the
-``parse()`` helpers, and the ``with_raw_response`` /
+token counting and batch endpoints, and the ``with_raw_response`` /
 ``with_streaming_response`` helpers are not covered.
 """
 
@@ -549,13 +555,17 @@ def _patch_message_stream(resource: Any, ward: Ward) -> bool:
 
 def _patch(resource: Any, provider: str, system: str, fields: tuple[str, ...],
            ward: Ward) -> bool:
+    """Patch ``create`` and ``parse`` (which sends its own request)."""
     if resource is None:
         return False
-    original = getattr(resource, "create", None)
-    if original is None or getattr(original, _PATCHED_MARK, False):
-        return False
-    resource.create = _wrap_create(original, provider, system, fields, ward)
-    return True
+    patched = False
+    for name in ("create", "parse"):
+        original = getattr(resource, name, None)
+        if original is None or getattr(original, _PATCHED_MARK, False):
+            continue
+        setattr(resource, name, _wrap_create(original, provider, system, fields, ward))
+        patched = True
+    return patched
 
 
 def protect_openai(client: Any, *, ward: Ward | None = None) -> Any:

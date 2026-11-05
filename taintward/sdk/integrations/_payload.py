@@ -30,10 +30,13 @@ def to_plain(obj: Any) -> Any:
     caller appended to ``messages``) into dicts so they can be walked."""
     dump = getattr(obj, "model_dump", None)
     if callable(dump) and not isinstance(obj, type):
-        try:
-            return dump(exclude_none=True)
-        except TypeError:
-            return dump()
+        # warnings=False: a parse() answer types ``parsed`` as None in its
+        # schema and pydantic would warn on every call.
+        for kw in ({"exclude_none": True, "warnings": False}, {"exclude_none": True}, {}):
+            try:
+                return dump(**kw)
+            except TypeError:
+                continue
     return obj
 
 

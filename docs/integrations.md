@@ -325,9 +325,9 @@ the answer from that helper; Taintward keeps it from the SDK's span, so that
 span has no answer text (as with `create(stream=True)`).
 
 The `parse()` helpers (OpenAI `chat.completions.parse` and `responses.parse`,
-Anthropic `messages.parse`) also skip `create`, and they are **not** patched:
-their request goes to the provider unredacted. Use `create` with
-`response_format` / `output_config` instead.
+Anthropic `messages.parse`) also send their own request, so they are patched
+the same way as `create`: the request is redacted and the parsed answer
+(`.parsed`, `output_parsed`, `parsed_output`) gets the real values back.
 
 ## CrewAI
 
@@ -544,8 +544,8 @@ gateway refuses those calls.
   LiteLLM's object (and the proxy's) with the placeholders. Tool callbacks
   see what the tool got.
 - Not covered: LangChain `generate()` called directly with message lists,
-  OpenAI `with_raw_response` / `with_streaming_response`, the OpenAI and
-  Anthropic `parse()` helpers, OpenAI and Anthropic `beta` endpoints,
+  OpenAI `with_raw_response` / `with_streaming_response`, token counting
+  and batch endpoints, OpenAI and Anthropic `beta` endpoints,
   embeddings, other LLM providers, and other clients you create without
   `protect_*`.
 - The OpenAI Agents SDK has its own tracing, which by default uploads tool
