@@ -33,4 +33,15 @@ export {
   type PlaceholderMapOptions,
   type RestoreReport,
 } from "./placeholders.js";
-export { maskPayload, redactPayload, redactString, redactText, redactValue, type InternalMode, type RedactOptions } from "./redact.js";
+export {
+  getTokenizer,
+  maskPayload,
+  redactPayload,
+  redactString,
+  redactText,
+  redactValue,
+  type InternalMode,
+  type RedactOptions,
+} from "./redact.js";
+export { FF1, ff1MinLen } from "./ff1.js";
+export { Tokenizer, type TokenVault, type TokenizerOptions } from "./tokens.js";

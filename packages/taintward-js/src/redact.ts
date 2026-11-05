@@ -6,11 +6,10 @@
 //   external / log / rag -> one-way mask [PII] / [SECRET]
 //   llm                  -> placeholder <SSN_1> when a PlaceholderMap is
 //                           given, else the mask
-//   internal             -> the mask by default, or the raw value with
-//                           internal: "raw"
-//
-// The Python SDK gives internal sinks a reversible FF1 token. That is not in
-// this version of the TypeScript SDK yet.
+//   internal             -> the mask by default, a reversible FF1 token
+//                           with internal: "token" (the same token as the
+//                           Python SDK for the same key), or the raw value
+//                           with internal: "raw"
 
 import {
   MASK_TOKEN,
@@ -24,15 +23,29 @@ import {
 } from "./detect/index.js";
 import { DEST_INTERNAL, DEST_LLM } from "./destinations.js";
 import type { KnownSpan, PlaceholderMap } from "./placeholders.js";
+import { Tokenizer } from "./tokens.js";
 
-export type InternalMode = "mask" | "raw";
+export type InternalMode = "mask" | "raw" | "token";
 
 export interface RedactOptions {
   /** For the llm destination: placeholders instead of masks. For every
    * destination: values the map knows are redacted even when not detected. */
   placeholders?: PlaceholderMap | undefined;
-  /** What an internal sink gets: "mask" (default) or "raw". */
+  /**
+   * What an internal sink gets: "mask" (default), "token" (a reversible FF1
+   * token, see `Tokenizer`) or "raw".
+   */
   internal?: InternalMode | undefined;
+  /** The tokenizer for internal: "token". Default: one keyed by TAINTWARD_FPE_KEY. */
+  tokenizer?: Tokenizer | undefined;
+}
+
+let defaultTokenizer: Tokenizer | null = null;
+
+/** The tokenizer keyed by TAINTWARD_FPE_KEY (made on first use). */
+export function getTokenizer(): Tokenizer {
+  defaultTokenizer ??= new Tokenizer();
+  return defaultTokenizer;
 }
 
 type Span = Detection | KnownSpan;
@@ -41,6 +54,10 @@ type Span = Detection | KnownSpan;
 export function redactValue(value: string, sensitivity: Sensitivity, destination: string, opts: RedactOptions = {}): string {
   if (!value) return value;
   if (destination === DEST_INTERNAL && opts.internal === "raw") return value;
+  if (destination === DEST_INTERNAL && opts.internal === "token") {
+    const token = (opts.tokenizer ?? getTokenizer()).token(value);
+    if (token !== null) return token;
+  }
   return MASK_TOKEN[sensitivity] ?? "[REDACTED]";
 }
 

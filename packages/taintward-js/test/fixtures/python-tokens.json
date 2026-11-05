@@ -1,0 +1,115 @@
+{
+ "key": "2B7E151628AED2A6ABF7158809CF4F3C",
+ "cases": [
+  {
+   "tweak": null,
+   "value": "234-12-1234",
+   "token": "168-94-4902"
+  },
+  {
+   "tweak": null,
+   "value": "4111 1111 1111 1111",
+   "token": "5472 0454 9762 8388"
+  },
+  {
+   "tweak": null,
+   "value": "DE89 3704 0044 0532 0130 00",
+   "token": "odhe wh5h adon bvzh 7c4a lc"
+  },
+  {
+   "tweak": null,
+   "value": "alice.lee@example.com",
+   "token": "czmtj.qah@vj2p8nu.u4g"
+  },
+  {
+   "tweak": null,
+   "value": "Alice.Lee@Example.com",
+   "token": "mtrov.zgy@m3nestl.kxr"
+  },
+  {
+   "tweak": null,
+   "value": "AB123456C",
+   "token": "mai5w1m3f"
+  },
+  {
+   "tweak": null,
+   "value": "+49 30 1234567",
+   "token": "+93 62 5646183"
+  },
+  {
+   "tweak": null,
+   "value": "ABCPE1234F",
+   "token": "voxhtut5kr"
+  },
+  {
+   "tweak": null,
+   "value": "X1234567L",
+   "token": "7spi4ypkp"
+  },
+  {
+   "tweak": null,
+   "value": "x9",
+   "token": null
+  },
+  {
+   "tweak": null,
+   "value": "12345",
+   "token": null
+  },
+  {
+   "tweak": "00ff",
+   "value": "234-12-1234",
+   "token": "903-70-7351"
+  },
+  {
+   "tweak": "00ff",
+   "value": "4111 1111 1111 1111",
+   "token": "0193 8842 7462 7142"
+  },
+  {
+   "tweak": "00ff",
+   "value": "DE89 3704 0044 0532 0130 00",
+   "token": "yc3f jju4 0s0b cfya yb9p ud"
+  },
+  {
+   "tweak": "00ff",
+   "value": "alice.lee@example.com",
+   "token": "umul3.g4l@pijrx5x.vhm"
+  },
+  {
+   "tweak": "00ff",
+   "value": "Alice.Lee@Example.com",
+   "token": "tgyul.5lh@8wmu9sm.li8"
+  },
+  {
+   "tweak": "00ff",
+   "value": "AB123456C",
+   "token": "7d4dzn3u5"
+  },
+  {
+   "tweak": "00ff",
+   "value": "+49 30 1234567",
+   "token": "+52 40 6590301"
+  },
+  {
+   "tweak": "00ff",
+   "value": "ABCPE1234F",
+   "token": "0p7imt06mx"
+  },
+  {
+   "tweak": "00ff",
+   "value": "X1234567L",
+   "token": "dor99kdrd"
+  },
+  {
+   "tweak": "00ff",
+   "value": "x9",
+   "token": null
+  },
+  {
+   "tweak": "00ff",
+   "value": "12345",
+   "token": null
+  }
+ ]
+}
