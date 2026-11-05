@@ -24,6 +24,9 @@ JS_TYPES = {
     "US_SSN", "EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD", "IBAN_CODE",
     "AWS_ACCESS_KEY", "GITHUB_TOKEN", "GENERIC_API_KEY", "JWT", "PRIVATE_KEY",
     "STREET_ADDRESS",
+    # national ids and ids after an id word (recognizers_intl.py)
+    "IN_AADHAAR", "IN_PAN", "IT_FISCAL_CODE", "ES_NIF", "ES_NIE", "FR_NIR", "CH_AHV",
+    "UK_NINO", "ID_NUMBER",
 }
 
 

@@ -1079,6 +1079,825 @@
   "empty": {
    "spans": [],
    "out_of_scope": []
+  },
+  "intl-aadhaar-grouped": {
+   "spans": [
+    {
+     "type": "IN_AADHAAR",
+     "start": 14,
+     "end": 28,
+     "fingerprint": "f2b5f4c1"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-aadhaar-bad-check": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-aadhaar-plain-no-word": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-aadhaar-plain-word": {
+   "spans": [
+    {
+     "type": "IN_AADHAAR",
+     "start": 11,
+     "end": 23,
+     "fingerprint": "4607eae3"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-aadhaar-plain-key": {
+   "spans": [
+    {
+     "type": "IN_AADHAAR",
+     "start": 0,
+     "end": 12,
+     "fingerprint": "4607eae3"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-aadhaar-in-card": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 5,
+     "end": 24,
+     "fingerprint": "6a7e0e79"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-aadhaar-in-iban": {
+   "spans": [
+    {
+     "type": "IBAN_CODE",
+     "start": 8,
+     "end": 35,
+     "fingerprint": "51374012"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-aadhaar-longer": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-aadhaar-end-of-number": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-cf": {
+   "spans": [
+    {
+     "type": "IT_FISCAL_CODE",
+     "start": 3,
+     "end": 19,
+     "fingerprint": "bd807ad7"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-cf-lower": {
+   "spans": [
+    {
+     "type": "IT_FISCAL_CODE",
+     "start": 3,
+     "end": 19,
+     "fingerprint": "7eecb390"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-cf-bad": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-dni": {
+   "spans": [
+    {
+     "type": "ES_NIF",
+     "start": 4,
+     "end": 13,
+     "fingerprint": "1c9f9632"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-dni-dash": {
+   "spans": [
+    {
+     "type": "ES_NIF",
+     "start": 4,
+     "end": 14,
+     "fingerprint": "be7ce043"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-dni-bad": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-nie": {
+   "spans": [
+    {
+     "type": "ES_NIE",
+     "start": 4,
+     "end": 13,
+     "fingerprint": "2a000539"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-nir": {
+   "spans": [
+    {
+     "type": "FR_NIR",
+     "start": 3,
+     "end": 24,
+     "fingerprint": "bf5a0572"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-nir-bad": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-nir-corsica": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 19,
+     "end": 25,
+     "fingerprint": "74582ea0"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-ahv": {
+   "spans": [
+    {
+     "type": "CH_AHV",
+     "start": 4,
+     "end": 20,
+     "fingerprint": "934b94dc"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-ahv-bad": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-nino": {
+   "spans": [
+    {
+     "type": "UK_NINO",
+     "start": 3,
+     "end": 16,
+     "fingerprint": "4d740561"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-nino-bad": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-pan": {
+   "spans": [
+    {
+     "type": "IN_PAN",
+     "start": 4,
+     "end": 14,
+     "fingerprint": "b7faf7f8"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-passnummer": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 12,
+     "end": 21,
+     "fingerprint": "d68a8fdc"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-passeport": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 38,
+     "end": 47,
+     "fingerprint": "ce40aec2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-fuehrerschein": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 20,
+     "end": 32,
+     "fingerprint": "b836b93e"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-patente": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 19,
+     "end": 34,
+     "fingerprint": "0a1e030a"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-personnummer": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 14,
+     "end": 25,
+     "fingerprint": "0f8208da"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-steuer": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 10,
+     "end": 21,
+     "fingerprint": "838aca1b"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-driver": {
+   "spans": [],
+   "out_of_scope": [
+    {
+     "type": "US_DRIVER_LICENSE",
+     "start": 24,
+     "end": 32,
+     "fingerprint": "70c88b14"
+    }
+   ]
+  },
+  "intl-id-key-passport": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 0,
+     "end": 8,
+     "fingerprint": "0ba9b917"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-key-tax": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 0,
+     "end": 10,
+     "fingerprint": "ab544e0e"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-order": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-id-key-id": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-id-request": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-id-date": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-id-no-value": {
+   "spans": [],
+   "out_of_scope": [
+    {
+     "type": "PERSON",
+     "start": 18,
+     "end": 24,
+     "fingerprint": "9e313cd3"
+    }
+   ]
+  },
+  "intl-id-other-line": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-id-too-far": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-id-ssn-invalid-key": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-id-ssn-invalid": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-id-ssn-word-cf": {
+   "spans": [
+    {
+     "type": "IT_FISCAL_CODE",
+     "start": 5,
+     "end": 21,
+     "fingerprint": "3cdd03fb"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-national-ssn": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 12,
+     "end": 23,
+     "fingerprint": "b1ff0b07"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-codice": {
+   "spans": [
+    {
+     "type": "IT_FISCAL_CODE",
+     "start": 16,
+     "end": 32,
+     "fingerprint": "bd807ad7"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-vs-phone": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 20,
+     "end": 31,
+     "fingerprint": "9943b83f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-id-pan-card": {
+   "spans": [
+    {
+     "type": "CREDIT_CARD",
+     "start": 7,
+     "end": 23,
+     "fingerprint": "9bbef194"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-phone-de": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 5,
+     "end": 19,
+     "fingerprint": "968f1057"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-phone-whatsapp": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 10,
+     "end": 27,
+     "fingerprint": "532635b0"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-phone-dashes": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 0,
+     "end": 16,
+     "fingerprint": "6811c531"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-phone-tel": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 5,
+     "end": 19,
+     "fingerprint": "1022c1b8"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-phone-handy": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 7,
+     "end": 19,
+     "fingerprint": "330473c2"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-phone-it": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 25,
+     "end": 38,
+     "fingerprint": "9fedfd71"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-phone-key": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 0,
+     "end": 11,
+     "fingerprint": "ea89285b"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-phone-date": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-phone-short": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-phone-utc": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-phone-version": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-phone-no-word": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-phone-expression": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-phone-far": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-phone-eight": {
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 5,
+     "end": 18,
+     "fingerprint": "4a8ec201"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-street-de": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 9,
+     "end": 38,
+     "fingerprint": "a6496fb1"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "LOCATION",
+     "start": 32,
+     "end": 38,
+     "fingerprint": "dad114b6"
+    }
+   ]
+  },
+  "intl-street-fr": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 0,
+     "end": 30,
+     "fingerprint": "2740328a"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "LOCATION",
+     "start": 25,
+     "end": 30,
+     "fingerprint": "5dd272b4"
+    }
+   ]
+  },
+  "intl-street-it": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 11,
+     "end": 22,
+     "fingerprint": "c5de0ffa"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "PERSON",
+     "start": 11,
+     "end": 19,
+     "fingerprint": "d847a152"
+    }
+   ]
+  },
+  "intl-street-es": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 0,
+     "end": 21,
+     "fingerprint": "ffb69c56"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-street-nl": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 0,
+     "end": 32,
+     "fingerprint": "b5edd6cb"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "PERSON",
+     "start": 0,
+     "end": 10,
+     "fingerprint": "5ea009bc"
+    }
+   ]
+  },
+  "intl-street-se": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 0,
+     "end": 28,
+     "fingerprint": "bbd5a3de"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "LOCATION",
+     "start": 19,
+     "end": 28,
+     "fingerprint": "b982d7eb"
+    }
+   ]
+  },
+  "intl-street-number-first": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 18,
+     "end": 37,
+     "fingerprint": "d6f75bcf"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-street-chemin": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 0,
+     "end": 37,
+     "fingerprint": "0d1c352b"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-street-upper-prefix": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 0,
+     "end": 16,
+     "fingerprint": "3cb5f80a"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-street-engineering": {
+   "spans": [],
+   "out_of_scope": [
+    {
+     "type": "PERSON",
+     "start": 0,
+     "end": 3,
+     "fingerprint": "030d7562"
+    }
+   ]
+  },
+  "intl-street-lines": {
+   "spans": [
+    {
+     "type": "US_SSN",
+     "start": 8,
+     "end": 19,
+     "fingerprint": "0b51f1be"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-street-place-of-work": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-street-period": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-street-bahnsteig": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-street-verkaeufer": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-street-usps": {
+   "spans": [
+    {
+     "type": "STREET_ADDRESS",
+     "start": 3,
+     "end": 21,
+     "fingerprint": "bd434740"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-street-data-center": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-secret-passwort": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 10,
+     "end": 22,
+     "fingerprint": "bc1bd34f"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-secret-wachtwoord": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 24,
+     "end": 34,
+     "fingerprint": "c052363e"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-secret-api-key": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 22,
+     "end": 38,
+     "fingerprint": "ff3c76e4"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-secret-xml": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 13,
+     "end": 21,
+     "fingerprint": "91dc28ac"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-secret-required": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-secret-slot": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-secret-stars": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-secret-reset": {
+   "spans": [],
+   "out_of_scope": []
+  },
+  "intl-secret-generic-overlap": {
+   "spans": [
+    {
+     "type": "GENERIC_API_KEY",
+     "start": 0,
+     "end": 40,
+     "fingerprint": "1aee3482"
+    }
+   ],
+   "out_of_scope": []
+  },
+  "intl-mixed-record": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 30,
+     "end": 39,
+     "fingerprint": "a0b655cb"
+    },
+    {
+     "type": "ID_NUMBER",
+     "start": 47,
+     "end": 62,
+     "fingerprint": "934f0633"
+    },
+    {
+     "type": "STREET_ADDRESS",
+     "start": 73,
+     "end": 102,
+     "fingerprint": "a6496fb1"
+    }
+   ],
+   "out_of_scope": [
+    {
+     "type": "PERSON",
+     "start": 6,
+     "end": 16,
+     "fingerprint": "576a6e24"
+    },
+    {
+     "type": "LOCATION",
+     "start": 96,
+     "end": 102,
+     "fingerprint": "dad114b6"
+    }
+   ]
+  },
+  "intl-nir-bad-month": {
+   "spans": [
+    {
+     "type": "ID_NUMBER",
+     "start": 4,
+     "end": 19,
+     "fingerprint": "e1a1ed97"
+    }
+   ],
+   "out_of_scope": []
   }
  }
 }

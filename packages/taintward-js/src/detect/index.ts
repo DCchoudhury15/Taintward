@@ -34,6 +34,10 @@ const CONTEXT_MIN = 0.4;
 // Never part of a sensitive value but can end up on the edge of a span.
 const SPAN_EDGE_TRIM = new Set(["'", '"', "`", " ", "\t", "\r", "\n"]);
 
+// Types an id found by an id word does not give way to: itself and phone
+// number guesses (names and places come from NER in Python, not here).
+const ID_BEATS: ReadonlySet<string> = new Set(["ID_NUMBER", "PERSON", "LOCATION", "PHONE_NUMBER"]);
+
 /** Short, non-reversible sha256 fingerprint of a matched value. */
 export function fingerprint(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 8);
@@ -104,6 +108,19 @@ function finish(text: string, n: Normalized, key: string, hits: Hit[], threshold
   if (exact.length > 0) {
     kept = kept.filter(
       (r) => r.entityType !== "GENERIC_API_KEY" || !exact.some((e) => r.start < e.end && e.start < r.end),
+    );
+  }
+  // An id found only by an id word ("Passnummer: ...") gives way to a
+  // recognizer that knows the exact format (a US SSN, a codice fiscale, a
+  // card number after "PAN"), and wins over a phone number guess.
+  if (kept.some((r) => r.entityType === "ID_NUMBER")) {
+    const overlaps = (r: RawHit, spans: RawHit[]) => spans.some((s) => r.start < s.end && s.start < r.end);
+    const exactIds = kept.filter((r) => !ID_BEATS.has(r.entityType));
+    const ids = kept.filter((r) => r.entityType === "ID_NUMBER");
+    kept = kept.filter(
+      (r) =>
+        !(r.entityType === "ID_NUMBER" && overlaps(r, exactIds)) &&
+        !(r.entityType === "PHONE_NUMBER" && overlaps(r, ids)),
     );
   }
   const out: Detection[] = [];

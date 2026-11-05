@@ -24,7 +24,10 @@ interface Span {
 }
 
 const cases: Case[] = JSON.parse(readFileSync(new URL("./fixtures/detect-cases.json", import.meta.url), "utf8"));
-const expected: { python_detector_mode: string; cases: Record<string, { spans: Span[] }> } = JSON.parse(
+const expected: {
+  python_detector_mode: string;
+  cases: Record<string, { spans: Span[]; out_of_scope: Span[] }>;
+} = JSON.parse(
   readFileSync(new URL("./fixtures/python-expected.json", import.meta.url), "utf8"),
 );
 
@@ -48,8 +51,18 @@ describe("cross-check with the Python detector", () => {
         end: d.end,
         fingerprint: d.fingerprint,
       }));
-      const py = expected.cases[c.id]!.spans;
-      expect(norm(js)).toEqual(norm(py));
+      const { spans: py, out_of_scope: other } = expected.cases[c.id]!;
+      // An id after an id word gives way to a recognizer that knows the
+      // exact format. When that recognizer is one the TypeScript SDK does
+      // not have (Presidio's US_DRIVER_LICENSE), TypeScript keeps the
+      // ID_NUMBER on exactly the same characters, which is fine.
+      const same = (a: Span, b: Span) => a.start === b.start && a.end === b.end;
+      // Names: Python uses spaCy NER, TypeScript its own rules
+      // (test/names.test.ts), so PERSON is not compared.
+      const kept = js.filter(
+        (s) => s.type !== "PERSON" && !(s.type === "ID_NUMBER" && other.some((o) => same(o, s))),
+      );
+      expect(norm(kept)).toEqual(norm(py));
     });
   }
 });

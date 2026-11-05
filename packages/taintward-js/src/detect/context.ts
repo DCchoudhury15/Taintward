@@ -6,6 +6,8 @@
 // credential-looking values under a key like "api_key".
 
 import { luhnOk, phoneOk, validSsnParts } from "./checks.js";
+import { INTL_RECOGNIZERS } from "./intl.js";
+import { personName } from "./names.js";
 import { B, W, W_IN, type RawHit } from "./patterns.js";
 
 // Words (in the JSON key, or just before the value) that say "this is an SSN".
@@ -90,7 +92,13 @@ export function spacedDigits(text: string, keyWords: string): RawHit[] {
 
 const STREET_SUFFIX =
   "(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ln|Lane|Way|Ct|" +
-  "Court|Pl|Place|Ter|Terrace|Pkwy|Parkway|Hwy|Highway|Cir|Circle|Sq|Square)";
+  "Court|Pl|Place|Ter|Terrace|Pkwy|Parkway|Hwy|Highway|Cir|Circle|Sq|Square|" +
+  "Junction|Creek|Tunnel|Coves?|Harbors?|Island|Locks?|Village|Crossing|Ridge|" +
+  "Heights|Hills|Valley|Gardens|Trail|Loop|Grove|Manor|Meadows|Mills|Springs|" +
+  "Shoals|Shores|Summit|Plains|Pines|Lakes?|Knolls?|Fords?|Forge|Flats|Falls|" +
+  "Estates|Expressway|Freeway|Canyon|Brooks?|Bridge|Bluffs?|Bayou|Alley|Causeway|" +
+  "Cliffs?|Crest|Glen|Hollow|Landing|Orchard|Prairie|Ranch|Turnpike|Underpass|" +
+  "Viaduct|Vista|Walk|Row|Mews|Crescent|Close)";
 const STREET = new RegExp(
   `${B}[0-9]{1,6}(?: [A-Z][a-zA-Z]+){1,4} ${STREET_SUFFIX}${B}\\.?` +
     `(?:,? (?:Apt|Suite|Unit|Ste)\\.? ?#?${W}+)?` +
@@ -152,4 +160,6 @@ export const CONTEXT_RECOGNIZERS: ReadonlyArray<(text: string, key: string) => R
   spacedDigits,
   (t) => streetAddress(t),
   keyedSecret,
+  ...INTL_RECOGNIZERS,
+  personName,
 ];
