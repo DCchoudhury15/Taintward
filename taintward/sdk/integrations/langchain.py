@@ -28,6 +28,15 @@ restored whole; text held back for that is added to the last chunk. A wrapped to
 its input from the run's map, then the normal destination gate runs on the
 real values (internal: reversible token, external/log/rag: mask, ``allow``
 arguments: real value).
+
+Embeddings and vector stores (destination ``rag``, masks, see ``_embed.py``):
+``protect_embeddings`` returns a protected copy of an ``Embeddings`` model
+(``embed_documents``, ``embed_query`` and their async versions send masked
+text). ``protect_vectorstore`` returns a protected copy of a ``VectorStore``
+whose ``add_texts`` / ``add_documents`` (and async versions) mask the text
+and metadata before they are embedded and stored. Give the store a
+protected embeddings model too, so search queries are masked before they
+are embedded.
 """
 
 from __future__ import annotations
@@ -614,5 +623,134 @@ def protect_chat_model(model: BaseChatModel, *, ward: Ward | None = None) -> Bas
     return copy
 
 
+# ---------------------------------------------------------------------------
+# Embeddings and vector stores (destination rag)
+# ---------------------------------------------------------------------------
+
+
+def _embed_model_name(emb: Any) -> str:
+    for attr in ("model", "model_name", "deployment"):
+        v = getattr(emb, attr, None)
+        if isinstance(v, str) and v:
+            return v
+    return type(emb).__name__
+
+
+def _embeddings_class(base: type) -> type:
+    from taintward.sdk.integrations._common import ward_of
+    from taintward.sdk.integrations._embed import embed_async, embed_sync
+
+    def gate(self, texts, send):
+        return embed_sync(ward_of(self), "langchain", "langchain", _embed_model_name(self),
+                          texts, send)
+
+    async def agate(self, texts, send):
+        return await embed_async(ward_of(self), "langchain", "langchain",
+                                 _embed_model_name(self), texts, send)
+
+    class Protected(base):  # type: ignore[misc, valid-type]
+        def embed_documents(self, texts, *args, **kwargs):
+            return gate(self, list(texts),
+                        lambda t: super(Protected, self).embed_documents(t, *args, **kwargs))
+
+        def embed_query(self, text, *args, **kwargs):
+            return gate(self, text,
+                        lambda t: super(Protected, self).embed_query(t, *args, **kwargs))
+
+        async def aembed_documents(self, texts, *args, **kwargs):
+            return await agate(self, list(texts),
+                               lambda t: super(Protected, self).aembed_documents(t, *args, **kwargs))
+
+        async def aembed_query(self, text, *args, **kwargs):
+            return await agate(self, text,
+                               lambda t: super(Protected, self).aembed_query(t, *args, **kwargs))
+    return Protected
+
+
+def protect_embeddings(embeddings: Any, *, ward: Ward | None = None) -> Any:
+    """Return a protected copy of a LangChain ``Embeddings`` model: the text
+    it sends to the embedding provider is masked for the ``rag``
+    destination, and an ``embeddings <model>`` span is recorded."""
+    from taintward.sdk.integrations._common import is_protected, protected_copy
+    if is_protected(embeddings):
+        return embeddings
+    return protected_copy(embeddings, _embeddings_class, ward or _resolve(None, None))
+
+
+def _store_name(store: Any) -> str:
+    return type(store).__name__
+
+
+def _vectorstore_class(base: type) -> type:
+    from langchain_core.vectorstores import VectorStore
+
+    from taintward.sdk.integrations._common import ward_of
+    from taintward.sdk.integrations._embed import store_async, store_sync
+
+    def texts_content(texts, metadatas) -> dict:
+        content: dict = {"texts": list(texts)}
+        if metadatas is not None:
+            content["metadatas"] = list(metadatas)
+        return content
+
+    def docs_content(documents) -> dict:
+        return {"documents": [{"page_content": d.page_content, "metadata": dict(d.metadata)}
+                              for d in documents]}
+
+    def masked_docs(documents, content) -> list:
+        return [d.model_copy(update={"page_content": m["page_content"],
+                                     "metadata": m["metadata"]})
+                for d, m in zip(documents, content["documents"])]
+
+    ns: dict[str, Any] = {}
+
+    def add_texts(self, texts, metadatas=None, **kwargs):
+        return store_sync(ward_of(self), "langchain", _store_name(self),
+                          texts_content(texts, metadatas),
+                          lambda c: super(cls, self).add_texts(
+                              c["texts"], c.get("metadatas"), **kwargs))
+
+    async def aadd_texts(self, texts, metadatas=None, **kwargs):
+        return await store_async(ward_of(self), "langchain", _store_name(self),
+                                 texts_content(texts, metadatas),
+                                 lambda c: super(cls, self).aadd_texts(
+                                     c["texts"], c.get("metadatas"), **kwargs))
+
+    def add_documents(self, documents, **kwargs):
+        documents = list(documents)
+        return store_sync(ward_of(self), "langchain", _store_name(self),
+                          docs_content(documents),
+                          lambda c: super(cls, self).add_documents(
+                              masked_docs(documents, c), **kwargs))
+
+    async def aadd_documents(self, documents, **kwargs):
+        documents = list(documents)
+        return await store_async(ward_of(self), "langchain", _store_name(self),
+                                 docs_content(documents),
+                                 lambda c: super(cls, self).aadd_documents(
+                                     masked_docs(documents, c), **kwargs))
+
+    # Only the methods the store implements itself: VectorStore's defaults
+    # call the store's own ones (add_texts -> add_documents or back), and
+    # overriding both defaults of a store that has neither would loop.
+    for name, fn in (("add_texts", add_texts), ("aadd_texts", aadd_texts),
+                     ("add_documents", add_documents), ("aadd_documents", aadd_documents)):
+        if getattr(base, name, None) is not getattr(VectorStore, name, None):
+            ns[name] = fn
+    cls = type("Protected", (base,), ns)
+    return cls
+
+
+def protect_vectorstore(store: Any, *, ward: Ward | None = None) -> Any:
+    """Return a protected copy of a LangChain ``VectorStore``: the text and
+    metadata of everything added are masked for the ``rag`` destination
+    before they are embedded and stored (a ``vectorstore.add`` span). Ids
+    are kept as given."""
+    from taintward.sdk.integrations._common import is_protected, protected_copy
+    if is_protected(store):
+        return store
+    return protected_copy(store, _vectorstore_class, ward or _resolve(None, None))
+
+
 __all__ = ["wrap_tool", "wrap_tools", "protect_chat_model", "redact_message",
-           "restore_message"]
+           "restore_message", "protect_embeddings", "protect_vectorstore"]

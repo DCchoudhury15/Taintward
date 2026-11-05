@@ -455,6 +455,62 @@ two hooks (at most 10,000 requests in flight, oldest dropped first) and is
 never sent anywhere. A streamed answer is restored chunk by chunk in the
 guardrail's streaming hook, so streaming requests get placeholders too.
 
+`protect_litellm()` also patches `litellm.embedding` and
+`litellm.aembedding` (see the next section).
+
+## Embeddings and RAG ingestion
+
+An embedding can be turned back into text close to the original (OWASP
+LLM08:2025), and a vector store keeps the text and metadata next to each
+vector. So text sent to an embedding model, and what a vector store keeps,
+is masked for the `rag` destination: `[PII]` / `[SECRET]`. Masks, not
+placeholders: a placeholder number only means something inside one request,
+so the same person would get a different one in every document, while a
+mask is the same everywhere. Queries are masked the same way, so a query
+still lands near the documents it was written for.
+
+| what | how | covers |
+|---|---|---|
+| OpenAI embeddings | `protect_openai(client)` | `client.embeddings.create` (sync and async) |
+| LiteLLM | `protect_litellm()` | `litellm.embedding`, `litellm.aembedding` |
+| LangChain embeddings | `tw.protect_langchain_embeddings(emb)` | `embed_documents`, `embed_query` and their async versions |
+| LangChain vector store | `tw.protect_langchain_vectorstore(store)` | `add_texts`, `add_documents` and their async versions: text and metadata |
+| LlamaIndex embeddings | `tw.protect_llamaindex_embedding(model)` | document and query embeddings (sync, async, batch) |
+| LlamaIndex ingestion | `tw.llamaindex_redact_nodes()` | a transformation that masks node text and metadata |
+| anything else | `tw.redact_for_rag(value)` | masks a string or a JSON-like payload before you write it |
+
+LangChain: protect the embeddings model and give it to the store, then
+protect the store. The store copy writes through to the same storage.
+
+```python
+emb = tw.protect_langchain_embeddings(OpenAIEmbeddings())
+store = tw.protect_langchain_vectorstore(InMemoryVectorStore(emb))
+store.add_documents(docs)              # stored and embedded masked
+store.similarity_search(question)      # the question is embedded masked
+```
+
+LlamaIndex: put the transformation after the splitter and before the
+embedding model, so what the vector store and the docstore keep is masked.
+
+```python
+embed = tw.protect_llamaindex_embedding(OpenAIEmbedding())
+pipeline = IngestionPipeline(
+    transformations=[SentenceSplitter(), tw.llamaindex_redact_nodes(), embed])
+nodes = pipeline.run(documents=docs)
+```
+
+Each embedding request is an `embeddings <model>` span and each store write
+a `vectorstore.add <store>` span, both with `taintward.destination=rag`.
+They record the masked input and how many vectors there were and their
+size, never the vectors. `rag` is masked, so it is not flagged as a
+violation; the span is still marked sensitive when the input had sensitive
+data.
+
+Not covered: document ids (kept as given, so you can update and delete by
+them; do not use an email as an id), token id input (lists of numbers
+cannot be scanned and are sent as they are), and vector stores written
+without one of these adapters (use `tw.redact_for_rag`).
+
 ## What the spans carry
 
 | attribute | meaning |
@@ -545,9 +601,8 @@ gateway refuses those calls.
   see what the tool got.
 - Not covered: LangChain `generate()` called directly with message lists,
   OpenAI `with_raw_response` / `with_streaming_response`, token counting
-  and batch endpoints, OpenAI and Anthropic `beta` endpoints,
-  embeddings, other LLM providers, and other clients you create without
-  `protect_*`.
+  and batch endpoints, OpenAI and Anthropic `beta` endpoints, other LLM
+  providers, and other clients you create without `protect_*`.
 - The OpenAI Agents SDK has its own tracing, which by default uploads tool
   arguments to OpenAI. Turn it off with `set_tracing_disabled(True)` or set
   `RunConfig(trace_include_sensitive_data=False)`.

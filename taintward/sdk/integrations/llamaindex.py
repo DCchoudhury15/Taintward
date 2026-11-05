@@ -20,6 +20,15 @@ chunk at the end).
 
 ``response.raw`` (the provider's own response) is left as the provider sent
 it, with placeholders.
+
+Embeddings and ingestion (destination ``rag``, masks, see ``_embed.py``):
+``protect_embedding(embed_model)`` returns a protected copy of an embedding
+model; the text of documents and queries is masked before it is sent.
+``redact_nodes()`` is a transformation for an ``IngestionPipeline`` (or
+``VectorStoreIndex.from_documents(..., transformations=[...])``): it masks
+the text and metadata of each node, so what the vector store and docstore
+keep is masked too. Put it after the splitter and before the embedding
+model.
 """
 
 from __future__ import annotations
@@ -336,4 +345,101 @@ def protect_llm(llm: Any, *, ward: Ward | None = None) -> Any:
     return protected_copy(llm, _llm_class, _resolve(ward, None))
 
 
-__all__ = ["wrap_tool", "wrap_tools", "protect_llm"]
+# ---------------------------------------------------------------------------
+# embeddings and ingestion (destination rag)
+# ---------------------------------------------------------------------------
+
+
+def _embedding_class(base: type) -> type:
+    from taintward.sdk.integrations._embed import embed_async, embed_sync
+
+    def name(self) -> str:
+        return str(getattr(self, "model_name", "") or type(self).__name__)
+
+    class Protected(base):  # type: ignore[misc, valid-type]
+        def get_query_embedding(self, query, *a, **kw):
+            return embed_sync(ward_of(self), FRAMEWORK, FRAMEWORK, name(self), query,
+                              lambda t: super(Protected, self).get_query_embedding(t, *a, **kw))
+
+        async def aget_query_embedding(self, query, *a, **kw):
+            return await embed_async(
+                ward_of(self), FRAMEWORK, FRAMEWORK, name(self), query,
+                lambda t: super(Protected, self).aget_query_embedding(t, *a, **kw))
+
+        def get_text_embedding(self, text, *a, **kw):
+            return embed_sync(ward_of(self), FRAMEWORK, FRAMEWORK, name(self), text,
+                              lambda t: super(Protected, self).get_text_embedding(t, *a, **kw))
+
+        async def aget_text_embedding(self, text, *a, **kw):
+            return await embed_async(
+                ward_of(self), FRAMEWORK, FRAMEWORK, name(self), text,
+                lambda t: super(Protected, self).aget_text_embedding(t, *a, **kw))
+
+        def get_text_embedding_batch(self, texts, *a, **kw):
+            return embed_sync(
+                ward_of(self), FRAMEWORK, FRAMEWORK, name(self), list(texts),
+                lambda t: super(Protected, self).get_text_embedding_batch(t, *a, **kw))
+
+        async def aget_text_embedding_batch(self, texts, *a, **kw):
+            return await embed_async(
+                ward_of(self), FRAMEWORK, FRAMEWORK, name(self), list(texts),
+                lambda t: super(Protected, self).aget_text_embedding_batch(t, *a, **kw))
+    return Protected
+
+
+def protect_embedding(embed_model: Any, *, ward: Ward | None = None) -> Any:
+    """Return a protected copy of a LlamaIndex embedding model: document and
+    query text is masked for the ``rag`` destination before it is sent, and
+    an ``embeddings <model>`` span is recorded."""
+    if is_protected(embed_model):
+        return embed_model
+    return protected_copy(embed_model, _embedding_class, _resolve(ward, None))
+
+
+def _redact_class():
+    from llama_index.core.schema import TransformComponent
+    from pydantic import PrivateAttr
+
+    from taintward.sdk.integrations._embed import store_sync
+
+    class TaintwardRedactNodes(TransformComponent):
+        """Masks the text and metadata of each node for the ``rag``
+        destination (returns masked copies; the input nodes are not
+        changed)."""
+
+        _ward: Any = PrivateAttr(default=None)
+
+        def __call__(self, nodes, **kwargs):
+            nodes = list(nodes)
+            content = {"nodes": [{"text": n.get_content(), "metadata": dict(n.metadata)}
+                                 for n in nodes]}
+
+            def send(masked: dict) -> list:
+                out = []
+                for node, m in zip(nodes, masked["nodes"]):
+                    new = node.model_copy(deep=True)
+                    new.set_content(m["text"])
+                    new.metadata = m["metadata"]
+                    out.append(new)
+                return out
+            return store_sync(self._ward or _resolve(None, None), FRAMEWORK, "ingestion",
+                              content, send)
+    return TaintwardRedactNodes
+
+
+_REDACT_CLS: type | None = None
+
+
+def redact_nodes(*, ward: Ward | None = None) -> Any:
+    """A transformation that masks node text and metadata for the ``rag``
+    destination (``IngestionPipeline(transformations=[splitter,
+    redact_nodes(), embed_model])``)."""
+    global _REDACT_CLS
+    if _REDACT_CLS is None:
+        _REDACT_CLS = _redact_class()
+    t = _REDACT_CLS()
+    t._ward = ward
+    return t
+
+
+__all__ = ["wrap_tool", "wrap_tools", "protect_llm", "protect_embedding", "redact_nodes"]

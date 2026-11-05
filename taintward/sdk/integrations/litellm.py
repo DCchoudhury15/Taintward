@@ -11,6 +11,8 @@ callbacks read it after the call returns (in a thread or a background task),
 so they must see the placeholders. With ``stream=True`` each chunk is handed
 out as a restored copy (a placeholder split across chunks is restored
 whole), and LiteLLM's own copies of the chunks keep the placeholders too.
+``litellm.embedding`` / ``litellm.aembedding`` are patched too: their input
+is masked for the ``rag`` destination (see ``_embed.py``).
 
 Proxy. ``TaintwardGuardrail`` is a LiteLLM custom guardrail. In the proxy
 config::
@@ -185,15 +187,42 @@ def _wrap(original, ward: Ward, is_async: bool):
     return completion
 
 
+def _wrap_embedding(original, ward: Ward, is_async: bool):
+    from taintward.sdk.integrations._embed import embed_async, embed_sync
+
+    if is_async:
+        @functools.wraps(original)
+        async def aembedding(*args, **kwargs):
+            kwargs = _bind(original, args, kwargs)
+            return await embed_async(ward, "litellm", "litellm", _model(kwargs),
+                                     kwargs.get("input"),
+                                     lambda texts: original(**{**kwargs, "input": texts}))
+        setattr(aembedding, _MARK, True)
+        return aembedding
+
+    @functools.wraps(original)
+    def embedding(*args, **kwargs):
+        kwargs = _bind(original, args, kwargs)
+        return embed_sync(ward, "litellm", "litellm", _model(kwargs), kwargs.get("input"),
+                          lambda texts: original(**{**kwargs, "input": texts}))
+    setattr(embedding, _MARK, True)
+    return embedding
+
+
 def protect_litellm(module: Any = None, *, ward: Ward | None = None) -> Any:
-    """Patch ``litellm.completion`` / ``litellm.acompletion`` in place and
-    return the module. Calling it again does nothing."""
+    """Patch ``litellm.completion`` / ``litellm.acompletion`` and
+    ``litellm.embedding`` / ``litellm.aembedding`` in place and return the
+    module. Calling it again does nothing."""
     mod = module or litellm
     w = _resolve(ward, None)
     for name, is_async in (("completion", False), ("acompletion", True)):
         fn = getattr(mod, name, None)
         if fn is not None and not getattr(fn, _MARK, False):
             setattr(mod, name, _wrap(fn, w, is_async))
+    for name, is_async in (("embedding", False), ("aembedding", True)):
+        fn = getattr(mod, name, None)
+        if fn is not None and not getattr(fn, _MARK, False):
+            setattr(mod, name, _wrap_embedding(fn, w, is_async))
     return mod
 
 

@@ -13,6 +13,9 @@ Patched methods (sync and async clients):
   ``client.responses.create`` / ``.parse``
 * Anthropic: ``client.messages.create`` / ``.parse`` and the
   ``client.messages.stream()`` helper
+* OpenAI embeddings: ``client.embeddings.create``. The input is masked for
+  the ``rag`` destination (an embedding can be turned back into text), see
+  ``_embed.py``.
 
 The ``parse()`` helpers send their own request (they do not call
 ``create``), so they are patched the same way as ``create``: the request is
@@ -553,6 +556,35 @@ def _patch_message_stream(resource: Any, ward: Ward) -> bool:
     return True
 
 
+def _wrap_embeddings(original: Callable, ward: Ward) -> Callable:
+    from taintward.sdk.integrations._embed import embed_async, embed_sync
+
+    if inspect.iscoroutinefunction(inspect.unwrap(original)):
+        @functools.wraps(original)
+        async def acreate(*args, **kwargs):
+            return await embed_async(
+                ward, "openai", "openai", str(kwargs.get("model", "")), kwargs.get("input"),
+                lambda texts: original(*args, **{**kwargs, "input": texts}))
+        setattr(acreate, _PATCHED_MARK, True)
+        return acreate
+
+    @functools.wraps(original)
+    def create(*args, **kwargs):
+        return embed_sync(
+            ward, "openai", "openai", str(kwargs.get("model", "")), kwargs.get("input"),
+            lambda texts: original(*args, **{**kwargs, "input": texts}))
+    setattr(create, _PATCHED_MARK, True)
+    return create
+
+
+def _patch_embeddings(resource: Any, ward: Ward) -> bool:
+    original = getattr(resource, "create", None) if resource is not None else None
+    if original is None or getattr(original, _PATCHED_MARK, False):
+        return False
+    resource.create = _wrap_embeddings(original, ward)
+    return True
+
+
 def _patch(resource: Any, provider: str, system: str, fields: tuple[str, ...],
            ward: Ward) -> bool:
     """Patch ``create`` and ``parse`` (which sends its own request)."""
@@ -577,6 +609,7 @@ def protect_openai(client: Any, *, ward: Ward | None = None) -> Any:
                      _OPENAI_CHAT_FIELDS, w)
     patched |= _patch(getattr(client, "responses", None), "openai.responses", "openai",
                       _OPENAI_RESPONSES_FIELDS, w)
+    patched |= _patch_embeddings(getattr(client, "embeddings", None), w)
     if not patched and not _already(client, "openai"):
         raise TypeError("client has no chat.completions.create or responses.create")
     return client

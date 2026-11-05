@@ -110,7 +110,7 @@ adapter-tests:
   script:
     - python -m pip install -c constraints-adapters.txt -e ".[dev,crewai,llamaindex,pydantic-ai,google-adk,litellm]"
     - python -m spacy download en_core_web_sm
-    - python -m pytest -q tests/test_integrations_frameworks.py tests/test_integrations.py tests/test_placeholders.py tests/test_link_restore.py tests/test_stream_restore.py
+    - python -m pytest -q tests/test_integrations_frameworks.py tests/test_integrations.py tests/test_placeholders.py tests/test_link_restore.py tests/test_stream_restore.py tests/test_embeddings.py tests/test_llm_parse_helpers.py
 
 # Detection quality on two public labeled PII datasets (bench/external).
 # Fails when a score drops under its floor (FLOORS in run_external.py).

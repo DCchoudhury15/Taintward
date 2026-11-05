@@ -280,6 +280,31 @@ class Ward:
         from taintward.sdk.integrations.litellm import protect_litellm
         return protect_litellm(module, ward=self)
 
+    # Embeddings and vector stores (destination rag, masked).
+    def protect_langchain_embeddings(self, embeddings):
+        from taintward.sdk.integrations.langchain import protect_embeddings
+        return protect_embeddings(embeddings, ward=self)
+
+    def protect_langchain_vectorstore(self, store):
+        from taintward.sdk.integrations.langchain import protect_vectorstore
+        return protect_vectorstore(store, ward=self)
+
+    def protect_llamaindex_embedding(self, embed_model):
+        from taintward.sdk.integrations.llamaindex import protect_embedding
+        return protect_embedding(embed_model, ward=self)
+
+    def llamaindex_redact_nodes(self):
+        from taintward.sdk.integrations.llamaindex import redact_nodes
+        return redact_nodes(ward=self)
+
+    def redact_for_rag(self, value):
+        """Mask ``value`` (text, or a JSON-like payload) for the ``rag``
+        destination, for a pipeline with no adapter (your own vector store
+        writes)."""
+        from taintward.sdk.destinations import DEST_RAG
+        from taintward.sdk.redact import redact_payload
+        return redact_payload(value, DEST_RAG)
+
 
 _GLOBAL: Ward | None = None
 
@@ -435,6 +460,26 @@ def protect_litellm(module=None):
     return get_ward().protect_litellm(module)
 
 
+def protect_langchain_embeddings(embeddings):
+    return get_ward().protect_langchain_embeddings(embeddings)
+
+
+def protect_langchain_vectorstore(store):
+    return get_ward().protect_langchain_vectorstore(store)
+
+
+def protect_llamaindex_embedding(embed_model):
+    return get_ward().protect_llamaindex_embedding(embed_model)
+
+
+def llamaindex_redact_nodes():
+    return get_ward().llamaindex_redact_nodes()
+
+
+def redact_for_rag(value):
+    return get_ward().redact_for_rag(value)
+
+
 __all__ = [
     "DEFAULT_DESTINATION", "ToolPolicy", "Ward", "init", "get_ward", "run", "restore",
     "wrap_langchain_tools", "protect_langchain_model", "wrap_function_tools",
@@ -449,4 +494,9 @@ __all__ = [
     "wrap_adk_tools",
     "protect_adk_model",
     "protect_litellm",
+    "protect_langchain_embeddings",
+    "protect_langchain_vectorstore",
+    "protect_llamaindex_embedding",
+    "llamaindex_redact_nodes",
+    "redact_for_rag",
 ]

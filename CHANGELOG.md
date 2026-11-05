@@ -65,6 +65,13 @@
 
 ### Added
 
+- Embeddings and RAG ingestion (destination `rag`, masked): `protect_openai`
+  covers `client.embeddings.create`, `protect_litellm` covers
+  `litellm.embedding` / `aembedding`, and new `protect_langchain_embeddings`,
+  `protect_langchain_vectorstore`, `protect_llamaindex_embedding`,
+  `llamaindex_redact_nodes` and `redact_for_rag`. Spans record how many
+  vectors there were and their size, never the vectors.
+
 - Streamed answers are restored in Python: OpenAI and Anthropic
   `stream=True` (and the OpenAI `chat.completions.stream()` /
   `responses.stream()` helpers), LangChain `stream()` / `astream()`,

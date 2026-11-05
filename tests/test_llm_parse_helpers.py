@@ -15,6 +15,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+from taintward.sdk import instrumentation as instr
 from taintward.sdk.integrations import Ward
 
 pydantic = pytest.importorskip("pydantic")
@@ -30,6 +31,14 @@ class Out(pydantic.BaseModel):
 
 def _has(mod: str) -> bool:
     return importlib.util.find_spec(mod) is not None
+
+
+@pytest.fixture(autouse=True)
+def _no_leftover_taint():
+    """These calls run outside a run: their taint stays in the test
+    thread's context. Drop it so later tests start clean."""
+    yield
+    instr._LOOSE_TAINT.set(None)
 
 
 @pytest.fixture
