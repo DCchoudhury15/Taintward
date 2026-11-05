@@ -76,6 +76,8 @@ are described in [SDK integrations](../integrations.md) instead of here.
         - DetectionDegradedError
         - set_pii_types
         - ignored_types
+        - set_location_alone
+        - location_alone
         - Detection
         - detect_text
         - detect_mapping

@@ -431,14 +431,35 @@ English model was worst: German 0.85 to 0.28, Italian 0.39 to 0.25, Dutch
 0.22 to 0.09. Strict recall rose in every language, most in Italian (0.38
 to 0.66), Spanish (0.30 to 0.55) and French (0.39 to 0.61).
 
+### Place names on their own (0.4)
+
+Most of the false alarms left after round 3 were real place and company
+names that the datasets do not label ("Berlin", "Stockholm", "ABCDEF
+GmbH"). A city or a country alone does not identify a person, so since 0.4
+a place name (`LOCATION`) counts only when the same value also holds other
+sensitive data ("Alice Lee from Berlin"); street addresses always count.
+`TAINTWARD_LOCATION_ALONE=1` brings the old rule back. Same held-out test
+rows as above:
+
+| | ai4privacy before | ai4privacy after | gretel before | gretel after |
+|---|---:|---:|---:|---:|
+| example recall | 0.75 | 0.65 | 0.94 | 0.90 |
+| example precision | 0.98 | 0.99 | 0.88 | 0.91 |
+| false alarm rate on examples with nothing to find | 0.15 | **0.10** | 0.62 | **0.44** |
+| strict recall | 0.51 | 0.48 | 0.60 | 0.59 |
+| strict precision | 0.78 | **0.82** | 0.43 | 0.43 |
+| ADDRESS recall | 0.49 | 0.37 | 0.74 | 0.72 |
+
+ai4privacy labels a lone city as personal data, so the rows whose only
+label is a city now count as missed; that is where its recall went down.
+The synthetic benchmark did not change (it has no lone place names).
+
 ### Still weak on outside data
 
-1. **False alarms on long documents** (0.62 of gretel documents with nothing
-   labeled). Most are real place and company names the dataset does not
-   label ("Berlin", "Stockholm", "ABCDEF GmbH") and title-case headings. A
-   place name on its own counts as sensitive today (`LOCATION`); treating a
-   lone city or country as not sensitive would remove a large part of these,
-   but it is a product decision, not a detection fix.
+1. **False alarms on long documents** (0.44 of gretel documents with nothing
+   labeled). Most are title-case headings and words the name model takes
+   for names, and place names next to other data the dataset does not
+   label.
 2. **Names**: about half are found. The small models miss many one-word
    first names in running text, and names in non-Latin scripts (hi, te) or
    in lower case are not looked for at all.

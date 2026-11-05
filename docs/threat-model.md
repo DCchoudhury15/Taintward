@@ -263,6 +263,7 @@ them, but in `redact` mode the value itself goes through.
 | split across calls | first half in one call, second half in the next | not detected per call; chain taint does not help if neither half is found |
 | bare 9-digit SSN with no SSN word nearby | `ref 234121234` | not detected on purpose (looks like an order number) |
 | lower-case names, names in non-Latin scripts | `please email john smith`, `Иван Петров` | not detected: NER only runs on text with a capitalized Latin word (`_CAPITALIZED`) |
+| a place name with nothing else sensitive in the same value | `I live in Dorfen` (a village of a few thousand people) | not detected on purpose since 0.4: a lone city or country does not identify anyone, and on outside data such hits were mostly false alarms (checked 2026-11-05). Next to a name, id, phone or email it is masked; `TAINTWARD_LOCATION_ALONE=1` counts it alone too |
 | a one-word name that is also a common word in the same text, or a stop word | `Rose called. The rose garden is open.` | not detected on purpose: the name filters drop it, because on outside data such hits were mostly capitalized common words (checked 2026-11-04) |
 | ids with no check digit and no id word nearby | a passport or German ID card number on its own, `A1234567` | not detected: it looks like any other code. With a word in front (`Passnummer`, `passport`, `Personalausweis`, ...) or under a key such as `passport_number` it is found (checked 2026-11-04) |
 | bank account numbers other than IBAN | `Kontonummer 1234567890 BLZ 37040044` | not detected (checked 2026-11-04) |

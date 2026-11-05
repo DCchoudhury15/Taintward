@@ -11,7 +11,7 @@
       "n_gold": 4190,
       "tp_pred": 1727,
       "tp_gold": 2275,
-      "recall_any_type": 0.6496420047732697
+      "recall_any_type": 0.5873508353221957
     },
     "EMAIL": {
       "precision": 1.0,
@@ -71,17 +71,17 @@
       "n_gold": 704,
       "tp_pred": 57,
       "tp_gold": 52,
-      "recall_any_type": 0.078125
+      "recall_any_type": 0.07670454545454546
     },
     "ADDRESS": {
-      "precision": 0.5675675675675675,
-      "recall": 0.48855421686746986,
-      "f1": 0.5251052152866634,
-      "n_pred": 1258,
+      "precision": 0.6619354838709678,
+      "recall": 0.3704819277108434,
+      "f1": 0.4750697369758433,
+      "n_pred": 775,
       "n_gold": 1660,
-      "tp_pred": 714,
-      "tp_gold": 811,
-      "recall_any_type": 0.5867469879518072
+      "tp_pred": 513,
+      "tp_gold": 615,
+      "recall_any_type": 0.4686746987951807
     },
     "IP_ADDRESS": {
       "precision": null,
@@ -105,76 +105,76 @@
     }
   },
   "overall_strict": {
-    "precision": 0.776285317276517,
-    "recall": 0.508819018404908,
-    "f1": 0.6147185441240266,
-    "n_pred": 4318,
+    "precision": 0.8216427640156454,
+    "recall": 0.4837678936605317,
+    "f1": 0.6089798439317888,
+    "n_pred": 3835,
     "n_gold": 7824,
-    "tp_pred": 3352,
-    "tp_gold": 3981
+    "tp_pred": 3151,
+    "tp_gold": 3785
   },
   "overall_any_type": {
-    "precision": 0.9326076887447893,
-    "recall": 0.5871676891615542,
-    "f1": 0.7206289948570567,
-    "n_pred": 4318,
+    "precision": 0.9332464146023468,
+    "recall": 0.5286298568507157,
+    "f1": 0.6749434657247905,
+    "n_pred": 3835,
     "n_gold": 7824,
-    "tp_pred": 4027,
-    "tp_gold": 4594
+    "tp_pred": 3579,
+    "tp_gold": 4136
   },
   "other_detector_types": {},
   "binary": {
     "text": {
-      "precision": 0.9827833572453372,
-      "recall": 0.7449700924415443,
-      "f1": 0.8475100525827405,
-      "false_alarm_rate": 0.14906832298136646,
-      "tp": 2740,
-      "fp": 48,
-      "fn": 938,
-      "tn": 274
+      "precision": 0.9862956810631229,
+      "recall": 0.6457313757476889,
+      "f1": 0.7804797896812355,
+      "false_alarm_rate": 0.10248447204968944,
+      "tp": 2375,
+      "fp": 33,
+      "fn": 1303,
+      "tn": 289
     },
     "payload": {
-      "precision": 0.9827833572453372,
-      "recall": 0.7449700924415443,
-      "f1": 0.8475100525827405,
-      "false_alarm_rate": 0.14906832298136646,
-      "tp": 2740,
-      "fp": 48,
-      "fn": 938,
-      "tn": 274
+      "precision": 0.9862956810631229,
+      "recall": 0.6457313757476889,
+      "f1": 0.7804797896812355,
+      "false_alarm_rate": 0.10248447204968944,
+      "tp": 2375,
+      "fp": 33,
+      "fn": 1303,
+      "tn": 289
     },
     "correct_span": {
-      "precision": 0.9823982398239824,
-      "recall": 0.7283849918433931,
-      "f1": 0.8365339578454333,
-      "false_alarm_rate": 0.14906832298136646,
-      "tp": 2679,
-      "fp": 48,
-      "fn": 999,
-      "tn": 274
+      "precision": 0.9860050890585241,
+      "recall": 0.632137030995106,
+      "f1": 0.7703777335984094,
+      "false_alarm_rate": 0.10248447204968944,
+      "tp": 2325,
+      "fp": 33,
+      "fn": 1353,
+      "tn": 289
     }
   },
   "per_language": {
     "de": {
       "examples": 500,
       "strict": {
-        "precision": 0.7559322033898305,
-        "recall": 0.5479591836734694,
-        "f1": 0.635359658314653,
-        "n_pred": 590,
+        "precision": 0.8119001919385797,
+        "recall": 0.5244897959183673,
+        "f1": 0.6372890695758968,
+        "n_pred": 521,
         "n_gold": 980,
-        "tp_pred": 446,
-        "tp_gold": 537
+        "tp_pred": 423,
+        "tp_gold": 514
       },
       "any_type": {
-        "precision": 0.8711864406779661,
-        "recall": 0.6204081632653061,
-        "f1": 0.7247159222670563,
-        "n_pred": 590,
+        "precision": 0.8809980806142035,
+        "recall": 0.5612244897959183,
+        "f1": 0.685660741203471,
+        "n_pred": 521,
         "n_gold": 980,
-        "tp_pred": 514,
-        "tp_gold": 608
+        "tp_pred": 459,
+        "tp_gold": 550
       },
       "recall_by_class": {
         "PERSON": 0.5787545787545788,
@@ -184,7 +184,7 @@
         "IBAN": null,
         "SSN": 0.2222222222222222,
         "GOV_ID": 0.06521739130434782,
-        "ADDRESS": 0.5535714285714286,
+        "ADDRESS": 0.4166666666666667,
         "IP_ADDRESS": null,
         "SECRET": null
       },
@@ -201,35 +201,35 @@
         "SECRET": 0
       },
       "binary_text": {
-        "precision": 0.9706666666666667,
-        "recall": 0.7913043478260869,
-        "f1": 0.8718562874251498,
-        "false_alarm_rate": 0.275,
-        "tp": 364,
-        "fp": 11,
-        "fn": 96,
-        "tn": 29
+        "precision": 0.9842271293375394,
+        "recall": 0.6782608695652174,
+        "f1": 0.803088803088803,
+        "false_alarm_rate": 0.125,
+        "tp": 312,
+        "fp": 5,
+        "fn": 148,
+        "tn": 35
       }
     },
     "en": {
       "examples": 500,
       "strict": {
-        "precision": 0.8371040723981901,
-        "recall": 0.43537414965986393,
-        "f1": 0.5728246933888096,
-        "n_pred": 442,
+        "precision": 0.8729016786570744,
+        "recall": 0.4295432458697765,
+        "f1": 0.5757618050709468,
+        "n_pred": 417,
         "n_gold": 1029,
-        "tp_pred": 370,
-        "tp_gold": 448
+        "tp_pred": 364,
+        "tp_gold": 442
       },
       "any_type": {
-        "precision": 0.9864253393665159,
-        "recall": 0.49271137026239065,
-        "f1": 0.6571711424061076,
-        "n_pred": 442,
+        "precision": 0.988009592326139,
+        "recall": 0.4684159378036929,
+        "f1": 0.6355277769777036,
+        "n_pred": 417,
         "n_gold": 1029,
-        "tp_pred": 436,
-        "tp_gold": 507
+        "tp_pred": 412,
+        "tp_gold": 482
       },
       "recall_by_class": {
         "PERSON": 0.4604051565377532,
@@ -239,7 +239,7 @@
         "IBAN": null,
         "SSN": 0.3333333333333333,
         "GOV_ID": 0.04597701149425287,
-        "ADDRESS": 0.3235294117647059,
+        "ADDRESS": 0.29831932773109243,
         "IP_ADDRESS": null,
         "SECRET": null
       },
@@ -256,35 +256,35 @@
         "SECRET": 0
       },
       "binary_text": {
-        "precision": 0.9967948717948718,
-        "recall": 0.67170626349892,
-        "f1": 0.8025806451612904,
+        "precision": 0.9965277777777778,
+        "recall": 0.6198704103671706,
+        "f1": 0.7643142476697736,
         "false_alarm_rate": 0.02702702702702703,
-        "tp": 311,
+        "tp": 287,
         "fp": 1,
-        "fn": 152,
+        "fn": 176,
         "tn": 36
       }
     },
     "es": {
       "examples": 500,
       "strict": {
-        "precision": 0.7166921898928025,
-        "recall": 0.5541666666666667,
-        "f1": 0.6250370288548921,
-        "n_pred": 653,
+        "precision": 0.7658802177858439,
+        "recall": 0.509375,
+        "f1": 0.6118308405936322,
+        "n_pred": 551,
         "n_gold": 960,
-        "tp_pred": 468,
-        "tp_gold": 532
+        "tp_pred": 422,
+        "tp_gold": 489
       },
       "any_type": {
-        "precision": 0.9127105666156202,
-        "recall": 0.6802083333333333,
-        "f1": 0.7794914522681957,
-        "n_pred": 653,
+        "precision": 0.9056261343012704,
+        "recall": 0.5729166666666666,
+        "f1": 0.7018373844442456,
+        "n_pred": 551,
         "n_gold": 960,
-        "tp_pred": 596,
-        "tp_gold": 653
+        "tp_pred": 499,
+        "tp_gold": 550
       },
       "recall_by_class": {
         "PERSON": 0.5895372233400402,
@@ -294,7 +294,7 @@
         "IBAN": null,
         "SSN": 0.0,
         "GOV_ID": 0.10588235294117647,
-        "ADDRESS": 0.5983263598326359,
+        "ADDRESS": 0.41841004184100417,
         "IP_ADDRESS": null,
         "SECRET": null
       },
@@ -311,35 +311,35 @@
         "SECRET": 0
       },
       "binary_text": {
-        "precision": 0.9815789473684211,
-        "recall": 0.8056155507559395,
-        "f1": 0.8849347568208779,
+        "precision": 0.9769736842105263,
+        "recall": 0.6414686825053996,
+        "f1": 0.7744458930899609,
         "false_alarm_rate": 0.1891891891891892,
-        "tp": 373,
+        "tp": 297,
         "fp": 7,
-        "fn": 90,
+        "fn": 166,
         "tn": 30
       }
     },
     "fr": {
       "examples": 500,
       "strict": {
-        "precision": 0.7653543307086614,
-        "recall": 0.6101882613510521,
-        "f1": 0.6790196553249918,
-        "n_pred": 635,
+        "precision": 0.7930434782608695,
+        "recall": 0.5769656699889258,
+        "f1": 0.6679646808923403,
+        "n_pred": 575,
         "n_gold": 903,
-        "tp_pred": 486,
-        "tp_gold": 551
+        "tp_pred": 456,
+        "tp_gold": 521
       },
       "any_type": {
-        "precision": 0.8881889763779528,
-        "recall": 0.6755260243632336,
-        "f1": 0.767396575221772,
-        "n_pred": 635,
+        "precision": 0.8817391304347826,
+        "recall": 0.6157253599114064,
+        "f1": 0.7251045309387142,
+        "n_pred": 575,
         "n_gold": 903,
-        "tp_pred": 564,
-        "tp_gold": 610
+        "tp_pred": 507,
+        "tp_gold": 556
       },
       "recall_by_class": {
         "PERSON": 0.6422413793103449,
@@ -349,7 +349,7 @@
         "IBAN": null,
         "SSN": 0.25,
         "GOV_ID": 0.13953488372093023,
-        "ADDRESS": 0.6137566137566137,
+        "ADDRESS": 0.455026455026455,
         "IP_ADDRESS": null,
         "SECRET": null
       },
@@ -366,35 +366,35 @@
         "SECRET": 0
       },
       "binary_text": {
-        "precision": 0.9723618090452262,
-        "recall": 0.8468271334792122,
-        "f1": 0.9052631578947368,
-        "false_alarm_rate": 0.2558139534883721,
-        "tp": 387,
-        "fp": 11,
-        "fn": 70,
-        "tn": 32
+        "precision": 0.9770773638968482,
+        "recall": 0.7461706783369803,
+        "f1": 0.8461538461538463,
+        "false_alarm_rate": 0.18604651162790697,
+        "tp": 341,
+        "fp": 8,
+        "fn": 116,
+        "tn": 35
       }
     },
     "hi": {
       "examples": 500,
       "strict": {
-        "precision": 0.863013698630137,
-        "recall": 0.39828693790149894,
-        "f1": 0.5450359310681644,
-        "n_pred": 365,
+        "precision": 0.8816901408450705,
+        "recall": 0.3961456102783726,
+        "f1": 0.5466706947499599,
+        "n_pred": 355,
         "n_gold": 934,
-        "tp_pred": 315,
-        "tp_gold": 372
+        "tp_pred": 313,
+        "tp_gold": 370
       },
       "any_type": {
         "precision": 1.0,
-        "recall": 0.4443254817987152,
-        "f1": 0.6152705707931801,
-        "n_pred": 365,
+        "recall": 0.4336188436830835,
+        "f1": 0.6049290515309933,
+        "n_pred": 355,
         "n_gold": 934,
-        "tp_pred": 365,
-        "tp_gold": 415
+        "tp_pred": 355,
+        "tp_gold": 405
       },
       "recall_by_class": {
         "PERSON": 0.44246031746031744,
@@ -404,7 +404,7 @@
         "IBAN": null,
         "SSN": 0.0,
         "GOV_ID": 0.0,
-        "ADDRESS": 0.2254335260115607,
+        "ADDRESS": 0.2138728323699422,
         "IP_ADDRESS": null,
         "SECRET": null
       },
@@ -422,34 +422,34 @@
       },
       "binary_text": {
         "precision": 1.0,
-        "recall": 0.5952890792291221,
-        "f1": 0.7463087248322148,
+        "recall": 0.5738758029978587,
+        "f1": 0.7292517006802721,
         "false_alarm_rate": 0.0,
-        "tp": 278,
+        "tp": 268,
         "fp": 0,
-        "fn": 189,
+        "fn": 199,
         "tn": 33
       }
     },
     "it": {
       "examples": 500,
       "strict": {
-        "precision": 0.7510853835021708,
-        "recall": 0.6566523605150214,
-        "f1": 0.7007015221707478,
-        "n_pred": 691,
+        "precision": 0.7932203389830509,
+        "recall": 0.6030042918454935,
+        "f1": 0.6851551795101568,
+        "n_pred": 590,
         "n_gold": 932,
-        "tp_pred": 519,
-        "tp_gold": 612
+        "tp_pred": 468,
+        "tp_gold": 562
       },
       "any_type": {
-        "precision": 0.9218523878437048,
-        "recall": 0.7736051502145923,
-        "f1": 0.8412475558547295,
-        "n_pred": 691,
+        "precision": 0.9220338983050848,
+        "recall": 0.6738197424892703,
+        "f1": 0.7786235880792408,
+        "n_pred": 590,
         "n_gold": 932,
-        "tp_pred": 637,
-        "tp_gold": 721
+        "tp_pred": 544,
+        "tp_gold": 628
       },
       "recall_by_class": {
         "PERSON": 0.6727642276422764,
@@ -459,7 +459,7 @@
         "IBAN": null,
         "SSN": 0.0,
         "GOV_ID": 0.2236842105263158,
-        "ADDRESS": 0.6973684210526315,
+        "ADDRESS": 0.4780701754385965,
         "IP_ADDRESS": null,
         "SECRET": null
       },
@@ -476,35 +476,35 @@
         "SECRET": 0
       },
       "binary_text": {
-        "precision": 0.9676616915422885,
-        "recall": 0.8663697104677061,
-        "f1": 0.9142185663924794,
-        "false_alarm_rate": 0.2549019607843137,
-        "tp": 389,
-        "fp": 13,
-        "fn": 60,
-        "tn": 38
+        "precision": 0.9759036144578314,
+        "recall": 0.7216035634743875,
+        "f1": 0.8297055057618438,
+        "false_alarm_rate": 0.1568627450980392,
+        "tp": 324,
+        "fp": 8,
+        "fn": 125,
+        "tn": 43
       }
     },
     "nl": {
       "examples": 500,
       "strict": {
-        "precision": 0.7835051546391752,
-        "recall": 0.5546218487394958,
-        "f1": 0.6494885407225172,
-        "n_pred": 582,
+        "precision": 0.8589211618257261,
+        "recall": 0.5115546218487395,
+        "f1": 0.6412154017892637,
+        "n_pred": 482,
         "n_gold": 952,
-        "tp_pred": 456,
-        "tp_gold": 528
+        "tp_pred": 414,
+        "tp_gold": 487
       },
       "any_type": {
-        "precision": 0.9570446735395189,
-        "recall": 0.6596638655462185,
-        "f1": 0.7810038403143699,
-        "n_pred": 582,
+        "precision": 0.9564315352697096,
+        "recall": 0.555672268907563,
+        "f1": 0.7029444404410176,
+        "n_pred": 482,
         "n_gold": 952,
-        "tp_pred": 557,
-        "tp_gold": 628
+        "tp_pred": 461,
+        "tp_gold": 529
       },
       "recall_by_class": {
         "PERSON": 0.5727969348659003,
@@ -514,7 +514,7 @@
         "IBAN": null,
         "SSN": 0.07692307692307693,
         "GOV_ID": 0.03614457831325301,
-        "ADDRESS": 0.6424870466321243,
+        "ADDRESS": 0.43005181347150256,
         "IP_ADDRESS": null,
         "SECRET": null
       },
@@ -531,35 +531,35 @@
         "SECRET": 0
       },
       "binary_text": {
-        "precision": 0.991869918699187,
-        "recall": 0.782051282051282,
-        "f1": 0.8745519713261648,
-        "false_alarm_rate": 0.09375,
-        "tp": 366,
-        "fp": 3,
-        "fn": 102,
-        "tn": 29
+        "precision": 0.9931506849315068,
+        "recall": 0.6196581196581197,
+        "f1": 0.7631578947368421,
+        "false_alarm_rate": 0.0625,
+        "tp": 290,
+        "fp": 2,
+        "fn": 178,
+        "tn": 30
       }
     },
     "te": {
       "examples": 500,
       "strict": {
-        "precision": 0.8111111111111111,
-        "recall": 0.35361552028218696,
-        "f1": 0.4925129551113804,
-        "n_pred": 360,
+        "precision": 0.8459302325581395,
+        "recall": 0.3527336860670194,
+        "f1": 0.49786780839788364,
+        "n_pred": 344,
         "n_gold": 1134,
-        "tp_pred": 292,
-        "tp_gold": 401
+        "tp_pred": 291,
+        "tp_gold": 400
       },
       "any_type": {
-        "precision": 0.9944444444444445,
-        "recall": 0.3985890652557319,
-        "f1": 0.5690813304917248,
-        "n_pred": 360,
+        "precision": 0.9941860465116279,
+        "recall": 0.3844797178130511,
+        "f1": 0.5545134731095624,
+        "n_pred": 344,
         "n_gold": 1134,
-        "tp_pred": 358,
-        "tp_gold": 452
+        "tp_pred": 342,
+        "tp_gold": 436
       },
       "recall_by_class": {
         "PERSON": 0.42604501607717044,
@@ -569,7 +569,7 @@
         "IBAN": null,
         "SSN": 0.0,
         "GOV_ID": 0.009009009009009009,
-        "ADDRESS": 0.25862068965517243,
+        "ADDRESS": 0.2543103448275862,
         "IP_ADDRESS": null,
         "SECRET": null
       },
@@ -586,13 +586,13 @@
         "SECRET": 0
       },
       "binary_text": {
-        "precision": 0.9927007299270073,
-        "recall": 0.6031042128603105,
-        "f1": 0.750344827586207,
+        "precision": 0.9922480620155039,
+        "recall": 0.5676274944567627,
+        "f1": 0.7221438645980254,
         "false_alarm_rate": 0.04081632653061224,
-        "tp": 272,
+        "tp": 256,
         "fp": 2,
-        "fn": 179,
+        "fn": 195,
         "tn": 47
       }
     }
@@ -602,29 +602,29 @@
       "n": 3035,
       "class": "PERSON",
       "recall_strict": 0.5057660626029654,
-      "recall_any_type": 0.6204283360790774,
+      "recall_any_type": 0.5515650741350906,
       "found_as": {
         "PERSON": 1535,
-        "LOCATION": 352
+        "LOCATION": 143
       }
     },
     "SURNAME": {
       "n": 1155,
       "class": "PERSON",
       "recall_strict": 0.6406926406926406,
-      "recall_any_type": 0.7264069264069264,
+      "recall_any_type": 0.6813852813852814,
       "found_as": {
         "PERSON": 740,
-        "LOCATION": 103
+        "LOCATION": 51
       }
     },
     "CITY": {
       "n": 659,
       "class": "ADDRESS",
-      "recall_strict": 0.5569044006069803,
-      "recall_any_type": 0.7389984825493171,
+      "recall_strict": 0.34294385432473445,
+      "recall_any_type": 0.5250379362670713,
       "found_as": {
-        "LOCATION": 363,
+        "LOCATION": 222,
         "PERSON": 127,
         "STREET_ADDRESS": 5
       }
@@ -657,11 +657,11 @@
     "STREET": {
       "n": 440,
       "class": "ADDRESS",
-      "recall_strict": 0.6318181818181818,
-      "recall_any_type": 0.7295454545454545,
+      "recall_strict": 0.5068181818181818,
+      "recall_any_type": 0.6045454545454545,
       "found_as": {
         "STREET_ADDRESS": 176,
-        "LOCATION": 165,
+        "LOCATION": 110,
         "PERSON": 68
       }
     },
@@ -701,10 +701,10 @@
       "n": 310,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.3774193548387097,
+      "recall_any_type": 0.33548387096774196,
       "found_as": {
         "PERSON": 89,
-        "LOCATION": 28
+        "LOCATION": 15
       }
     },
     "AGE": {
@@ -747,10 +747,9 @@
       "n": 106,
       "class": null,
       "recall_strict": 0.0,
-      "recall_any_type": 0.1509433962264151,
+      "recall_any_type": 0.12264150943396226,
       "found_as": {
-        "PERSON": 13,
-        "LOCATION": 3
+        "PERSON": 13
       }
     },
     "CREDITCARDNUMBER": {
@@ -777,10 +776,9 @@
       "n": 74,
       "class": "GOV_ID",
       "recall_strict": 0.02702702702702703,
-      "recall_any_type": 0.04054054054054054,
+      "recall_any_type": 0.02702702702702703,
       "found_as": {
         "US_DRIVER_LICENSE": 1,
-        "LOCATION": 1,
         "ID_NUMBER": 1
       }
     },
@@ -810,9 +808,16 @@
       "PHONE format (d3)-d7": 4,
       "PHONE format (d3).d7": 4
     },
+    "ADDRESS": {
+      "address part: CITY": 313,
+      "address part: BUILDINGNUM": 226,
+      "address part: STREET": 174,
+      "address part: ZIPCODE": 169,
+      "found as another type: PERSON": 163
+    },
     "PERSON": {
-      "capitalized name missed by NER": 1468,
-      "found as another type: LOCATION": 447
+      "capitalized name missed by NER": 1729,
+      "found as another type: LOCATION": 186
     },
     "GOV_ID": {
       "GOV_ID format Ad7": 149,
@@ -826,14 +831,7 @@
       "GOV_ID format d5.d5": 18,
       "GOV_ID format Ad7A": 15,
       "GOV_ID format Ad6A": 15,
-      "GOV_ID format Ad8": 13
-    },
-    "ADDRESS": {
-      "address part: BUILDINGNUM": 226,
-      "address part: CITY": 172,
-      "address part: ZIPCODE": 169,
-      "found as another type: PERSON": 163,
-      "address part: STREET": 119
+      "GOV_ID format Ad8": 14
     },
     "CREDIT_CARD": {
       "CREDIT_CARD fails its checksum (rejected on purpose)": 87,
@@ -876,6 +874,26 @@
         "lang": "de",
         "label": "TELEPHONENUM",
         "shape": "d5-d3 d3 d4"
+      }
+    ],
+    "ADDRESS | address part: CITY": [
+      {
+        "id": "5607028",
+        "lang": "de",
+        "label": "CITY",
+        "shape": "Aa"
+      },
+      {
+        "id": "5281705",
+        "lang": "de",
+        "label": "CITY",
+        "shape": "Aa"
+      },
+      {
+        "id": "5433457",
+        "lang": "de",
+        "label": "CITY",
+        "shape": "Aa"
       }
     ],
     "PERSON | capitalized name missed by NER": [
@@ -952,10 +970,10 @@
         "shape": "Aa"
       },
       {
-        "id": "5306401",
+        "id": "5848221",
         "lang": "de",
-        "label": "SURNAME",
-        "shape": "Aa"
+        "label": "GIVENNAME",
+        "shape": "Aa Aa"
       }
     ],
     "PHONE | PHONE format d4-d2 d3.d4": [
@@ -1074,35 +1092,15 @@
         "shape": "Aa a Aa"
       },
       {
+        "id": "5890461",
+        "lang": "de",
+        "label": "STREET",
+        "shape": "Aa Aa"
+      },
+      {
         "id": "5890945",
         "lang": "de",
         "label": "STREET",
-        "shape": "Aa"
-      },
-      {
-        "id": "5317853",
-        "lang": "de",
-        "label": "STREET",
-        "shape": "Aa a Aa"
-      }
-    ],
-    "ADDRESS | address part: CITY": [
-      {
-        "id": "5281705",
-        "lang": "de",
-        "label": "CITY",
-        "shape": "Aa"
-      },
-      {
-        "id": "5433457",
-        "lang": "de",
-        "label": "CITY",
-        "shape": "Aa"
-      },
-      {
-        "id": "5763077",
-        "lang": "de",
-        "label": "CITY",
         "shape": "Aa"
       }
     ],
@@ -2898,20 +2896,6 @@
         "shape": "d4 d8"
       }
     ],
-    "GOV_ID | found as another type: LOCATION": [
-      {
-        "id": "5344002",
-        "lang": "es",
-        "label": "DRIVERLICENSENUM",
-        "shape": "Ad8"
-      },
-      {
-        "id": "5648978",
-        "lang": "it",
-        "label": "IDCARDNUM",
-        "shape": "Ad6A"
-      }
-    ],
     "PHONE | PHONE format d9 d4": [
       {
         "id": "5900380",
@@ -3686,6 +3670,14 @@
         "shape": "d5 d2.d3-d4"
       }
     ],
+    "GOV_ID | found as another type: LOCATION": [
+      {
+        "id": "5648978",
+        "lang": "it",
+        "label": "IDCARDNUM",
+        "shape": "Ad6A"
+      }
+    ],
     "PHONE | PHONE format d5-d3.d3 d4": [
       {
         "id": "5551310",
@@ -4161,14 +4153,14 @@
       "PERSON on GENDER/SEX": 1
     },
     "LOCATION": {
-      "LOCATION on GIVENNAME": 307,
-      "LOCATION on no label": 102,
-      "LOCATION on SURNAME": 61,
-      "LOCATION on GIVENNAME/SURNAME": 39,
-      "LOCATION on TITLE": 22,
-      "LOCATION on SEX": 3,
-      "LOCATION on SURNAME/TITLE": 3,
-      "LOCATION on GIVENNAME/TITLE": 2
+      "LOCATION on GIVENNAME": 126,
+      "LOCATION on no label": 67,
+      "LOCATION on SURNAME": 37,
+      "LOCATION on GIVENNAME/SURNAME": 14,
+      "LOCATION on TITLE": 13,
+      "LOCATION on GIVENNAME/TITLE": 1,
+      "LOCATION on GENDER": 1,
+      "LOCATION on EMAIL/GIVENNAME": 1
     }
   },
   "false_positive_examples": {
@@ -4218,9 +4210,9 @@
         "shape": "Aa"
       },
       {
-        "id": "5290642",
+        "id": "5848221",
         "lang": "de",
-        "shape": "Aa"
+        "shape": "Aa Aa"
       }
     ],
     "PERSON on CITY": [
@@ -4257,36 +4249,19 @@
         "shape": "Aa-Aa"
       }
     ],
-    "LOCATION on SEX": [
-      {
-        "id": "5510280",
-        "lang": "de",
-        "shape": "A): 'Aa"
-      },
-      {
-        "id": "5923781",
-        "lang": "fr",
-        "shape": "Aa"
-      },
-      {
-        "id": "5827325",
-        "lang": "it",
-        "shape": "Aa"
-      }
-    ],
     "LOCATION on SURNAME": [
-      {
-        "id": "5306401",
-        "lang": "de",
-        "shape": "Aa"
-      },
       {
         "id": "5274380",
         "lang": "de",
         "shape": "Aa Aa"
       },
       {
-        "id": "5671942",
+        "id": "5484939",
+        "lang": "de",
+        "shape": "Aa"
+      },
+      {
+        "id": "5906402",
         "lang": "de",
         "shape": "Aa"
       }
@@ -4310,11 +4285,6 @@
     ],
     "LOCATION on GIVENNAME/SURNAME": [
       {
-        "id": "5997214",
-        "lang": "de",
-        "shape": "Aa Aa Aa Aa"
-      },
-      {
         "id": "5551005",
         "lang": "de",
         "shape": "Aa Aa Aa Aa Aa"
@@ -4323,6 +4293,11 @@
         "id": "5975450",
         "lang": "de",
         "shape": "Aa Aa"
+      },
+      {
+        "id": "5295692",
+        "lang": "es",
+        "shape": "Aa Aa Aa"
       }
     ],
     "PERSON on SEX": [
@@ -4364,35 +4339,6 @@
         "id": "5655534",
         "lang": "es",
         "shape": "Aa Aa"
-      },
-      {
-        "id": "5259529",
-        "lang": "nl",
-        "shape": "Aa a Aa"
-      }
-    ],
-    "LOCATION on SURNAME/TITLE": [
-      {
-        "id": "5539123",
-        "lang": "es",
-        "shape": "Aa Aa"
-      },
-      {
-        "id": "5299339",
-        "lang": "it",
-        "shape": "Aa Aa Aa Aa"
-      },
-      {
-        "id": "5786263",
-        "lang": "nl",
-        "shape": "Aa Aa a Aa"
-      }
-    ],
-    "LOCATION on DRIVERLICENSENUM/GIVENNAME": [
-      {
-        "id": "5344002",
-        "lang": "es",
-        "shape": "Ad8 a Aa"
       }
     ],
     "PERSON on GENDER": [
@@ -4433,11 +4379,11 @@
         "shape": "Ad6A.aAaAa"
       }
     ],
-    "LOCATION on GIVENNAME/SURNAME/TITLE": [
+    "LOCATION on SURNAME/TITLE": [
       {
-        "id": "5380190",
-        "lang": "it",
-        "shape": "Aa Aa Aa"
+        "id": "5786263",
+        "lang": "nl",
+        "shape": "Aa Aa a Aa"
       }
     ],
     "PERSON on CITY/TITLE": [
@@ -4467,41 +4413,41 @@
     "detect_text_ms": {
       "200-999 chars": {
         "n": 172,
-        "p50": 2.816651001921855,
-        "p95": 4.7421894494618755,
-        "p99": 6.948326810525001,
-        "mean": 3.0938114708311164
+        "p50": 2.9063474939903244,
+        "p95": 5.362759497074872,
+        "p99": 7.6140488689997925,
+        "mean": 3.2592319667157934
       },
       "<200 chars": {
         "n": 3828,
-        "p50": 2.1409379987744614,
-        "p95": 3.5836044946336165,
-        "p99": 4.2470062673965,
-        "mean": 2.220213379329674
+        "p50": 2.2759610001230612,
+        "p95": 3.922863141633567,
+        "p99": 5.005992345686536,
+        "mean": 2.374230260731333
       }
     },
-    "chars_per_second": 48376.76480799748,
-    "ms_per_kb_mean": 20.671080506703984
+    "chars_per_second": 45278.225778901746,
+    "ms_per_kb_mean": 22.085671043805984
   },
-  "seconds": 9.2,
+  "seconds": 9.8,
   "wrapped_latency": {
     "200-999 chars": {
       "n": 21,
-      "p50": 6.218324997462332,
-      "p95": 9.135985004832037,
-      "p99": 17.946978603140458
+      "p50": 5.87574698147364,
+      "p95": 10.236292000627145,
+      "p99": 16.084214387228716
     },
     "<200 chars": {
       "n": 279,
-      "p50": 4.173203007667325,
-      "p95": 6.44988419371657,
-      "p99": 7.633301084279063
+      "p50": 3.8780749891884625,
+      "p95": 7.059035889687946,
+      "p99": 7.847207099548531
     },
     "all": {
       "n": 300,
-      "p50": 4.298159496102016,
-      "p95": 6.68965700097033,
-      "p99": 8.317635530256661
+      "p50": 4.058584512677044,
+      "p95": 7.299293456890156,
+      "p99": 8.514163080544662
     }
   },
   "source": {

@@ -100,6 +100,11 @@
 
 ### Changed
 
+- A place name with nothing else sensitive in the same value ("I flew to
+  Berlin") no longer counts as PII. Next to a name, id, phone number or
+  email it still does, and street addresses always do. On outside
+  documents this took false alarms from 62% to 44%. `TAINTWARD_LOCATION_ALONE=1`
+  or `detect.set_location_alone(True)` brings the old rule back.
 - Fewer false name hits: greeting and form label words ("Bitte",
   "Numéro"), template slots (`[City]`), words that are also written in lower
   case in the same text ("Policy" ... "policy"), spaCy stop words

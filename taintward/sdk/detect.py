@@ -53,6 +53,7 @@ from typing import Iterable, Iterator, Mapping
 
 from taintward.core.doe import Sensitivity
 from taintward.sdk import _lang, _walk
+from taintward.sdk.envflags import env_flag
 from taintward.sdk.recognizers_extra import (
     CONTEXT_RECOGNIZERS,
     EXTRA_CONTEXT,
@@ -132,6 +133,30 @@ def set_pii_types(*, enable: Iterable[str] = (), disable: Iterable[str] = ()) ->
 def ignored_types() -> frozenset:
     """Entity types currently not treated as sensitive."""
     return _noise_types
+
+
+# A place name on its own (a city, a country) does not identify anyone. On
+# outside data most lone LOCATION hits were plain city and company names
+# that the datasets do not count as personal data (checked 2026-11-05). So a
+# LOCATION counts only when the same value also holds other sensitive data
+# ("Alice Lee from Berlin"); street addresses are their own type and always
+# count. TAINTWARD_LOCATION_ALONE=1 or set_location_alone(True) makes a lone
+# place name count again; set_pii_types(disable=["LOCATION"]) never counts it.
+_location_alone = env_flag("TAINTWARD_LOCATION_ALONE", False)
+
+
+def set_location_alone(on: bool) -> None:
+    """Make a place name with no other sensitive data in the same value count
+    as PII (``True``, the behaviour before 0.4) or not (``False``, the
+    default). Clears the detection cache."""
+    global _location_alone
+    _location_alone = bool(on)
+    clear_cache()
+
+
+def location_alone() -> bool:
+    """Does a lone place name count as PII?"""
+    return _location_alone
 
 
 def fingerprint(value: str) -> str:
@@ -753,6 +778,8 @@ def _finish(seg: _Segment, threshold: float) -> list[Detection]:
             continue
         out.append(Detection(entity_type=etype, start=start, end=end, score=score,
                              sensitivity=sens, fingerprint=fingerprint(text[start:end])))
+    if not _location_alone and all(d.entity_type == "LOCATION" for d in out):
+        return []  # only place names: see _location_alone
     out.sort(key=lambda d: (d.start, d.end))
     return out
 
@@ -978,7 +1005,7 @@ def _analyze(items: list[tuple[str, str]], threshold: float) -> list[list[Detect
     """Detect in many (text, key) values at once. Uses the cache."""
     out: list[list[Detection] | None] = [None] * len(items)
     todo: list[tuple[int, _Segment, tuple]] = []
-    noise_tag = tuple(sorted(_noise_types))
+    noise_tag = (tuple(sorted(_noise_types)), _location_alone)
     limit = max_chars()
     for i, (text, key) in enumerate(items):
         if not text:

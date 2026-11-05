@@ -151,15 +151,19 @@ LABEL_MAP = {
 # little under the numbers measured when they were set (docs/benchmark.md),
 # so a rule that stops working fails the job. "max_false_alarm" is the
 # example-level false alarm rate on texts with nothing to find.
+#
+# Since 0.4 a place name with nothing else sensitive in the same value is not
+# counted (detect._location_alone). ai4privacy labels a lone city as personal
+# data, so its recall floors went down and both false alarm ceilings came down.
 FLOORS = {
     "ai4privacy": {
-        "strict_recall": 0.49, "strict_precision": 0.75,
-        "example_recall": 0.72, "max_false_alarm": 0.17,
-        "class_recall": {"PERSON": 0.51, "PHONE": 0.60, "ADDRESS": 0.46},
+        "strict_recall": 0.47, "strict_precision": 0.80,
+        "example_recall": 0.63, "max_false_alarm": 0.12,
+        "class_recall": {"PERSON": 0.51, "PHONE": 0.60, "ADDRESS": 0.35},
     },
     "gretel": {
-        "strict_recall": 0.57, "strict_precision": 0.40,
-        "example_recall": 0.92, "max_false_alarm": 0.65,
+        "strict_recall": 0.57, "strict_precision": 0.41,
+        "example_recall": 0.88, "max_false_alarm": 0.47,
         "class_recall": {"PERSON": 0.45, "PHONE": 0.87, "SSN": 0.66, "GOV_ID": 0.58,
                          "ADDRESS": 0.70, "SECRET": 0.40, "EMAIL": 0.92},
     },
