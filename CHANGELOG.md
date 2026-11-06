@@ -65,6 +65,12 @@
 
 ### Added
 
+- Compliance mappings for GDPR, the EU AI Act, HIPAA and SOC 2
+  (`taintward/evidence/compliance.py`, docs/compliance.md): each requirement
+  with the controls that support it, how much (supports, partly, not
+  covered) and the limits. `taintward-report --frameworks gdpr,hipaa` (or
+  `all`) adds them as section 11, with the report's own numbers as evidence.
+
 - KMS-only key mode (`TAINTWARD_KEYS_KMS_ONLY=1` or `"kms_only": true` in
   the ring): plain keys anywhere, the demo key and the random per-process
   key are refused. Scheduled rotation: keys record the day they were made,

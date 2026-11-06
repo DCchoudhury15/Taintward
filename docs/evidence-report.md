@@ -99,6 +99,12 @@ The page is laid out for A4 and table headers repeat on each page.
    not cover.
 10. **List of violations.** One row per violation, with trace ids so each
     one can be looked up in Jaeger or SigNoz.
+11. **Compliance mapping** (only with `--frameworks gdpr,eu-ai-act,hipaa,soc2`
+    or `all`). Which requirements the controls support, how much
+    (supports, partly, not covered), and this report's own numbers as
+    evidence for each, for example "Section 5: 4 transfer(s)" next to GDPR
+    Art. 44. The full table is in [Compliance mappings](compliance.md). It
+    is not legal advice.
 
 The footer has a SHA-256 digest of the report data. The data itself is
 embedded in the file as JSON (element `taintward-report-data`), so a script

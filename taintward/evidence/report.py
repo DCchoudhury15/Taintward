@@ -13,7 +13,10 @@ window:
   view),
 * a check of what was actually sent to external and LLM destinations for
   raw sensitive values, with the method and its limits,
-* the Merkle evidence log root and signed checkpoint, and how to verify them.
+* the Merkle evidence log root and signed checkpoint, and how to verify them,
+* optionally (--frameworks), which GDPR, EU AI Act, HIPAA or SOC 2
+  requirements the controls support, with this report's numbers as evidence
+  (taintward/evidence/compliance.py).
 
 The headline "0 raw sensitive values were sent ..." is printed only when the
 data supports it: every external and LLM call has its sent input recorded,
@@ -50,6 +53,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from taintward.evidence import compliance
 from taintward.evidence.merkle import LogCorruptError, MerkleLog, violation_record
 from taintward.evidence.spans import (
     ClickHouseSource,
@@ -380,12 +384,14 @@ def build_report(spans: Iterable[Span], *, start_ns: int, end_ns: int,
                  evidence_dir: str | None = None, log_file: str | None = None,
                  public_key: str | None = None, max_rows: int = 500,
                  generated_ns: int | None = None,
-                 fingerprint_key: bytes | None = None) -> dict:
+                 fingerprint_key: bytes | None = None,
+                 frameworks: tuple[str, ...] = ()) -> dict:
     """Compute every number in the report. Pure: no network, no clock unless
     ``generated_ns`` is left out.
 
     ``fingerprint_key``: HMAC key for the finding fingerprints; default
     ``report_key()`` (TAINTWARD_REPORT_KEY, or a random per-report key).
+    ``frameworks``: add the compliance mapping for these (``compliance.FRAMEWORKS``).
     """
     fp_key, fp_scope = (fingerprint_key, "deployment") if fingerprint_key is not None \
         else report_key()
@@ -571,6 +577,10 @@ def build_report(spans: Iterable[Span], *, start_ns: int, end_ns: int,
         "warnings": warnings,
         "limits": LIMITS + ([] if deep_scan else [DEEP_SCAN_LIMIT]),
     }
+    if frameworks:
+        data["compliance"] = {"frameworks": {f: compliance.FRAMEWORKS[f] for f in frameworks},
+                              "disclaimer": compliance.DISCLAIMER,
+                              "rows": compliance.rows(frameworks, data)}
     data["digest"] = hashlib.sha256(
         json.dumps(data, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return data
@@ -961,6 +971,21 @@ def render_html(data: dict) -> str:
     if data["violation_list_truncated"]:
         w("<p class='explain'>The list is cut short. Use the JSON output for every row.</p>")
 
+    # 11. compliance mapping (only with --frameworks)
+    comp = data.get("compliance")
+    if comp:
+        w("<h2>11. Compliance mapping</h2>")
+        w(f"<p class='explain'>{_e(comp['disclaimer'])} <b>supports</b>: Taintward does the "
+          "technical part of the requirement for the data that goes through it. "
+          "<b>partly</b>: it helps. <b>not covered</b>: listed so nobody assumes it is.</p>")
+        for fid, fname in comp["frameworks"].items():
+            w(f"<h3>{_e(fname)}</h3>")
+            rows = [[_Raw(f"<b>{_e(r['ref'])}</b> {_e(r['title'])}"), r["level"], r["how"],
+                     ", ".join(r["controls"]) or "-", r["evidence"] or "-", r["limits"]]
+                    for r in comp["rows"] if r["framework"] == fid]
+            w(_table(["Requirement", "Level", "How Taintward helps", "Controls",
+                      "Evidence in this report", "Limits"], rows))
+
     w("<footer>")
     w(f"<p>Report data digest: <code>{_e(data['digest'])}</code>. This is the SHA-256 of "
       "the report data embedded in this file (element <code>taintward-report-data</code>, "
@@ -1052,12 +1077,19 @@ def main(argv: list[str] | None = None) -> int:
     o.add_argument("--deep-scan", action="store_true",
                    help="also scan sent inputs with the Presidio detectors (needs spaCy model)")
     o.add_argument("--max-rows", type=int, default=500)
+    o.add_argument("--frameworks", default="",
+                   help="add the compliance mapping: comma list of "
+                        + ", ".join(compliance.FRAMEWORKS) + ", or all")
     e = ap.add_argument_group("evidence log")
     e.add_argument("--evidence-dir", default=None, help="sharded evidence log directory")
     e.add_argument("--log-file", default=None, help="single-file evidence log")
     e.add_argument("--public-key", default=None,
                    help="verify the evidence log checkpoints with this public key")
     args = ap.parse_args(argv)
+    try:
+        frameworks = compliance.parse_frameworks(args.frameworks)
+    except ValueError as exc:
+        ap.error(str(exc))
 
     start_ns, end_ns = window_from_args(args)
     src = source_from_args(args)
@@ -1067,6 +1099,7 @@ def main(argv: list[str] | None = None) -> int:
         organization=args.org, system=args.system, deep_scan=args.deep_scan,
         truncated=bool(getattr(src, "truncated", False)), evidence_dir=args.evidence_dir,
         log_file=args.log_file, public_key=args.public_key, max_rows=args.max_rows,
+        frameworks=frameworks,
     )
     text = (json.dumps(data, indent=2, sort_keys=True) if args.format == "json"
             else render_html(data))
