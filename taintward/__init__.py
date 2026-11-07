@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import importlib
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 _EXPORTS = {
     "init": "taintward.sdk.integrations",
