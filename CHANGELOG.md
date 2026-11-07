@@ -65,6 +65,12 @@
 
 ### Added
 
+- Offline data over-exposure audit (`taintward-audit`, docs/audit.md): from
+  MCP tool definitions and the destination map, every path by which
+  sensitive data could reach an outside sink (AgentRaft's function call
+  graph, with rules instead of an LLM), which of them ran in recorded spans
+  and with what outcome, and test prompts for the ones that never ran.
+
 - Compliance mappings for GDPR, the EU AI Act, HIPAA and SOC 2
   (`taintward/evidence/compliance.py`, docs/compliance.md): each requirement
   with the controls that support it, how much (supports, partly, not

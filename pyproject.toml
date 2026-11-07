@@ -116,6 +116,7 @@ taintward-evidence = "taintward.evidence.log:main"
 taintward-fix = "taintward.fix_suggester.suggest:main"
 taintward-gateway = "taintward.gateway.__main__:main"
 taintward-keys = "taintward.sdk.keys:main"
+taintward-audit = "taintward.analysis.audit:main"
 taintward-report = "taintward.evidence.report:main"
 
 [tool.setuptools.dynamic]

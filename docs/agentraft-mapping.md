@@ -44,17 +44,22 @@ GDPR/CCPA/PIPL. Evaluated on AgentDojo with 6,675 MCP.so tools; DOE shows up in
 - **Paper:** directed graph of tool-to-tool edges, hybrid static type-pruning
   (type equivalence/subset/conversion) plus LLM validation of semantic
   relevance; call-edge template uses extracted Verb+Object. F1 95.10%.
-- **Taintward:** `analysis/fcg.py`, deferred to Phase 5. Runtime traces
-  *are* the call graph; the FCG is only needed for offline audit/fuzz.
-- **Transformation:** dropped for MVP, reintroduced as an offline audit mode
-  that also generates the integration-test prompt corpus.
+- **Taintward:** `taintward/analysis/fcg.py`. Runtime traces *are* the call
+  graph at run time; the FCG is for the offline audit (`taintward-audit`,
+  [docs](audit.md)), which also marks which graph paths the traces show.
+- **Transformation:** the LLM validation of semantic relevance is replaced
+  by fixed rules: type fit, plus names in the same meaning group (email /
+  to / recipient, ssn / tax_id, ...) or a free-text input. Deterministic,
+  so an audit can be repeated exactly; it misses fields whose names say
+  nothing.
 
 ### C. User Prompt Synthesis
 - **Paper:** BFS over the FCG for acyclic source-to-sink paths, instantiate
   templates with concrete user assets, partition into D_int and
   over-exposure candidates. 93.74% trigger coverage.
-- **Taintward:** `analysis/prompt_synth.py`, a **test-harness/fuzzer** for our
-  own demo bot, not a general attack generator.
+- **Taintward:** `taintward/analysis/prompt_synth.py`, a **test corpus** for
+  your own agent, written for the paths the traces never showed
+  (`taintward-audit --prompts`), not a general attack generator.
 - **Transformation:** reframed. Synthesized prompts become the integration
   test corpus that proves the enforcement pipeline fires.
 
