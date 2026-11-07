@@ -5,6 +5,9 @@ prompts for the ones that never ran. No LLM, so every result is fixed."""
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
+from pathlib import Path
 
 from taintward.analysis import fcg
 from taintward.analysis.audit import (
@@ -170,6 +173,24 @@ def test_gateway_upstream_unknown_without_prefixes(tmp_path):
     # two unprefixed upstreams: which one offers "lookup" is unknown, so the
     # rule that trusts only upstream "a" is not applied (safe default)
     assert policy_from_gateway(str(tmp_path / "gw.yaml"))("lookup") == ("external", "", False)
+
+
+def test_gateway_config_audit_needs_no_mcp_sdk(tmp_path):
+    # A fresh process with the MCP SDK made unimportable (sys.modules entry
+    # None), so the result does not depend on what is installed here or on
+    # which modules earlier tests loaded.
+    (tmp_path / "gw.yaml").write_text(
+        "upstreams:\n  - {name: crm, command: crm-server}\n"
+        "tools:\n  - {match: 'get_customer', destination: internal}\n")
+    code = (
+        "import sys\n"
+        "for m in ('mcp', 'mcp_types'): sys.modules[m] = None\n"
+        "from taintward.analysis.audit import policy_from_gateway\n"
+        f"print(policy_from_gateway({str(tmp_path / 'gw.yaml')!r})('get_customer'))\n")
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                       cwd=Path(__file__).resolve().parents[1], timeout=60)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == "('internal', '', True)"
 
 
 def test_every_sink_call_in_a_run_is_counted_once():
