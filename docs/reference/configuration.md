@@ -52,7 +52,6 @@ runs after `import taintward`.
 | `TAINTWARD_ALLOW_DEMO_KEY` | exactly `1` | unset | use the public demo key from the code when `TAINTWARD_FPE_KEY` is unset. Demos and tests only | `taintward/sdk/redact.py` |
 | `TAINTWARD_VAULT` | URL | `memory` | where token to value mappings are kept: `memory`, `sqlite:///abs/path.db`, `postgresql://user:pass@host:5432/db`, `redis://host:6379/0` (`rediss://` for TLS) | `taintward/sdk/vault.py` |
 | `TAINTWARD_VAULT_KEY` | hex, 32, 48 or 64 chars | unset | AES-256-GCM key that encrypts originals at rest. Required by the SQLite, Postgres and Redis vaults, which refuse to start without it or with a value equal to `TAINTWARD_FPE_KEY` | `taintward/sdk/vault.py` |
-
 | `TAINTWARD_VAULT_KEY_ID` | string | a short hash of the key | id stored in each sealed vault row | `taintward/sdk/keys.py` |
 | `TAINTWARD_VAULT_KEY_PREVIOUS` | comma list of hex keys | empty | older vault keys, used only to open rows during a rotation | `taintward/sdk/keys.py` |
 | `TAINTWARD_KEYS_KMS_ONLY` | flag | off | every key must be wrapped by a KMS: plain keys in the ring, `TAINTWARD_FPE_KEY` / `TAINTWARD_VAULT_KEY`, keys passed in code, the demo key and the random per-process key are refused. `"kms_only": true` in the ring does the same | `taintward/sdk/keys.py` |
@@ -88,6 +87,18 @@ settings.
 | `TAINTWARD_EVIDENCE_PUBLIC_KEY_FILE` | path | unset | public key (PEM) for verification, used when `--public-key` is not given | `taintward/evidence/checkpoint.py` |
 | `TAINTWARD_EVIDENCE_PUBLIC_KEY` | PEM text or 64 hex chars | unset | the public key itself | `taintward/evidence/checkpoint.py` |
 | `TAINTWARD_REPORT_KEY` | string | unset: a new random key per report | secret key for the HMAC fingerprints of findings in the report. Set it to match fingerprints across reports; keep it secret, since with it a fingerprint can be checked against guesses | `taintward/evidence/report.py` |
+
+### Control plane and tenants
+
+| variable | type | default | meaning | read in |
+|---|---|---|---|---|
+| `TAINTWARD_TENANT` | letters, digits, `.`, `_`, `-` | unset | the tenant this process belongs to: recorded as `taintward.tenant` on the resource and on every span, and used to keep this tenant's rows apart in a shared vault (SQLite, Postgres, Redis) | `taintward/sdk/instrumentation.py`, `taintward/sdk/vault.py` |
+| `TAINTWARD_CONTROL_URL` | URL | unset | control plane address. When set, `tw.init()` takes the tool map from it and sends spans to it (unless you give `endpoint`) | `taintward/sdk/control.py`, `taintward/sdk/integrations/__init__.py` |
+| `TAINTWARD_CONTROL_TOKEN` | string | unset | an `agent` token of your tenant | `taintward/sdk/control.py` |
+| `TAINTWARD_CONTROL_CACHE` | path | unset | file for the last policy received, used when the control plane cannot be reached at start | `taintward/sdk/control.py` |
+| `TAINTWARD_CONTROL_REFRESH_SECONDS` | number | unset: policy read once at start | check for a new policy version this often | `taintward/sdk/control.py` |
+
+Details: [Control plane and tenants](../control-plane.md).
 
 ### Collector image
 
@@ -133,6 +144,8 @@ the SDK once per process and returns the global `Ward`.
 | `placeholder_ttl` | `None` | lifetime in seconds of those vault entries |
 | `placeholder_instruction` | `True` | add one system line that lists the placeholders in the request and asks the model to copy them exactly |
 | `placeholder_strict` | `False` | raise `PlaceholderRestoreError` when the answer has a placeholder that was lost or is unknown, instead of a warning |
+| `tenant` | `TAINTWARD_TENANT` | tenant recorded as `taintward.tenant` on every span |
+| `control` | on when `TAINTWARD_CONTROL_URL` is set | take the tool map from the [control plane](../control-plane.md) and send spans to it; pass no `destinations` then |
 
 Valid destinations are `internal`, `external`, `llm`, `log` and `rag`. A typo
 raises `ValueError` at startup.

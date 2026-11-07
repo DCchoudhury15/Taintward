@@ -1,0 +1,168 @@
+{{- if .Values.controlPlane.enabled }}
+{{- $c := .Values.controlPlane -}}
+{{- $name := printf "%s-control" (include "taintward.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- if and (not $c.existingSecret) (not $c.tenants) }}
+{{- fail "controlPlane needs tenants (with token hashes) or existingSecret with control.yaml" }}
+{{- end }}
+{{- $secret := $c.existingSecret | default $name -}}
+{{- $repo := $c.image.repository | default .Values.gateway.image.repository -}}
+{{- $tag := $c.image.tag | default .Values.gateway.image.tag | default .Chart.AppVersion -}}
+{{- $config := dict "data_dir" "/data" "max_body_bytes" ($c.maxBodyBytes | int) "tenants" $c.tenants -}}
+{{- if not $c.existingSecret }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+type: Opaque
+stringData:
+  control.yaml: |
+    {{- toYaml $config | nindent 4 }}
+---
+{{- end }}
+{{- if not $c.persistence.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with $c.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $c.persistence.size }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+spec:
+  replicas: 1
+  # One writer for the files on the volume: stop the old pod first.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "taintward.selectorLabels" (dict "ctx" . "component" "control-plane") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "taintward.selectorLabels" (dict "ctx" . "component" "control-plane") | nindent 8 }}
+      {{- with $c.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with $c.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: control
+          image: "{{ $repo }}:{{ $tag }}"
+          imagePullPolicy: {{ $c.image.pullPolicy }}
+          command: ["python", "-m", "taintward.control.app"]
+          args:
+            - serve
+            - --config
+            - /etc/taintward-control/control.yaml
+            - --listen
+            - "0.0.0.0:{{ $c.port }}"
+            {{- if $c.tlsSecret }}
+            - --tls-cert
+            - /etc/taintward-control-tls/tls.crt
+            - --tls-key
+            - /etc/taintward-control-tls/tls.key
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ $c.port }}
+          {{- $scheme := ternary "HTTPS" "HTTP" (not (empty $c.tlsSecret)) }}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http, scheme: {{ $scheme }}}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http, scheme: {{ $scheme }}}
+            periodSeconds: 20
+          {{- with $c.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml $c.resources | nindent 12 }}
+          securityContext:
+            {{- include "taintward.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/taintward-control, readOnly: true}
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+            {{- if $c.tlsSecret }}
+            - {name: tls, mountPath: /etc/taintward-control-tls, readOnly: true}
+            {{- end }}
+      volumes:
+        - name: config
+          secret:
+            secretName: {{ $secret }}
+            items: [{key: control.yaml, path: control.yaml}]
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $c.persistence.existingClaim | default $name }}
+        - name: tmp
+          emptyDir: {}
+        {{- if $c.tlsSecret }}
+        - name: tls
+          secret:
+            secretName: {{ $c.tlsSecret }}
+        {{- end }}
+      {{- with $c.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $c.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $c.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "taintward.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+  {{- with $c.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $c.service.type }}
+  selector:
+    {{- include "taintward.selectorLabels" (dict "ctx" . "component" "control-plane") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $c.port }}
+      targetPort: http
+{{- end }}

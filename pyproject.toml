@@ -88,6 +88,9 @@ litellm = ["litellm>=1.100"]
 # --- MCP gateway and shared state ------------------------------------------
 # MCP gateway (taintward/gateway/).
 mcp = ["mcp>=2.3", "PyYAML>=6", "uvicorn>=0.30"]
+# Control plane for many tenants (taintward/control/); PyYAML reads a YAML
+# config, a .json config needs nothing extra.
+control = ["PyYAML>=6"]
 # Shared state for running several replicas (vault and gateway sessions).
 postgres = ["psycopg[binary]>=3.2"]
 redis = ["redis>=5"]
@@ -117,6 +120,7 @@ taintward-fix = "taintward.fix_suggester.suggest:main"
 taintward-gateway = "taintward.gateway.__main__:main"
 taintward-keys = "taintward.sdk.keys:main"
 taintward-audit = "taintward.analysis.audit:main"
+taintward-control = "taintward.control.app:main"
 taintward-report = "taintward.evidence.report:main"
 
 [tool.setuptools.dynamic]

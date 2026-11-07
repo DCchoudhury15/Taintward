@@ -174,6 +174,26 @@ helm upgrade taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/
   values (same format as `taintward/gateway/example-config.yaml`, see
   [mcp-gateway.md](mcp-gateway.md)).
 
+## 7. Optional: the control plane
+
+One service for many tenants: their tool policies, span uploads, reports,
+audits and evidence ([Control plane and tenants](control-plane.md)). Make a
+token per app or person with `taintward-control new-token`, and put only the
+hashes in the values:
+
+```bash
+helm upgrade taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward --version 0.2.0 -n taintward --reuse-values \
+  -f control-values.yaml      # controlPlane.enabled, controlPlane.tenants
+```
+
+* It runs as one pod (`Recreate` strategy) with a `ReadWriteOnce` volume
+  (`controlPlane.persistence`), because it keeps its data in files.
+* Apps use `TAINTWARD_CONTROL_URL=http://taintward-control.taintward.svc:8820`
+  inside the cluster. Outside it, serve HTTPS (`controlPlane.tlsSecret`, a
+  `kubernetes.io/tls` Secret) or terminate TLS at an Ingress.
+* A change to the tenants Secret is picked up without a restart once the
+  kubelet updates the mounted file.
+
 ## Try it on a laptop with kind
 
 This is the setup used to test the chart:
@@ -234,3 +254,7 @@ kubectl delete namespace taintward
 | `gateway.existingSecret` | empty, required with the gateway | keys |
 | `gateway.sessionStore.redisUrl` | empty | shared sessions |
 | `taintward.gateway.config` | HR example | gateway.yaml content |
+| `controlPlane.enabled` | `false` | control plane for many tenants |
+| `controlPlane.tenants` | empty, required unless `existingSecret` | tenants and the SHA-256 of their tokens |
+| `controlPlane.existingSecret` | empty | your own Secret with `control.yaml` (data_dir `/data`) |
+| `controlPlane.persistence.size` | `10Gi` | volume for policies, spans and evidence |

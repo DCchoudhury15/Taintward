@@ -290,3 +290,51 @@ keyRotation:
       memory: 256Mi
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
+
+# Control plane for many tenants (taintward-control): tool policy per
+# tenant, span upload, reports, audits and evidence. See docs/control-plane.md.
+# One replica with a persistent volume (it keeps its data in files).
+controlPlane:
+  enabled: false
+  image:
+    # Empty: the gateway image (it has taintward and PyYAML).
+    repository: ""
+    tag: ""
+    pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  port: 8820
+  # Tenants and the SHA-256 of their tokens (taintward-control new-token).
+  # Rendered into a Secret as control.yaml with data_dir /data. Only hashes
+  # go here, never tokens.
+  #   tenants:
+  #     acme:
+  #       home: [eu]
+  #       tokens:
+  #         - {name: support-bot, role: agent, sha256: 5e1c...}
+  tenants: {}
+  maxBodyBytes: 8388608
+  # Or: an existing Secret with the whole config under the key control.yaml
+  # (its data_dir must be /data). Overrides tenants above.
+  existingSecret: ""
+  # A kubernetes.io/tls Secret: serve HTTPS in the pod. Without it, put TLS
+  # in front (Ingress or service mesh).
+  tlsSecret: ""
+  persistence:
+    size: 10Gi
+    storageClass: ""
+    # Use this PVC instead of creating one.
+    existingClaim: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  service:
+    type: ClusterIP
+    annotations: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv: []

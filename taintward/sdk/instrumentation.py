@@ -33,6 +33,7 @@ import functools
 import inspect
 import json
 import logging
+import os
 import threading
 import traceback
 from typing import Any, Callable, Iterable, Mapping
@@ -95,29 +96,69 @@ DRY_RUN = env_flag("TAINTWARD_DRY_RUN", False)
 FAIL_CLOSED = env_flag("TAINTWARD_FAIL_CLOSED", False)
 
 
+TENANT_ATTR = "taintward.tenant"
+
+
+def tenant_from_env() -> str:
+    """TAINTWARD_TENANT, checked: letters, digits, '.', '_' or '-'."""
+    t = os.environ.get("TAINTWARD_TENANT", "").strip()
+    if t:
+        from taintward.evidence.shards import check_tenant
+        check_tenant(t)
+    return t
+
+
+def _TenantSpanProcessor(tenant: str):
+    """A span processor that puts ``taintward.tenant`` on every span too, so
+    span stores that do not keep resource attributes (or keep them
+    elsewhere) can filter by it."""
+    from opentelemetry.sdk.trace import SpanProcessor
+
+    class TenantSpanProcessor(SpanProcessor):
+        def on_start(self, span, parent_context=None) -> None:
+            span.set_attribute(TENANT_ATTR, tenant)
+
+    return TenantSpanProcessor()
+
+
 def configure_tracing(
     service_name: str,
     *,
     endpoint: str = DEFAULT_OTLP_HTTP,
     console: bool = False,
+    tenant: str | None = None,
+    headers: dict[str, str] | None = None,
 ) -> trace.Tracer:
     """Set up the global TracerProvider with an OTLP/HTTP exporter to SigNoz.
 
     Call once at process start. Returns the tracer to pass to ``instrument_tool``
     (or use ``trace.get_tracer(...)`` elsewhere). ``console=True`` adds a
     console exporter for debugging without SigNoz.
+
+    ``tenant`` (default TAINTWARD_TENANT) is recorded as ``taintward.tenant``
+    on the resource and on every span. ``headers`` go with every export, for
+    example ``{"Authorization": "Bearer <token>"}`` for the control plane
+    (endpoint ``<control url>/v1/traces``), which sets the tenant from the
+    token instead.
     """
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-    resource = Resource.create({
-        "service.name": service_name,
-        "service.namespace": "taintward",
-    })
-    provider = TracerProvider(resource=resource)
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
+    if tenant is None:
+        tenant = tenant_from_env()
+    elif tenant:
+        from taintward.evidence.shards import check_tenant
+        check_tenant(tenant)
+    attrs = {"service.name": service_name, "service.namespace": "taintward"}
+    if tenant:
+        attrs[TENANT_ATTR] = tenant
+    provider = TracerProvider(resource=Resource.create(attrs))
+    if tenant:
+        provider.add_span_processor(_TenantSpanProcessor(tenant))
+    provider.add_span_processor(BatchSpanProcessor(
+        OTLPSpanExporter(endpoint=endpoint, headers=dict(headers) if headers else None)))
     if console:
         provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
     trace.set_tracer_provider(provider)

@@ -41,6 +41,18 @@ class Span:
     service: str = ""
     parent_span_id: str = ""
     attrs: dict[str, Any] = field(default_factory=dict)
+    # Resource attributes (service.name, taintward.tenant, ...).
+    resource: dict[str, Any] = field(default_factory=dict)
+
+
+TENANT_ATTR = "taintward.tenant"
+
+
+def span_tenant(s: Span) -> str:
+    """The tenant a span belongs to: the ``taintward.tenant`` resource
+    attribute (set by the SDK, or by the control plane from the upload
+    token), else the span attribute, else ""."""
+    return str(s.resource.get(TENANT_ATTR) or s.attrs.get(TENANT_ATTR) or "")
 
 
 class SpanSource(Protocol):
@@ -113,6 +125,7 @@ def spans_from_otlp(doc: dict) -> list[Span]:
                     start_ns=int(s.get("startTimeUnixNano", 0) or 0),
                     service=service,
                     attrs=_attrs(s.get("attributes")),
+                    resource=res,
                 ))
     return out
 

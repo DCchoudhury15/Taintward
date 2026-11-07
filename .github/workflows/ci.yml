@@ -139,3 +139,10 @@ jobs:
           ! helm template t deploy/helm/taintward
           --set keyRotation.enabled=true --set keyRotation.existingSecret=keys
           --set keyRotation.keys=file:/keys.json > /dev/null 2>&1
+      - run: >-
+          helm template t deploy/helm/taintward
+          --set controlPlane.enabled=true --set controlPlane.existingSecret=control
+          --show-only templates/control-plane.yaml | grep -q "taintward.control.app"
+      - run: >-
+          ! helm template t deploy/helm/taintward
+          --set controlPlane.enabled=true > /dev/null 2>&1

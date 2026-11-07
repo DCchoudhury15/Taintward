@@ -60,6 +60,7 @@ from taintward.evidence.spans import (
     JaegerSource,
     OtlpFileSource,
     Span,
+    span_tenant,
 )
 
 REPORT_VERSION = 1
@@ -137,17 +138,39 @@ def _fp(value: str, key: bytes) -> str:
     return hmac.new(key, value.encode("utf-8"), hashlib.sha256).hexdigest()[:_FP_LEN]
 
 
+def find_raw(text: str) -> list[tuple[int, int, str]]:
+    """(start, end, type) of every raw value ``RAW_PATTERNS`` finds."""
+    out = []
+    for kind, rx in RAW_PATTERNS:
+        for m in rx.finditer(text):
+            if kind == "CREDIT_CARD" and not _luhn_ok(m.group(0)):
+                continue
+            out.append((m.start(), m.end(), kind))
+    return out
+
+
+# Set by the control plane when it masked raw values in a call's recorded
+# input before storing the span: "TYPE:fingerprint,..." (taintward/control).
+INGEST_RAW_ATTR = "taintward.control.raw_input"
+
+
+def ingest_hits(s: Span) -> list[dict]:
+    """Raw values the control plane found (and masked) in this call's input."""
+    out = []
+    for item in _split(s.attrs.get(INGEST_RAW_ATTR)):
+        kind, _, fp = item.partition(":")
+        if kind and fp:
+            out.append({"type": kind, "fingerprint": fp})
+    return out
+
+
 def scan_text(text: str, *, deep: bool = False, key: bytes | None = None) -> list[dict]:
     """Find raw sensitive values in ``text``. Returns types and keyed
     fingerprints only, never the values. ``key`` defaults to a new random
     key, so pass one to match fingerprints across calls."""
     key = key if key is not None else secrets.token_bytes(32)
-    found: list[dict] = []
-    for kind, rx in RAW_PATTERNS:
-        for m in rx.finditer(text):
-            if kind == "CREDIT_CARD" and not _luhn_ok(m.group(0)):
-                continue
-            found.append({"type": kind, "fingerprint": _fp(m.group(0), key)})
+    found: list[dict] = [{"type": kind, "fingerprint": _fp(text[a:b], key)}
+                         for a, b, kind in find_raw(text)]
     if deep:
         from taintward.sdk.detect import detect_text
 
@@ -486,6 +509,7 @@ def build_report(spans: Iterable[Span], *, start_ns: int, end_ns: int,
             continue
         row["measured"] += 1
         hits = scan_text(text, deep=deep_scan, key=fp_key)
+        hits += [h for h in ingest_hits(s) if h not in hits]
         if hits:
             row["calls_with_raw"] += 1
             row["raw_values"] += len(hits)
@@ -1039,6 +1063,8 @@ def add_source_args(ap: argparse.ArgumentParser) -> None:
     g.add_argument("--jaeger-search-depth", type=int, default=1000)
     g.add_argument("--otlp-file", action="append", default=[],
                    help="OTLP JSON lines file or directory; repeat for several")
+    g.add_argument("--tenant", default=None,
+                   help="only spans of this tenant (the taintward.tenant attribute)")
     g.add_argument("--clickhouse-url", default=None,
                    help="ClickHouse HTTP URL; default is docker exec into --clickhouse-container")
     g.add_argument("--clickhouse-container", default="signoz-telemetrystore-clickhouse-0-0")
@@ -1094,6 +1120,8 @@ def main(argv: list[str] | None = None) -> int:
     start_ns, end_ns = window_from_args(args)
     src = source_from_args(args)
     spans = src.fetch(start_ns, end_ns)
+    if args.tenant is not None:
+        spans = [s for s in spans if span_tenant(s) == args.tenant]
     data = build_report(
         spans, start_ns=start_ns, end_ns=end_ns, source=src.describe(), title=args.title,
         organization=args.org, system=args.system, deep_scan=args.deep_scan,

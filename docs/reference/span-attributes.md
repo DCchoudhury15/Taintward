@@ -15,6 +15,7 @@ or masked.
 |---|---|
 | `service.name` | the name given to `tw.init()` / `configure_tracing()`, or the gateway's `service_name` |
 | `service.namespace` | `taintward` (set by `configure_tracing`) |
+| `taintward.tenant` | the tenant (`tenant=` / `TAINTWARD_TENANT`, or set by the control plane from the upload token). The SDK also writes it on every span |
 
 ## Taint (SDK and gateway)
 
@@ -94,6 +95,16 @@ itself, then writes them from its own decision.
 | `taintward.placeholders.lost` | model spans | placeholders the model broke so they could not be restored |
 | `taintward.placeholders.unknown` | model spans | placeholder-like text that matches nothing in the run |
 | `taintward.placeholders.blocked` | model spans | known placeholders the model wrote inside a link or image address; left as placeholders on purpose. Often a sign of prompt injection |
+
+## Control plane
+
+Set by the control plane on spans it stores (a client cannot set them; any
+it sends are dropped).
+
+| attribute | value |
+|---|---|
+| `taintward.control.raw_masked` | number of raw values the control plane found and masked in this span before storing it |
+| `taintward.control.raw_input` | the raw values found in the call's recorded input, as `TYPE:fingerprint` (comma list). The report counts them as raw values sent |
 
 ## Span events
 

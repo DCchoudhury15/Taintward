@@ -130,6 +130,7 @@ nav:
       - Compliance report and evidence log: evidence-report.md
       - Compliance mappings: compliance.md
       - Offline data over-exposure audit: audit.md
+      - Control plane and tenants: control-plane.md
       - Redaction crypto and the vault: redaction-crypto.md
       - Key management and rotation: key-management.md
       - Scaling: scaling.md

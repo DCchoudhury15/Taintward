@@ -1,6 +1,6 @@
 # Command line
 
-The package installs five commands. Each one can also be run as a module
+The package installs seven commands. Each one can also be run as a module
 (`python -m ...`), which is handy in a virtualenv that is not on `PATH`.
 
 | command | module | does |
@@ -10,6 +10,8 @@ The package installs five commands. Each one can also be run as a module
 | `taintward-evidence` | `taintward.evidence.log` | tamper-evident evidence log and checkpoints |
 | `taintward-fix` | `taintward.fix_suggester.suggest` | finds unguarded egress calls in Python source |
 | `taintward-keys` | `taintward.sdk.keys` | makes and rotates key rings, reseals the vault |
+| `taintward-audit` | `taintward.analysis.audit` | offline data over-exposure audit of an agent's tools |
+| `taintward-control` | `taintward.control.app` | control plane for many tenants |
 
 Options below are taken from each command's `--help` output for version
 0.2.0, with the defaults from the code.
@@ -53,6 +55,7 @@ Data source:
 | `--clickhouse-url URL` | none: `docker exec` into the container | ClickHouse HTTP URL, for example `http://host:8123` |
 | `--clickhouse-container NAME` | `signoz-telemetrystore-clickhouse-0-0` | container used for `clickhouse-client` |
 | `--clickhouse-user`, `--clickhouse-password` | none | ClickHouse credentials |
+| `--tenant TENANT` | none: every tenant | only spans whose `taintward.tenant` is `TENANT` |
 
 Time window (UTC):
 
@@ -155,9 +158,37 @@ taintward-keys {rotate,retire,generate,show,reseal} ...
 | `retire` | `--file`, `--purpose`, `--id` (all required) | remove an inactive key; refuses the active one |
 | `generate` | `--purpose` (required), `--kms SPEC` | print one new key entry as JSON |
 | `show` | `--keys SPEC` (default `$TAINTWARD_KEYS`) | list key ids per purpose, never key bytes |
-| `reseal` | `--vault SPEC` (default `$TAINTWARD_VAULT`) | seal every vault row that is not on the active vault key again |
+| `reseal` | `--vault SPEC` (default `$TAINTWARD_VAULT`) | seal every vault row that is not on the active vault key again. With `TAINTWARD_TENANT` set, only that tenant's rows |
 
 Exit codes: `0` done, `1` the ring or KMS failed (message on stderr), `2`
 bad arguments.
 
 Walkthrough: [Key management and rotation](../key-management.md).
+
+## taintward-audit
+
+```text
+taintward-audit --tools TOOLS [--destinations FILE | --gateway-config FILE]
+                [--otlp-file PATH] [--home LIST] [--max-hops N]
+                [--format {md,json}] [--out OUT] [--prompts FILE]
+```
+
+Options and output: [Offline data over-exposure audit](../audit.md).
+
+## taintward-control
+
+```text
+taintward-control new-token
+taintward-control check --config CONFIG
+taintward-control serve --config CONFIG [--listen HOST:PORT]
+                        [--tls-cert FILE --tls-key FILE]
+```
+
+| subcommand | options | does |
+|---|---|---|
+| `new-token` | none | print a new random token and its SHA-256; the config holds only the hash |
+| `check` | `--config` (required) | load the config and list tenants and token roles |
+| `serve` | `--config` (required), `--listen` (default `127.0.0.1:8820`), `--tls-cert`, `--tls-key` | run the API; the config is read again when the file changes |
+
+Exit codes: `0` done, `2` bad config. API and config:
+[Control plane and tenants](../control-plane.md).

@@ -87,7 +87,7 @@ Trust levels, from most to least trusted:
 |---|---|---|
 | C, secrets | FPE key (`TAINTWARD_FPE_KEY`), vault key (`TAINTWARD_VAULT_KEY`), evidence signing key, the vault | everything: whoever holds these can read originals |
 | A, agent host | the agent process, the SDK, the in-memory placeholder map | running the SDK as written. Taintward cannot defend against code in this process |
-| B, Taintward services | gateway, collector, session store | applying policy. The collector trusts what producers send it (see Gaps) |
+| B, Taintward services | gateway, collector, session store, control plane | applying policy. The collector trusts what producers send it (see Gaps) |
 | D, storage | SigNoz / ClickHouse, the evidence log files | storing what it is given. Taintward assumes it may be read by many people, so it must never hold raw values |
 | untrusted | LLM provider, external APIs, upstream MCP servers, any content that reaches the agent | nothing. Their input can be hostile and their storage can leak |
 
@@ -373,6 +373,18 @@ Taintward handles it.
 | I | report fingerprints of raw values | mitigated: keyed HMAC fingerprints (G6, `TestFingerprints`) |
 | D | a torn last line after a crash | mitigated: reported and repaired explicitly, never skipped (`test_torn_shard_reported_and_repaired`) |
 | E | signing key theft | partial: old history is protected by consistency proofs; new invented records can be signed |
+
+### Control plane (many tenants)
+
+| | threat | status |
+|---|---|---|
+| S | a caller acts as another tenant | mitigated: the tenant comes only from the token (looked up by its SHA-256); a tenant named in uploaded spans is dropped (`test_upload_sets_the_tenant_from_the_token`) |
+| T | one tenant reads or changes another's policy, spans or evidence | mitigated: every path is inside the token's tenant directory (`test_policy_versions_etags_and_isolation`, `test_violations_reach_the_tenant_evidence_log_once`); a stale policy write gets 412 |
+| R | who changed the policy, and when | partial: every version is kept with the token name (`/v1/policy/history`), but the files can be edited by whoever runs the server |
+| I | raw values uploaded by a misconfigured client | partial: values the report's regex patterns know are masked before storing and still counted in the report (`test_raw_values_are_masked_before_storing_and_still_reported`); names and addresses are stored as sent |
+| I | another tenant's rows in a shared vault | mitigated by `TenantVault` (rows keyed by tenant, `test_tenant_vault_keeps_tenants_apart`); give each tenant its own vault key too, or direct database access reads ciphertext of every tenant |
+| D | large or compressed uploads | mitigated: `Content-Length` checked before reading, decompression capped (`test_upload_formats_and_limits`). Open: no rate limit per tenant |
+| E | an admin token marks tools `internal` (sent unredacted) | by design: the control plane decides the policy. Agent tokens cannot write it (`test_auth_and_roles`); keep admin tokens out of apps |
 
 ## Gaps
 

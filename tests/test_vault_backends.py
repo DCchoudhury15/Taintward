@@ -485,3 +485,33 @@ def test_vault_key_rotation_reseal(backend):
         assert v.forget_subject(SUBJECT) == 2
         assert v.get("tok-keep") == "kept"
         v.close()
+
+
+def test_tenant_rows_apart_and_reseal_per_tenant(backend):
+    """Two tenants on one shared backend, each with its own vault key: same
+    token, no overwrite; one tenant rotates and reseals only its own rows
+    (the other tenant's rows are sealed with a key it does not hold)."""
+    from taintward.sdk.vault import TenantVault
+
+    key_b, key_a2 = os.urandom(32).hex(), os.urandom(32).hex()
+    a = TenantVault(backend.make(), "acme")
+    with mock.patch.dict(os.environ, {"TAINTWARD_VAULT_KEY": key_b}):
+        b = TenantVault(backend.make(), "globex")
+    a.put("tok", SSN, subject=SUBJECT)
+    b.put("tok", "globex value", subject=SUBJECT)
+    assert (a.get("tok"), b.get("tok")) == (SSN, "globex value")
+    with mock.patch.dict(os.environ, {"TAINTWARD_VAULT_KEY": key_a2,
+                                      "TAINTWARD_VAULT_KEY_PREVIOUS": VAULT_KEY}):
+        a2 = TenantVault(backend.make(), "acme")
+        assert a2.reseal() == 1  # acme's row only; globex's would not even open
+        assert a2.get("tok") == SSN
+        a2.close()
+    assert b.get("tok") == "globex value"
+    assert b.forget_subject(SUBJECT) == 1
+    with mock.patch.dict(os.environ, {"TAINTWARD_VAULT_KEY": key_a2,
+                                      "TAINTWARD_VAULT_KEY_PREVIOUS": ""}):
+        a3 = TenantVault(backend.make(), "acme")
+        assert a3.get("tok") == SSN and b.get("tok") is None
+        a3.close()
+    a.close()
+    b.close()

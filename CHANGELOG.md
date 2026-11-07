@@ -65,6 +65,21 @@
 
 ### Added
 
+- Control plane for many tenants (`taintward-control`,
+  docs/control-plane.md): each tenant's tool policy with every version kept
+  (ETag, `If-Match`), span upload over OTLP/HTTP (JSON or protobuf, gzip)
+  with raw values masked before storing, and per-tenant reports, audits,
+  evidence log and inclusion proofs. The tenant comes from the API token;
+  roles `agent`, `reader`, `admin`. With `TAINTWARD_CONTROL_URL` set,
+  `tw.init()` takes the tool map from it, keeps it current
+  (`TAINTWARD_CONTROL_REFRESH_SECONDS`), falls back to a cached copy
+  (`TAINTWARD_CONTROL_CACHE`) and sends spans to it.
+- Tenants: `tw.init(tenant=)` / `TAINTWARD_TENANT` records
+  `taintward.tenant` on the resource and every span;
+  `taintward-report --tenant`; shared SQLite, Postgres and Redis vaults keep
+  each tenant's rows apart (`TenantVault`), and `taintward-keys reseal`
+  only reseals the current tenant's rows.
+
 - Offline data over-exposure audit (`taintward-audit`, docs/audit.md): from
   MCP tool definitions and the destination map, every path by which
   sensitive data could reach an outside sink (AgentRaft's function call
@@ -137,6 +152,11 @@
   gives rows that are never in the reported sample, for tuning rules.
 
 ### Changed
+
+- `taintward.sdk` loads `detect`, `instrumentation` and `taint` on first use,
+  and `ToolPolicy` lives in `taintward.sdk.destinations` (still importable
+  from `taintward.sdk.integrations`), so the control plane and the audit
+  do not load the detectors.
 
 - A place name with nothing else sensitive in the same value ("I flew to
   Berlin") no longer counts as PII. Next to a name, id, phone number or

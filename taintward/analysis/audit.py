@@ -31,13 +31,17 @@ from taintward.analysis.fcg import FCG, Policy, build_fcg, load_tools, paths
 from taintward.analysis.prompt_synth import synthesize, to_jsonl
 
 
-def policy_from_destinations(mapping: dict[str, Any]) -> Policy:
-    from taintward.sdk.integrations import Ward
-    ward = Ward(mapping)
+def policy_from_destinations(mapping: dict[str, Any], *, default_destination: str = "external",
+                             default_jurisdiction: str = "") -> Policy:
+    """The SDK destination map, read the same way as ``Ward`` reads it
+    (without loading the detectors)."""
+    from taintward.sdk.destinations import ToolPolicy, _to_policy
+    policies = {str(name): _to_policy(v) for name, v in mapping.items()}
+    default = ToolPolicy(default_destination, default_jurisdiction)
 
     def policy(name: str) -> tuple[str, str, bool]:
-        p = ward.policy_for(name)
-        return p.destination, p.jurisdiction, ward.is_mapped(name)
+        p = policies.get(name, default)
+        return p.destination, p.jurisdiction, name in policies
     return policy
 
 

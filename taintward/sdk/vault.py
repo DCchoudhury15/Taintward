@@ -398,16 +398,19 @@ class SQLiteVault:
                 (time.time(),),
             ).rowcount
 
-    def reseal(self) -> int:
+    def reseal(self, token_prefix: str = "") -> int:
         """Re-encrypt every row not sealed with the active vault key.
 
         Run it after rotating the vault key; then the old key can be retired.
         The subject index is rebuilt under the active key too. Rows written
         before key rings do not hold their subject, so their index is kept;
         erasure finds them while the key that wrote them is in the ring.
+        ``token_prefix``: only rows whose token starts with it (one tenant's
+        rows, see TenantVault).
         """
         rows = self._conn().execute(
-            "SELECT token, nonce, ct, subject_idx FROM tokens").fetchall()
+            "SELECT token, nonce, ct, subject_idx FROM tokens WHERE substr(token, 1, ?) = ?",
+            (len(token_prefix), token_prefix)).fetchall()
         n = 0
         for token, nonce, ct, idx in rows:
             if not self._sealer.needs_reseal(nonce):
@@ -620,13 +623,14 @@ class PostgresVault:
         return self._run(lambda c: c.execute(
             f"DELETE FROM {t} WHERE subject_idx = ANY(%s)", (idxs,)).rowcount)
 
-    def reseal(self) -> int:
+    def reseal(self, token_prefix: str = "") -> int:
         """Re-encrypt every row not sealed with the active vault key (see
         SQLiteVault.reseal). An update only lands if the row was not
         rewritten in the meantime."""
         t = self.table
         rows = self._run(lambda c: c.execute(
-            f"SELECT token, nonce, ct, subject_idx FROM {t}").fetchall())
+            f"SELECT token, nonce, ct, subject_idx FROM {t} WHERE left(token, %s) = %s",
+            (len(token_prefix), token_prefix)).fetchall())
         n = 0
         for token, nonce, ct, idx in rows:
             if not self._sealer.needs_reseal(nonce):
@@ -799,12 +803,13 @@ class RedisVault:
     def purge_expired(self) -> int:
         return 0  # Redis expires keys by itself
 
-    def reseal(self) -> int:
+    def reseal(self, token_prefix: str = "") -> int:
         """Re-encrypt every token not sealed with the active vault key (see
         SQLiteVault.reseal). HSET keeps the key's TTL; the swap only lands if
         the value did not change since it was read."""
         n = 0
-        for key in self._call(lambda: list(self._r.scan_iter(f"{self.prefix}t:*", count=500))):
+        pattern = f"{self.prefix}t:{_glob_escape(token_prefix)}*"
+        for key in self._call(lambda: list(self._r.scan_iter(pattern, count=500))):
             blob, sub = self._call(self._r.hmget, key, "ct", "sub")
             if blob is None:
                 continue
@@ -822,7 +827,68 @@ class RedisVault:
         self._r.close()
 
 
-def get_vault(spec: str | None = None) -> Vault:
+def _glob_escape(s: str) -> str:
+    """Escape Redis MATCH pattern characters."""
+    return "".join("\\" + c if c in "*?[]\\" else c for c in s)
+
+
+# Separates the tenant from the token or subject in a namespaced vault row.
+# Not a character a token, a tenant name or a sane subject contains.
+_TENANT_SEP = "\x1f"
+
+
+class TenantVault:
+    """One tenant's view of a shared vault (TAINTWARD_TENANT).
+
+    Every token and subject is stored as ``<tenant><US><value>``, so two
+    tenants that write the same token do not overwrite each other, a lookup
+    never returns another tenant's row, and erasing a subject only touches
+    this tenant's rows. The prefixed token is also the AES-GCM associated
+    data, so a row copied from another tenant does not open.
+
+    Give each tenant its own vault key ring as well: the prefix keeps the
+    rows apart, separate keys keep a tenant from reading another's rows even
+    with direct database access."""
+
+    def __init__(self, inner: Vault, tenant: str) -> None:
+        from taintward.evidence.shards import check_tenant
+        self.inner = inner
+        self.tenant = check_tenant(tenant)
+        self._prefix = tenant + _TENANT_SEP
+
+    def _t(self, token: str) -> str:
+        return self._prefix + token
+
+    def _s(self, subject: str | None) -> str | None:
+        return None if subject is None else self._prefix + subject
+
+    def put(self, token, original, *, ttl=None, subject=None, key_id=None):
+        return self.inner.put(self._t(token), original, ttl=ttl, subject=self._s(subject),
+                              key_id=key_id)
+
+    def get(self, token):
+        return self.inner.get(self._t(token))
+
+    def key_id(self, token):
+        return self.inner.key_id(self._t(token))
+
+    def delete(self, token):
+        return self.inner.delete(self._t(token))
+
+    def forget_subject(self, subject):
+        return self.inner.forget_subject(self._s(subject))
+
+    def reseal(self) -> int:
+        """Reseal this tenant's rows only: another tenant's rows are sealed
+        with keys this tenant does not hold."""
+        return self.inner.reseal(token_prefix=self._prefix)
+
+    def __getattr__(self, name):
+        # purge_expired, close, ...: shared maintenance, passed through
+        return getattr(self.inner, name)
+
+
+def get_vault(spec: str | None = None, *, tenant: str | None = None) -> Vault:
     """Build a vault from a spec string or TAINTWARD_VAULT.
 
     "memory" (or empty)          -> MemoryVault
@@ -830,10 +896,21 @@ def get_vault(spec: str | None = None) -> Vault:
                                     gives /abs/path.db, sqlite://rel.db gives rel.db
     "postgresql://..." or "postgres://..."  -> PostgresVault(spec)
     "redis://..." or "rediss://..."         -> RedisVault(spec)
+
+    With ``tenant`` (default TAINTWARD_TENANT) a shared backend is wrapped in
+    :class:`TenantVault`. The memory vault belongs to one process, so it is
+    not wrapped.
     """
     spec = (spec if spec is not None else os.environ.get("TAINTWARD_VAULT", "")).strip()
     if spec in ("", "memory", "memory://"):
         return MemoryVault()
+    if tenant is None:
+        tenant = os.environ.get("TAINTWARD_TENANT", "").strip()
+    v = _backend(spec)
+    return TenantVault(v, tenant) if tenant else v
+
+
+def _backend(spec: str) -> Vault:
     if spec.startswith("sqlite://"):
         path = spec[len("sqlite://"):]
         if not path:
