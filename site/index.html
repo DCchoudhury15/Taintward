@@ -26,7 +26,6 @@
     margin: 0; min-height: 100vh; color: var(--text); font-family: var(--sans); font-size: 17px; line-height: 1.5;
     -webkit-font-smoothing: antialiased; overflow-x: hidden;
     background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23c9a55f' stroke-opacity='.055'%3E%3Ccircle cx='0' cy='0' r='32'/%3E%3Ccircle cx='64' cy='0' r='32'/%3E%3Ccircle cx='0' cy='64' r='32'/%3E%3Ccircle cx='64' cy='64' r='32'/%3E%3Ccircle cx='32' cy='32' r='32'/%3E%3Ccircle cx='32' cy='32' r='16'/%3E%3C/g%3E%3C/svg%3E"),
       radial-gradient(1100px 620px at 88% -8%, rgba(201,165,95,.16), transparent 62%),
       radial-gradient(900px 700px at -12% 34%, rgba(74,168,132,.12), transparent 60%),
       radial-gradient(1000px 700px at 70% 62%, rgba(154,142,208,.09), transparent 60%),
@@ -37,6 +36,15 @@
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: .07; mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
   }
+  /* background that reacts to the pointer: the ring pattern lights up around it, a ring spreads on click */
+  .bgfx { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .bgfx canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .bgfx .glow { position: absolute; left: 0; top: 0; width: 620px; height: 620px; margin: -310px; border-radius: 50%; opacity: 0; transition: opacity .6s;
+    background: radial-gradient(closest-side, rgba(201,165,95,.13), transparent); transform: translate(var(--mx, 50vw), var(--my, 30vh)); }
+  .bgfx.on .glow { opacity: 1; }
+  .bgfx .rip { position: absolute; width: 20px; height: 20px; margin: -10px; border-radius: 50%; border: 1px solid var(--copper); animation: rip 1.1s ease-out forwards; }
+  @keyframes rip { from { width: 20px; height: 20px; margin: -10px; opacity: .6; } to { width: 520px; height: 520px; margin: -260px; opacity: 0; } }
+  .wrap { position: relative; z-index: 1; }
   a { color: inherit; text-decoration: none; }
   .wrap { max-width: 1120px; margin: 0 auto; padding: 0 18px; }
 
@@ -268,6 +276,7 @@
 </style>
 </head>
 <body>
+<div class="bgfx" id="bgfx" aria-hidden="true"><canvas id="rings"></canvas><div class="glow"></div></div>
 <div class="wrap">
   <nav>
     <a class="brand" href="#" aria-label="Taintward">
@@ -729,6 +738,48 @@ helm install taintward Taintward/deploy/helm/taintward`,
     }
   })();
   setInterval(() => { if (on) { guard.classList.add("blink"); setTimeout(() => guard.classList.remove("blink"), 130); } }, 3700);
+
+  /* background: a lattice of rings drawn on a canvas. Rings near the pointer
+     are pulled toward it and light up; a click sends out a ring. */
+  const fx = $("bgfx"), cv = $("rings"), g = cv.getContext("2d");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W = 0, H = 0, tx = -9999, ty = -9999, cx = 0, cy = 0, amt = 0, want = 0, looping = false;
+  const STEP = 64, REACH = 190, PULL = 0.42;
+  function size() {
+    const d = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight;
+    cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); g.lineWidth = 1; draw();
+  }
+  function ring(x, y, r) {
+    const dx = cx - x, dy = cy - y, f = amt * Math.exp(-(dx * dx + dy * dy) / (2 * REACH * REACH));
+    g.strokeStyle = `rgba(${201 + 30 * f | 0},${165 + 34 * f | 0},${95 + 40 * f | 0},${0.055 + 0.55 * f})`;
+    g.beginPath(); g.arc(x + dx * PULL * f, y + dy * PULL * f, r * (1 - 0.18 * f), 0, 6.2832); g.stroke();
+  }
+  function draw() {
+    g.clearRect(0, 0, W, H);
+    const off = -(scrollY % STEP);
+    for (let y = off - STEP; y < H + STEP * 2; y += STEP)
+      for (let x = -STEP; x < W + STEP * 2; x += STEP) { ring(x, y, 32); ring(x + 32, y + 32, 32); ring(x + 32, y + 32, 16); }
+  }
+  function loop() {
+    cx += (tx - cx) * 0.16; cy += (ty - cy) * 0.16; amt += (want - amt) * 0.1; draw();
+    if (Math.abs(tx - cx) + Math.abs(ty - cy) > 0.4 || Math.abs(want - amt) > 0.01) requestAnimationFrame(loop);
+    else { looping = false; if (!want) { amt = 0; draw(); } }
+    fx.style.setProperty("--mx", cx.toFixed(1) + "px"); fx.style.setProperty("--my", cy.toFixed(1) + "px");
+  }
+  const kick = () => { if (!looping) { looping = true; requestAnimationFrame(loop); } };
+  addEventListener("resize", size); addEventListener("scroll", () => { if (!looping) draw(); }, { passive: true });
+  if (!still) {
+    addEventListener("pointermove", (ev) => {
+      if (!want) { cx = ev.clientX; cy = ev.clientY; }
+      tx = ev.clientX; ty = ev.clientY; want = 1; fx.classList.add("on"); kick();
+    }, { passive: true });
+    addEventListener("pointerdown", (ev) => {
+      const r = document.createElement("i"); r.className = "rip"; r.style.left = ev.clientX + "px"; r.style.top = ev.clientY + "px";
+      fx.appendChild(r); setTimeout(() => r.remove(), 1150);
+    }, { passive: true });
+    document.documentElement.addEventListener("pointerleave", () => { want = 0; fx.classList.remove("on"); kick(); });
+  }
+  size();
 
   showTab("py"); measure(); setOn(true); drawChain();
   if (document.fonts) document.fonts.ready.then(measure);
