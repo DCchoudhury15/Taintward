@@ -11,7 +11,7 @@ FROM python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e
 
 LABEL org.opencontainers.image.title="taintward-gateway" \
       org.opencontainers.image.description="Taintward MCP gateway: redacts and blocks PII and secrets in MCP tool calls" \
-      org.opencontainers.image.source="https://gitlab.com/divyanshuchoudhury51/taintward" \
+      org.opencontainers.image.source="https://github.com/DCchoudhury15/Taintward" \
       org.opencontainers.image.url="https://taintward.vercel.app" \
       org.opencontainers.image.licenses="Apache-2.0"
 

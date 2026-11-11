@@ -1,7 +1,6 @@
 name: ci
 
-# Mirror of the test jobs in .gitlab-ci.yml (GitLab is the main CI and does
-# releases). Runs on pull requests and on main only.
+# Tests for every pull request and for main. Releases are in release.yml.
 on:
   pull_request:
   push:

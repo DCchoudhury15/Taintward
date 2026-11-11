@@ -34,7 +34,7 @@ FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c
 
 LABEL org.opencontainers.image.title="taintward-collector" \
       org.opencontainers.image.description="OpenTelemetry collector with the Taintward taint_policy processor" \
-      org.opencontainers.image.source="https://gitlab.com/divyanshuchoudhury51/taintward" \
+      org.opencontainers.image.source="https://github.com/DCchoudhury15/Taintward" \
       org.opencontainers.image.url="https://taintward.vercel.app" \
       org.opencontainers.image.licenses="Apache-2.0"
 

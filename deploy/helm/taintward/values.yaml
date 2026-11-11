@@ -25,8 +25,8 @@ exporter:
 # ---------------------------------------------------------------------------
 collector:
   image:
-    # Public image built and signed by the release pipeline.
-    repository: registry.gitlab.com/divyanshuchoudhury51/taintward/collector
+    # Public image built by the release workflow.
+    repository: ghcr.io/dcchoudhury15/taintward/collector
     # Empty means the chart's appVersion (the Taintward release).
     tag: ""
     pullPolicy: IfNotPresent
@@ -151,7 +151,7 @@ routingTier:
 gateway:
   enabled: false
   image:
-    repository: registry.gitlab.com/divyanshuchoudhury51/taintward/gateway
+    repository: ghcr.io/dcchoudhury15/taintward/gateway
     # Empty means the chart's appVersion (the Taintward release).
     tag: ""
     pullPolicy: IfNotPresent

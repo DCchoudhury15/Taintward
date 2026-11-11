@@ -18,11 +18,11 @@ How to size it is in [scaling.md](scaling.md).
 
 * A Kubernetes cluster (1.27 or newer) and `kubectl` pointed at it.
 * Helm 3.
-* Nothing to build. Each release publishes signed images to
-  `registry.gitlab.com/divyanshuchoudhury51/taintward/collector` and
+* Nothing to build. Each release publishes images to
+  `ghcr.io/dcchoudhury15/taintward/collector` and
   `/gateway`, and the chart to
-  `oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward`
-  (how to check the signatures: [releasing.md](releasing.md)). The chart
+  `oci://ghcr.io/dcchoudhury15/taintward/charts/taintward`
+  (how a release is made: [releasing.md](releasing.md)). The chart
   uses those images, tagged with its appVersion, by default.
 
 * `metrics-server` in the cluster if you want the HPAs to scale (most
@@ -37,8 +37,8 @@ set `exporter.endpoint`:
 ```bash
 kubectl create namespace taintward
 
-helm install taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward \
-  --version 0.2.0 -n taintward \
+helm install taintward oci://ghcr.io/dcchoudhury15/taintward/charts/taintward \
+  --version 0.4.0 -n taintward \
   --set exporter.endpoint=my-backend.observability.svc:4317
 ```
 
@@ -100,7 +100,7 @@ they claim.
 The Rego policy is in a ConfigMap. To use your own file:
 
 ```bash
-helm upgrade taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward --version 0.2.0 -n taintward --reuse-values \
+helm upgrade taintward oci://ghcr.io/dcchoudhury15/taintward/charts/taintward --version 0.4.0 -n taintward --reuse-values \
   --set-file collector.policy.rego=my-policy.rego
 ```
 
@@ -152,7 +152,7 @@ kubectl -n taintward create secret generic taintward-keys \
 Then:
 
 ```bash
-helm upgrade taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward --version 0.2.0 -n taintward --reuse-values \
+helm upgrade taintward oci://ghcr.io/dcchoudhury15/taintward/charts/taintward --version 0.4.0 -n taintward --reuse-values \
   --set gateway.enabled=true \
   --set gateway.existingSecret=taintward-keys \
   --set gateway.sessionStore.redisUrl=redis://my-redis:6379/0
@@ -182,7 +182,7 @@ token per app or person with `taintward-control new-token`, and put only the
 hashes in the values:
 
 ```bash
-helm upgrade taintward oci://registry.gitlab.com/divyanshuchoudhury51/taintward/charts/taintward --version 0.2.0 -n taintward --reuse-values \
+helm upgrade taintward oci://ghcr.io/dcchoudhury15/taintward/charts/taintward --version 0.4.0 -n taintward --reuse-values \
   -f control-values.yaml      # controlPlane.enabled, controlPlane.tenants
 ```
 

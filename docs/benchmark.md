@@ -488,7 +488,7 @@ both took 2.6 to 3.4 ms.
 
 ## Regression guard
 
-* The CI job `detection-bench` (GitHub and GitLab) downloads the two outside
+* The CI job `detection-bench` (GitHub) downloads the two outside
   datasets at their pinned commit, runs the test sample with
   `run_external.py --check` and fails when a score drops under its floor
   (`FLOORS`: overall strict recall and precision, example recall, false

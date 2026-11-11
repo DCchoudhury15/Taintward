@@ -8,11 +8,6 @@ to protect. Please report them privately.
 Report it privately on GitHub:
 https://github.com/DCchoudhury15/Taintward/security/advisories/new
 
-If that does not work for you, open a **confidential issue** on the GitLab
-mirror instead:
-https://gitlab.com/divyanshuchoudhury51/taintward/-/issues/new
-(tick "This issue is confidential").
-
 Please include:
 
 - what you did, what you expected, and what happened

