@@ -3,672 +3,737 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Taintward</title>
+<title>Taintward: your agent talks too much</title>
 <meta name="description" content="Taintward lets AI agents work on customer data without sending it to LLM providers or third parties, and gives you the evidence to prove it. Open source, built on OpenTelemetry.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14L16 30 4 23V9z' fill='%23c9a55f'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23090d0c'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500;700&family=Permanent+Marker&display=swap" rel="stylesheet">
 <style>
-  /* Dark brown-black with a copper accent */
   :root {
-    --bg: #0c0907;
-    --panel: #14100c;
-    --panel-2: #1b150f;
-    --line: #2a2018;
-    --line-2: #3d2f23;
-    --text: #f2ebe3;
-    --muted: #ab9c8c;
-    --dim: #6f6152;
-    --blue: #8b5e3c;
-    --blue-2: #d6a77a;
-    --amber: #d4894a;
-    --amber-2: #ecc195;
-    --red: #e5735f;
-    --green: #9cc59a;
-    --mono: "Space Mono", ui-monospace, monospace;
-    --sans: "Space Grotesk", system-ui, sans-serif;
+    --bg: #090d0c; --panel: #101816; --panel-2: #18231f; --deep: #070b0a; --line: #22302b;
+    --text: #ece6d6; --muted: #8f9c94; --dim: #5b6861;
+    --copper: #c9a55f; --copper-d: #7a6230;
+    --mint: #4aa884; --gold: #9a8ed0; --sky: #6a9cc0; --lilac: #9a8ed0; --melon: #c9506a;
+    --sans: "Archivo", system-ui, sans-serif;
+    --disp: "DM Serif Display", Georgia, serif; --hs: 1; --hw: 400; --emi: normal; --hls: -0.01em; --paper: #e2dac6;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --hand: "Permanent Marker", cursive;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.55; overflow-x: hidden; }
-  canvas#bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
-  a { color: var(--blue-2); text-decoration: none; }
-  a:hover { color: var(--amber-2); }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
-
-  nav { position: sticky; top: 0; z-index: 20; background: rgba(12, 9, 7, 0.82); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
-  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; color: var(--text); letter-spacing: -0.01em; }
-  .brand:hover { color: var(--text); }
-  .links { display: flex; gap: 6px; align-items: center; font-size: 14px; }
-  .links a { color: var(--muted); padding: 6px 12px; border-radius: 999px; }
-  .links a:hover { color: var(--text); background: var(--panel); }
-  .links a.gh { border: 1px solid var(--amber); color: var(--amber-2); }
-  .links a.gh:hover { background: var(--amber); color: var(--bg); }
-
-  /* hero */
-  .hero { padding: 72px 0 28px; text-align: center; }
-  .chip { display: inline-flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 14px; margin-bottom: 26px; }
-  .chip b { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 10px var(--amber); }
-  h1 { font-size: clamp(36px, 6.2vw, 72px); line-height: 1.02; font-weight: 700; letter-spacing: -0.035em; max-width: 960px; margin: 0 auto; }
-  h1 .hl { color: var(--amber); }
-  h1 .bl { color: var(--blue-2); }
-  .lead { margin: 22px auto 0; color: var(--muted); font-size: clamp(16px, 2vw, 19px); max-width: 700px; }
-  .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px; font: 600 15px var(--sans); cursor: pointer; border: 1px solid transparent; transition: background 0.15s, border-color 0.15s, color 0.15s; }
-  .btn-amber { background: var(--amber); color: #120d09; }
-  .btn-amber:hover { background: var(--amber-2); color: #120d09; }
-  .btn-line { border-color: var(--line-2); color: var(--text); background: rgba(20, 16, 12, 0.7); }
-  .btn-line:hover { border-color: var(--blue-2); color: var(--blue-2); }
-
-  /* flow graph */
-  .stage { margin-top: 48px; background: linear-gradient(180deg, rgba(20, 16, 12, 0.92), rgba(14, 11, 8, 0.92)); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
-  .stage-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 6px 14px; }
-  .switch { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
-  .switch button { border: 0; background: transparent; color: var(--muted); font: 600 13.5px var(--sans); padding: 8px 16px; border-radius: 999px; cursor: pointer; }
-  .switch button.on { background: var(--blue); color: #fff; }
-  .switch button.on.off-mode { background: var(--red); }
-  .stage-top .meta { font-family: var(--mono); font-size: 12px; color: var(--dim); }
-  .graph-wrap { position: relative; }
-  svg.graph { width: 100%; height: auto; display: block; }
-  .zone-label { font-family: var(--mono); font-size: 12px; fill: var(--dim); letter-spacing: 0.08em; }
-  .edge { stroke: var(--line-2); stroke-width: 2; fill: none; }
-  .edge.lit { stroke: var(--blue-2); }
-  .edge.hot { stroke: var(--red); }
-  .node circle.ring { fill: var(--panel); stroke: var(--line-2); stroke-width: 2; transition: stroke 0.3s, fill 0.3s; }
-  .node text.t { font-family: var(--mono); font-size: 13px; fill: var(--text); text-anchor: middle; }
-  .node text.d { font-family: var(--mono); font-size: 10.5px; fill: var(--dim); text-anchor: middle; letter-spacing: 0.08em; text-transform: uppercase; }
-  .node .icon { fill: var(--muted); transition: fill 0.3s; }
-  .node.safe circle.ring { stroke: var(--blue-2); fill: #241a12; }
-  .node.safe .icon { fill: var(--blue-2); }
-  .node.redact circle.ring { stroke: var(--amber); fill: #2b1d10; }
-  .node.redact .icon { fill: var(--amber); }
-  .node.leak circle.ring { stroke: var(--red); fill: #2a120c; }
-  .node.leak .icon { fill: var(--red); }
-  .node.policy circle.ring { stroke-dasharray: 5 4; stroke: var(--amber-2); }
-  .node { cursor: pointer; }
-  .packet { fill: var(--amber); filter: drop-shadow(0 0 8px rgba(212, 137, 74, 0.9)); }
-  .packet.raw { fill: var(--red); filter: drop-shadow(0 0 8px rgba(229, 115, 95, 0.9)); }
-  .readout { display: grid; grid-template-columns: 1.1fr 2fr 1fr; gap: 10px; margin-top: 10px; }
-  .cell { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
-  .cell .k { font-family: var(--mono); font-size: 10.5px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
-  .cell .v { font-family: var(--mono); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
-  .v.raw { color: #f3c2b6; }
-  .v.tok { color: var(--blue-2); }
-  .v.mask { color: var(--amber-2); }
-  .v.good { color: var(--green); }
-  .v.bad { color: var(--red); }
-
-  section { padding: 84px 0; scroll-margin-top: 60px; }
-  .kicker { font-family: var(--mono); font-size: 12px; color: var(--amber); letter-spacing: 0.1em; text-transform: uppercase; }
-  h2 { font-size: clamp(28px, 3.8vw, 44px); line-height: 1.08; letter-spacing: -0.03em; margin-top: 10px; max-width: 760px; }
-  .intro { color: var(--muted); margin-top: 14px; max-width: 680px; font-size: 16.5px; }
-
-  /* policy */
-  .policy { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; margin-top: 36px; align-items: start; }
-  .code { background: #0a0806; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-  .code-head { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  .code pre { padding: 14px 0; font-family: var(--mono); font-size: 13px; line-height: 1.75; overflow-x: auto; }
-  .code .ln { display: block; padding: 0 16px; border-left: 3px solid transparent; color: #e2d6c8; white-space: pre; }
-  .code .rule { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-  .code .rule.on { background: rgba(212, 137, 74, 0.08); border-left-color: var(--amber); }
-  .code .cm { color: var(--dim); }
-  .code .kw { color: var(--blue-2); }
-  .code .st { color: var(--amber-2); }
-  .rule-cards { display: grid; gap: 12px; }
-  .rc { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; cursor: pointer; transition: border-color 0.2s, transform 0.2s; }
-  .rc:hover, .rc.on { border-color: var(--amber); transform: translateY(-2px); }
-  .rc h3 { font-size: 17px; display: flex; align-items: center; gap: 8px; }
-  .rc h3 i { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--bg); background: var(--amber); border-radius: 4px; padding: 1px 6px; }
-  .rc p { color: var(--muted); font-size: 14.5px; margin-top: 6px; }
-  .rc .hits { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .rc .hits span { font-family: var(--mono); font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--blue-2); }
-
-  /* stepper */
-  .stepper { margin-top: 36px; display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
-  .steps { display: grid; gap: 6px; align-content: start; }
-  .steps button { text-align: left; background: transparent; border: 1px solid transparent; color: var(--muted); font: 500 15px var(--sans); padding: 12px 14px; border-radius: 12px; cursor: pointer; display: flex; gap: 12px; align-items: center; transition: background 0.15s, color 0.15s, border-color 0.15s; }
-  .steps button span { font-family: var(--mono); font-size: 11px; color: var(--dim); width: 22px; }
-  .steps button:hover { color: var(--text); background: var(--panel); }
-  .steps button.on { color: var(--text); background: var(--panel); border-color: var(--line-2); }
-  .steps button.on span { color: var(--amber); }
-  .step-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px; min-height: 260px; position: relative; overflow: hidden; }
-  .step-panel .big { position: absolute; right: -10px; bottom: -40px; font-family: var(--mono); font-size: 180px; font-weight: 700; color: rgba(139, 94, 60, 0.08); line-height: 1; pointer-events: none; }
-  .step-panel h3 { font-size: 24px; letter-spacing: -0.02em; }
-  .step-panel .replaces { font-family: var(--mono); font-size: 12px; color: var(--amber-2); margin-top: 6px; }
-  .step-panel p { color: var(--muted); margin-top: 14px; max-width: 560px; font-size: 16px; position: relative; }
-  .step-panel code, .rc code, .intro code { font-family: var(--mono); font-size: 0.86em; color: var(--amber-2); background: rgba(212, 137, 74, 0.08); padding: 1px 6px; border-radius: 4px; }
-
-  /* compare */
-  .compare { margin-top: 36px; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
-  .cmp-row { display: grid; grid-template-columns: 180px 1fr 1fr; border-top: 1px solid var(--line); }
-  .cmp-row:first-child { border-top: 0; }
-  .cmp-row > div { padding: 16px 18px; font-size: 15px; }
-  .cmp-row .what { font-family: var(--mono); font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding-top: 19px; }
-  .cmp-row .old { color: var(--muted); background: rgba(20, 16, 12, 0.7); }
-  .cmp-row .old::before { content: "- "; font-family: var(--mono); color: var(--red); }
-  .cmp-row .new { background: rgba(139, 94, 60, 0.08); }
-  .cmp-row .new::before { content: "+ "; font-family: var(--mono); color: var(--green); }
-  .cmp-row.head > div { font-weight: 700; font-size: 14px; padding: 12px 18px; }
-  .cmp-row.head .old::before, .cmp-row.head .new::before { content: ""; }
-  .cmp-row.head .new { color: var(--amber-2); }
-
-  .term { margin-top: 36px; background: #0a0806; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-  .term-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  .copy { font: 700 12px var(--mono); background: var(--panel-2); color: var(--text); border: 1px solid var(--line-2); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
-  .copy:hover { border-color: var(--amber); color: var(--amber-2); }
-  .term pre { padding: 18px; font-family: var(--mono); font-size: 13px; line-height: 1.9; overflow-x: auto; color: #eadfd2; }
-  .term .c { color: var(--dim); }
-  .term .p { color: var(--amber); user-select: none; }
-
-  footer { border-top: 1px solid var(--line); padding: 34px 0 50px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
-  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-
-  /* placeholders before/after */
-  .swap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 36px; }
-  .swap .col { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; min-width: 0; }
-  .swap .col h3 { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); font-weight: 400; }
-  .swap .col.mid { border-color: var(--amber); }
-  .swap .col.mid h3 { color: var(--amber-2); }
-  .swap pre { font-family: var(--mono); font-size: 13px; line-height: 1.7; margin-top: 10px; white-space: pre-wrap; overflow-wrap: anywhere; color: #e2d6c8; }
-  .swap .r { color: #f3c2b6; }
-  .swap .ph { color: var(--amber-2); background: rgba(212, 137, 74, 0.1); border-radius: 4px; padding: 0 3px; }
-  .swap .note { color: var(--muted); font-size: 14px; margin-top: 12px; }
-
-  /* install paths */
-  .paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 36px; }
-  .path { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; min-width: 0; }
-  .path .who { font-family: var(--mono); font-size: 11.5px; color: var(--amber); letter-spacing: 0.08em; text-transform: uppercase; }
-  .path h3 { font-size: 20px; margin-top: 6px; letter-spacing: -0.01em; }
-  .path p { color: var(--muted); font-size: 14.5px; margin-top: 8px; }
-  .path pre { margin-top: 14px; background: #0a0806; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; overflow-x: auto; color: #eadfd2; flex: 1; }
-  .path pre .c { color: var(--dim); }
-  .path a.more { margin-top: 12px; font-size: 14px; }
-
-  /* proof */
-  .proof { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 18px; margin-top: 36px; align-items: start; }
-  .report { background: #f6f1ea; color: #1c1612; border-radius: 14px; padding: 22px 24px; font-size: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
-  .report .rh { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid #d9cfc3; padding-bottom: 10px; }
-  .report .rh b { font-size: 16px; }
-  .report .rh span { font-family: var(--mono); font-size: 11.5px; color: #6f6152; }
-  .report .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
-  .report .kpi { background: #ede5da; border-radius: 8px; padding: 10px; }
-  .report .kpi i { display: block; font-style: normal; font-size: 22px; font-weight: 700; }
-  .report .kpi small { font-size: 11.5px; color: #6f6152; }
-  .report .stmt { margin-top: 14px; padding: 10px 12px; border-left: 3px solid #4f7a4d; background: #e7efe3; font-size: 13.5px; }
-  .report .root { margin-top: 12px; font-family: var(--mono); font-size: 11px; color: #6f6152; overflow-wrap: anywhere; }
-  .facts { display: grid; gap: 12px; }
-  .fact { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
-  .fact h3 { font-size: 16px; }
-  .fact p { color: var(--muted); font-size: 14.5px; margin-top: 4px; }
-
-  @media (max-width: 900px) {
-    .swap, .paths, .proof { grid-template-columns: 1fr; }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text); font-family: var(--sans); font-size: 17px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23c9a55f' stroke-opacity='.055'%3E%3Ccircle cx='0' cy='0' r='32'/%3E%3Ccircle cx='64' cy='0' r='32'/%3E%3Ccircle cx='0' cy='64' r='32'/%3E%3Ccircle cx='64' cy='64' r='32'/%3E%3Ccircle cx='32' cy='32' r='32'/%3E%3Ccircle cx='32' cy='32' r='16'/%3E%3C/g%3E%3C/svg%3E"),
+      radial-gradient(1100px 620px at 88% -8%, rgba(201,165,95,.16), transparent 62%),
+      radial-gradient(900px 700px at -12% 34%, rgba(74,168,132,.12), transparent 60%),
+      radial-gradient(1000px 700px at 70% 62%, rgba(154,142,208,.09), transparent 60%),
+      radial-gradient(900px 600px at 10% 100%, rgba(106,156,192,.10), transparent 60%),
+      linear-gradient(180deg, #0b1110, #070a09);
   }
-
-  @media (max-width: 900px) {
-    .policy, .stepper { grid-template-columns: 1fr; }
-    .steps { grid-template-columns: repeat(3, 1fr); }
-    .steps button { justify-content: center; font-size: 13.5px; padding: 10px; }
-    .readout { grid-template-columns: 1fr 1fr; }
-    .readout .cell:nth-child(2) { grid-column: 1 / -1; order: 3; }
-    .cmp-row { grid-template-columns: 1fr 1fr; }
-    .cmp-row .what { grid-column: 1 / -1; padding-bottom: 0; }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: .07; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  @media (max-width: 560px) {
-    .links a:not(.gh) { display: none; }
-    .steps { grid-template-columns: 1fr 1fr; }
-    .cmp-row { grid-template-columns: 1fr; }
-    .stage { padding: 12px; }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 18px; }
+
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 6px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; }
+  .brand svg { width: 28px; height: 28px; }
+  .navlinks { display: flex; gap: 4px; font-family: var(--mono); font-size: 13px; }
+  .navlinks a { padding: 8px 12px; border-radius: 10px; color: var(--muted); }
+  .navlinks a:hover { background: var(--panel); color: var(--text); }
+
+  .hero { display: grid; grid-template-columns: 1fr auto; gap: 20px 40px; align-items: end; margin: 18px 0 26px; }
+  h1 { font-family: var(--disp); font-weight: 800; font-weight: var(--hw); font-size: calc(clamp(42px, 6.6vw, 88px) * var(--hs)); line-height: 1.02; letter-spacing: var(--hls); margin: 0 0 20px; }
+  h1 em { font-style: var(--emi); font-weight: inherit; color: var(--copper); }
+  .lede { margin: 0; max-width: 620px; font-size: 19px; line-height: 1.45; color: var(--muted); }
+  .lede b { color: var(--text); font-weight: 700; }
+  h2 { font-family: var(--disp); font-weight: 800; font-weight: var(--hw); font-size: calc(clamp(32px, 4.4vw, 54px) * var(--hs)); line-height: 1.06; letter-spacing: var(--hls); margin: 0 0 12px; }
+  .sub { margin: 0 0 18px; color: var(--muted); max-width: 560px; }
+  .note { font-family: var(--hand); font-size: 18px; line-height: 1.15; color: var(--copper); }
+  .swap { width: 290px; padding-bottom: 6px; text-align: center; }
+  .swap .note { display: block; margin-top: 12px; transform: rotate(-3deg); min-height: 42px; }
+  .swap svg { display: block; width: 54px; margin: 0 auto 8px 30px; }
+  .val {
+    position: relative; display: inline-block; font-family: var(--mono); font-weight: 700;
+    font-size: 25px; letter-spacing: -0.02em; line-height: 1; padding: .5em .6em .5em 1.1em; color: #0a0e0d; background: var(--paper);
+    clip-path: polygon(.6em 0, 100% 0, 100% 100%, .6em 100%, 0 50%); transform: rotate(-2.5deg); transition: background .2s;
+  }
+  .val.safe { background: var(--copper); }
+  .val::before { content: ""; position: absolute; left: .5em; top: 50%; width: .26em; height: .26em; margin-top: -.13em; border-radius: 50%; background: var(--bg); }
+  .val::after { content: ""; position: absolute; inset: 0; background: #0a0e0d; transform: scaleX(0); transform-origin: left; transition: transform .28s cubic-bezier(.7,0,.3,1); }
+  .val.wipe::after { transform: scaleX(1); }
+  .val.unwipe::after { transform-origin: right; transform: scaleX(0); }
+
+  .btn {
+    font-family: var(--mono); font-weight: 700; font-size: 14px; border: 0; cursor: pointer;
+    border-radius: 8px; padding: 11px 16px; background: var(--panel-2); color: var(--text);
+    box-shadow: 0 4px 0 #030605; transition: transform .06s, box-shadow .06s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #030605; }
+  .btn.copper { background: var(--copper); color: #0a0e0d; box-shadow: 0 4px 0 var(--copper-d); }
+  .btn.gold { background: var(--gold); color: #0a0e0d; box-shadow: 0 4px 0 #5a4f8f; }
+  .show-p { display: none; }
+  .btn.on { outline: 2px solid var(--copper); outline-offset: 2px; }
+
+  /* ---------- the stage ---------- */
+  .stage {
+    position: relative; height: 540px; border-radius: 10px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(20,30,27,.92), rgba(10,15,14,.94)); backdrop-filter: blur(6px); border: 1px solid #2c3d36; box-shadow: 0 34px 80px -24px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.05);
+    user-select: none; touch-action: manipulation;
+  }
+  .stage::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 7px; z-index: 7;
+    background: repeating-linear-gradient(-45deg, var(--copper) 0 14px, #0a0e0d 14px 28px); }
+  .stage.off::before { background: repeating-linear-gradient(-45deg, var(--melon) 0 14px, #0a0e0d 14px 28px); animation: slide .6s linear infinite; }
+  @keyframes slide { to { background-position: 39.6px 0; } }
+  .stage.alarm { animation: alarm .5s; }
+  @keyframes alarm { 30% { border-color: var(--melon); box-shadow: 0 0 0 2px var(--melon), 0 0 60px -10px var(--melon); } }
+  .lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .lines path { fill: none; stroke-width: 2; stroke-dasharray: 3 9; stroke-linecap: round; opacity: .55; animation: flow 1.2s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+
+  .hud { position: absolute; top: 22px; left: 14px; right: 14px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 6; pointer-events: none; }
+  .hud > * { pointer-events: auto; }
+  .acts { display: flex; gap: 8px; }
+  .counts { display: flex; gap: 8px; font-family: var(--mono); font-size: 13px; font-weight: 700; }
+  .count { background: var(--deep); border-radius: 8px; padding: 8px 12px; color: var(--muted); }
+  .count b { font-size: 18px; margin-left: 4px; }
+  .count.c b { color: var(--mint); } .count.l b { color: var(--melon); }
+  .count.bump { animation: bump .25s; }
+  @keyframes bump { 50% { transform: scale(1.18); } }
+
+  .agent { position: absolute; left: 2.5%; top: 52%; transform: translateY(-50%); width: 282px; z-index: 3; }
+  .agent .card { background: var(--deep); border: 1px solid var(--line); border-radius: 8px; padding: 14px; box-shadow: 0 16px 34px -14px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.04); }
+  .agent .who { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-weight: 800; text-transform: uppercase; letter-spacing: .14em; font-size: 12.5px; line-height: 1; margin-bottom: 12px; }
+  .agent .who i { width: 12px; height: 12px; border-radius: 50%; background: var(--lilac); animation: blink 1.4s infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .msg { font-family: var(--mono); font-size: 13px; line-height: 1.5; height: 4.5em; overflow: hidden; color: var(--muted); margin-bottom: 10px; }
+  .msg .to { font-weight: 700; }
+  .msg mark { background: var(--paper); color: #0a0e0d; font-weight: 700; padding: 0 4px; border-radius: 2px; }
+  .throw { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+  .throw button { font: inherit; font-weight: 700; cursor: pointer; border: 0; color: #0a0e0d; background: var(--paper); padding: 4px 8px 4px 16px;
+    clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 50%); transition: transform .08s; }
+  .throw button:hover { background: var(--copper); transform: translateX(3px) rotate(-2deg); }
+  .throw button:active { transform: translateX(8px); }
+  .agent input {
+    width: 100%; font-family: var(--mono); font-size: 13px; padding: 10px 11px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text); outline: none; user-select: text;
+  }
+  .agent input:focus { border-color: var(--copper); }
+  .agent input::placeholder { color: var(--dim); }
+
+  .guard { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; cursor: pointer; text-align: center; }
+  .guard svg { width: 170px; height: 170px; display: block; margin: 0 auto; transition: transform .12s; filter: drop-shadow(0 18px 24px rgba(0,0,0,.7)); }
+  .guard:hover svg { transform: scale(1.04); }
+  .guard.chomp svg { transform: scale(1.12) rotate(-3deg); }
+  .guard .name { display: block; margin-top: 8px; font-family: var(--sans); font-weight: 800; text-transform: uppercase; letter-spacing: .22em; font-size: 14px; line-height: 1; }
+  .guard .tag { display: inline-block; margin-top: 4px; font-family: var(--hand); font-size: 16px; transform: rotate(-2deg); color: var(--mint); white-space: nowrap; }
+  .off .guard .tag { color: var(--melon); }
+  .guard .hex { fill: var(--copper); transition: fill .2s; }
+  .off .guard .hex { fill: #33403a; }
+  .guard .lid { transition: transform .18s; transform-origin: 60px 60px; transform: scaleY(0); }
+  .off .guard .lid { transform: scaleY(1); }
+  .guard.blink .lid { transform: scaleY(1); transition-duration: .07s; }
+  .guard .zz { opacity: 0; font-family: var(--mono); font-weight: 700; fill: var(--muted); }
+  .off .guard .zz { opacity: 1; animation: zz 1.6s infinite; }
+  @keyframes zz { 50% { transform: translate(4px, -6px); opacity: .4; } }
+  .ring { position: absolute; left: 50%; top: 85px; width: 170px; height: 170px; margin: -85px; border-radius: 50%; border: 3px solid var(--mint); opacity: 0; pointer-events: none; }
+  .guard.chomp .ring { animation: ring .35s ease-out; }
+  @keyframes ring { from { opacity: .8; transform: scale(.7); } to { opacity: 0; transform: scale(1.5); } }
+
+  .bins { position: absolute; right: 2.5%; top: 52%; transform: translateY(-50%); display: grid; gap: 14px; width: 262px; z-index: 3; }
+  .bin { position: relative; background: var(--deep); border: 1px solid var(--c); border-radius: 8px; overflow: hidden; box-shadow: 0 16px 34px -14px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.04); }
+  .bin.shake { animation: shake .35s; }
+  @keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+  .bin .top { display: flex; align-items: center; justify-content: space-between; background: var(--c); color: #0a0e0d; padding: 5px 10px 4px 12px; }
+  .bin h3 { margin: 0; font-family: var(--sans); font-size: 12.5px; line-height: 1.9; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; display: flex; align-items: center; gap: 8px; }
+  .bin h3 svg { width: 17px; height: 17px; }
+  .bin .n { font-family: var(--mono); font-weight: 700; font-size: 13px; }
+  .bin .last { font-family: var(--mono); font-size: 12px; line-height: 1.45; color: var(--muted); margin: 8px 12px; height: 2.9em; overflow: hidden; }
+  .bin .last i { font-style: normal; font-weight: 700; color: var(--c); }
+  .bin .last i.raw { color: #0a0e0d; background: var(--melon); padding: 0 3px; }
+  .bin .last .short { display: none; }
+  .bin::after { content: "LEAK"; position: absolute; right: 8px; bottom: 3px; font-family: var(--sans); font-weight: 800; font-size: 17px; letter-spacing: .08em; color: var(--melon); border: 3px solid var(--melon); border-radius: 4px; padding: 0 7px; line-height: 1.15; transform: rotate(-9deg) scale(1.6); opacity: 0; background: var(--deep); }
+  .bin.stamp::after { animation: stamp 1.3s ease-out; }
+  @keyframes stamp { 0% { opacity: 0; transform: rotate(-9deg) scale(1.9); } 12% { opacity: 1; transform: rotate(-9deg) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: rotate(-9deg) scale(1); } }
+
+  .chip {
+    position: absolute; left: 0; top: 0; z-index: 4; font-family: var(--mono); font-size: 13px; font-weight: 700;
+    padding: 6px 11px 6px 24px; white-space: nowrap; will-change: transform;
+    background: var(--paper); color: #0a0e0d; clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 50%);
+  }
+  .chip::before { content: ""; position: absolute; left: 11px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--panel); }
+  .chip.safe { background: color-mix(in srgb, var(--c) 92%, #000); }
+  .chip.pop { animation: pop .3s; }
+  @keyframes pop { 40% { filter: brightness(1.6); scale: 1.3; } }
+  .chip.raw { background: var(--melon); }
+  .chip.plain { background: var(--panel-2); color: var(--muted); }
+  .game .chip { cursor: crosshair; padding: 9px 14px 9px 26px; font-size: 14px; }
+  .chip.oops { animation: shake .3s; opacity: .5; }
+
+  .duo { display: grid; grid-template-columns: 1fr 330px; gap: 56px; align-items: start; margin-top: 78px; }
+  .blocks { display: flex; flex-wrap: wrap; gap: 8px; min-height: 84px; }
+  .blk { font-family: var(--mono); font-size: 12px; font-weight: 700; cursor: pointer; padding: 7px 10px; border: 1px solid var(--line); border-radius: 4px;
+    background: var(--deep); color: var(--mint); box-shadow: 0 8px 16px -8px rgba(0,0,0,.9); transition: transform .08s; }
+  .blk u { text-decoration: none; color: var(--dim); margin-left: 8px; font-weight: 400; }
+  .blk b { color: var(--dim); margin-right: 6px; }
+  .blk.leak { color: var(--melon); }
+  .blk:hover { transform: translate(-2px, -2px) rotate(-1.5deg); border-color: var(--text); }
+  .blk.bad { background: var(--melon); border-color: var(--melon); color: #0a0e0d; }
+  .blk.bad u, .blk.bad b { color: #0a0e0d; }
+  .blk.bad.first { text-decoration: line-through; transform: rotate(-3deg); }
+  .ok { margin-top: 14px; font-family: var(--mono); font-size: 13.5px; font-weight: 700; color: var(--mint); min-height: 42px; }
+  .ok.bad { color: var(--melon); }
+
+  .over { position: absolute; inset: 0; z-index: 9; display: none; place-items: center; background: rgba(5,8,7,.86); }
+  .over.show { display: grid; }
+  .result { background: var(--panel-2); border-radius: 10px; border: 1px solid var(--line); padding: 24px 26px; width: min(420px, 90%); box-shadow: 0 34px 80px -24px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.05); text-align: center; }
+  .bar { display: grid; grid-template-columns: 96px 1fr 54px; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; font-weight: 700; margin: 10px 0; text-align: left; }
+  .bar .t { height: 20px; border-radius: 99px; background: var(--deep); overflow: hidden; }
+  .bar .t i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--c); transition: width .8s cubic-bezier(.2,.9,.3,1); }
+  .result .say { font-family: var(--hand); font-size: 20px; color: var(--copper); margin: 0 0 14px; transform: rotate(-2deg); }
+  .result .fa { font-family: var(--mono); font-size: 12.5px; color: var(--muted); margin: 6px 0 16px; }
+  .result .btn { margin: 4px; }
+  .go { font-family: var(--disp); font-size: 110px; line-height: 1; font-weight: var(--hw); color: var(--gold); animation: pop .5s; }
+
+  /* ---------- below ---------- */
+  .receipt {
+    background: var(--paper); color: #0a0e0d; transform: rotate(1.6deg); padding: 30px 22px 28px; font-family: var(--mono); font-size: 13px;
+    --z: 8px; mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% 100% / calc(2 * var(--z)) 51% repeat-x,
+                   conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% 0 / calc(2 * var(--z)) 51% repeat-x;
+  }
+  .receipt .rh { text-align: center; font-family: var(--disp); font-weight: var(--hw); font-size: 30px; letter-spacing: 0; line-height: 1; }
+  .receipt .rh span { display: block; font-family: var(--mono); font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #6b5d4d; margin-top: 4px; }
+  .receipt hr { border: 0; border-top: 2px dashed #b9ab97; margin: 14px 0; }
+  .receipt p { display: flex; align-items: baseline; gap: 6px; margin: 7px 0; }
+  .receipt p span { flex: 1; overflow: hidden; white-space: nowrap; }
+  .receipt p span::after { content: " ................................................"; color: #b9ab97; }
+  .receipt p b { font-weight: 700; }
+  .receipt .total { font-family: var(--disp); font-weight: var(--hw); font-size: 26px; }
+  .receipt .total span::after { content: ""; }
+  .receipt .thx { text-align: center; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #6b5d4d; margin-top: 10px; }
+
+  .install { margin-top: 84px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .code { position: relative; background: var(--deep); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 34px 80px -24px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.05); padding: 18px 20px; font-family: var(--mono); font-size: 14px; line-height: 1.7; color: #cfd3c8; overflow-x: auto; white-space: pre; min-height: 138px; }
+  .code .c { color: var(--dim); } .code .k { color: var(--gold); } .code .s { color: var(--mint); }
+  .copy { position: absolute; top: 12px; right: 12px; }
+  .marq { overflow: hidden; margin-top: 16px; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+  .marq div { display: flex; gap: 8px; width: max-content; animation: marq 26s linear infinite; }
+  .marq span { font-family: var(--mono); font-size: 12.5px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 5px 12px; text-transform: uppercase; letter-spacing: .06em; }
+  @keyframes marq { to { transform: translateX(-50%); } }
+
+  .cta { padding: 84px 0 30px; }
+  .cta .btn { font-size: 15px; padding: 14px 20px; margin: 6px 10px 6px 0; }
+  footer { border-top: 1px solid var(--line); margin-top: 20px; padding: 20px 0 36px; display: flex; flex-wrap: wrap; gap: 8px 22px; justify-content: space-between; font-family: var(--mono); font-size: 12.5px; color: var(--dim); }
+  footer a:hover { color: var(--text); }
+
+  @media (max-width: 820px) {
+    .hero { grid-template-columns: 1fr; margin-top: 16px; }
+    .lede { font-size: 17px; }
+    .swap { width: auto; text-align: left; display: flex; align-items: center; gap: 14px; }
+    .swap svg { display: none; } .swap .note { margin: 0; font-size: 16px; min-height: 0; }
+    .val { font-size: 17px; flex: none; }
+    .stage { height: 740px; }
+    .hide-p { display: none; } .show-p { display: inline; }
+    .bin .n { display: none; }
+    .agent { left: 50%; top: 70px; transform: translateX(-50%); width: min(340px, 92%); }
+    .agent .who { display: none; }
+    .agent .card { padding: 10px; }
+    .msg { height: 3em; font-size: 12px; margin-bottom: 8px; }
+    .throw { flex-wrap: nowrap; overflow: hidden; margin-top: 8px; } .throw span { display: none; }
+    .guard { top: 55%; }
+    .guard svg { width: 124px; height: 124px; margin: 0 auto; }
+    .guard .name { font-size: 12.5px; } .guard .tag { font-size: 14px; }
+    .ring { top: 62px; width: 124px; height: 124px; margin: -62px; }
+    .bins { right: auto; left: 50%; top: auto; bottom: 14px; transform: translateX(-50%); width: 94%; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .bin h3 { font-size: 10px; letter-spacing: .08em; white-space: nowrap; } .bin .top { padding: 4px 8px 3px; }
+    .bin .last { margin: 7px 8px; height: 1.45em; font-size: 10.5px; white-space: nowrap; }
+    .bin .last .full { display: none; } .bin .last .short { display: inline; }
+    .bin::after { font-size: 12px; border-width: 2px; } .bin h3 svg { display: none; }
+    .chip { font-size: 11.5px; padding: 5px 8px 5px 22px; }
+    .counts .count { padding: 6px 8px; font-size: 11.5px; } .count b { font-size: 15px; }
+    .acts .btn { padding: 9px 10px; font-size: 12.5px; }
+    .duo { grid-template-columns: 1fr; gap: 44px; margin-top: 56px; }
+    .receipt { max-width: 330px; margin: 0 auto; }
+    .code { padding-top: 58px; }
+    .navlinks a.hide-s { display: none; }
   }
 </style>
 </head>
 <body>
-<canvas id="bg" aria-hidden="true"></canvas>
-
-<nav>
-  <div class="wrap">
-    <a class="brand" href="#">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#8b5e3c"/><circle cx="12" cy="11" r="3" fill="#d4894a" stroke="none"/></svg>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="#" aria-label="Taintward">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 28 9v14L16 30 4 23V9z" fill="#c9a55f"/><circle cx="16" cy="16" r="6" fill="#090d0c"/><circle cx="16" cy="16" r="2.5" fill="#ece6d6"/></svg>
       Taintward
     </a>
-    <div class="links">
-      <a href="#how">How it works</a>
-      <a href="#install">Install</a>
-      <a href="#proof">Proof</a>
-      <a href="#policy">Policy</a>
-      <a class="gh" href="https://github.com/DCchoudhury15/Taintward">GitHub</a>
+    <div class="navlinks">
+      <a class="hide-s" href="#install">Install</a>
+      <a href="https://dcchoudhury15.github.io/Taintward/">Docs</a>
+      <a href="https://github.com/DCchoudhury15/Taintward">GitHub</a>
     </div>
-  </div>
-</nav>
+  </nav>
 
-<div class="wrap">
   <header class="hero">
-    <div class="chip"><b></b> Open source &middot; OpenTelemetry &middot; Apache-2.0</div>
-    <h1>Let your AI agent use customer data <span class="hl">without sending it to the LLM.</span></h1>
-    <p class="lead">Taintward follows sensitive data through every tool call your agent makes. The model gets placeholders, third parties get nothing, your own systems get the real values back. And you get a signed report to show your customers.</p>
-    <div class="actions">
-      <a class="btn btn-amber" href="#install">Get started</a>
-      <a class="btn btn-line" href="#run">Run the demo in one command</a>
+    <div>
+      <h1>Your agent talks<br><em>too much.</em></h1>
+      <p class="lede">It pastes customer names, card numbers and API keys straight into prompts. <b>Taintward sits in the middle and swaps them for stand-ins</b>, so the LLM does its job without ever getting the real thing.</p>
     </div>
-
-    <div class="stage" id="stage">
-      <div class="stage-top">
-        <div class="switch" role="tablist">
-          <button type="button" data-mode="off">Without Taintward</button>
-          <button type="button" data-mode="on" class="on">With Taintward</button>
-        </div>
-        <span class="meta">breach simulator &middot; hr_bot &middot; fake SSN planted</span>
-      </div>
-      <div class="graph-wrap">
-        <svg class="graph" id="graph" viewBox="0 0 1000 330" role="img" aria-label="Agent tool chain with a taint packet moving through six tools">
-          <rect id="zIn" rx="16" fill="rgba(139,94,60,0.06)" stroke="#2a2018" stroke-dasharray="4 6"/>
-          <rect id="zOut" rx="16" fill="rgba(212,137,74,0.035)" stroke="#2b1d10" stroke-dasharray="4 6"/>
-          <text class="zone-label" id="lIn">INSIDE THE BOUNDARY</text>
-          <text class="zone-label" id="lOut">LEAVES THE BOUNDARY</text>
-          <g id="edges"></g>
-          <g id="nodes"></g>
-          <circle id="packet" class="packet" r="7" cx="-50" cy="-50"/>
-        </svg>
-      </div>
-      <div class="readout">
-        <div class="cell"><div class="k">span</div><div class="v" id="rTool">click a tool</div></div>
-        <div class="cell"><div class="k">what the sink received</div><div class="v" id="rVal">&nbsp;</div></div>
-        <div class="cell"><div class="k">decision</div><div class="v" id="rDec">&nbsp;</div></div>
-      </div>
+    <div class="swap" aria-hidden="true">
+      <svg viewBox="0 0 54 40"><path d="M50 4C30 2 12 10 8 32m-6-9 6 10 9-7" fill="none" stroke="#c9a55f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="val" id="val">234-12-1234</span>
+      <span class="note" id="valnote">your agent was about to send this</span>
     </div>
   </header>
+
+  <div class="stage" id="stage">
+    <svg class="lines" id="lines" aria-hidden="true"></svg>
+
+    <div class="hud">
+      <div class="acts">
+        <button class="btn copper" id="play">&#9654; <span class="hide-p">You be the guard</span><span class="show-p">Play</span></button>
+        <button class="btn" id="rush"><span class="hide-p">Rush hour</span><span class="show-p">Rush</span></button>
+      </div>
+      <div class="counts">
+        <span class="count c" id="c-caught">caught<b>0</b></span>
+        <span class="count l" id="c-leaked">leaked<b>0</b></span>
+      </div>
+    </div>
+
+    <div class="agent" id="agent">
+      <div class="card">
+        <div class="who"><i></i>Your agent</div>
+        <div class="msg" id="msg" aria-live="off"></div>
+        <input id="say" placeholder="type a secret, hit Enter" autocomplete="off" spellcheck="false" aria-label="Send your own message through">
+        <div class="throw" id="throw"><span>or throw</span><button data-k="ssn">an SSN</button><button data-k="card">a card</button><button data-k="email">an email</button><button data-k="key">a key</button></div>
+      </div>
+    </div>
+
+    <div class="guard" id="guard" role="switch" aria-checked="true" tabindex="0" aria-label="Taintward guard, click to switch off">
+      <span class="ring"></span>
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <path class="hex" d="M60 6 107 33v54L60 114 13 87V33z"/>
+        <path d="M34 34 60 44 86 34" fill="none" stroke="#090d0c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="60" cy="66" r="25" fill="#090d0c"/>
+        <circle id="pupil" cx="60" cy="66" r="10" fill="#ece6d6"/>
+        <rect class="lid" x="33" y="40" width="54" height="52" rx="26" fill="#090d0c"/>
+        <text class="zz" x="92" y="30" font-size="16">z z</text>
+      </svg>
+      <span class="name">Taintward</span>
+      <span class="tag" id="tag"></span>
+    </div>
+
+    <div class="bins">
+      <div class="bin" id="bin-db" style="--c: var(--mint)">
+        <div class="top"><h3><svg viewBox="0 0 20 20"><ellipse cx="10" cy="5" rx="7" ry="3" fill="currentColor"/><path d="M3 5v10c0 1.7 3.1 3 7 3s7-1.3 7-3V5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Database</h3><span class="n">0</span></div>
+        <div class="last"><span class="full"></span><span class="short"></span></div>
+      </div>
+      <div class="bin" id="bin-llm" style="--c: var(--gold)">
+        <div class="top"><h3><svg viewBox="0 0 20 20"><path d="M10 1l2.4 6.6L19 10l-6.6 2.4L10 19l-2.4-6.6L1 10l6.6-2.4z" fill="currentColor"/></svg>The LLM</h3><span class="n">0</span></div>
+        <div class="last"><span class="full"></span><span class="short"></span></div>
+      </div>
+      <div class="bin" id="bin-ext" style="--c: var(--sky)">
+        <div class="top"><h3><svg viewBox="0 0 20 20"><path d="M5 16a4 4 0 0 1-.6-8A5.5 5.5 0 0 1 15 7.5 4.3 4.3 0 0 1 15 16z" fill="currentColor"/></svg>External API</h3><span class="n">0</span></div>
+        <div class="last"><span class="full"></span><span class="short"></span></div>
+      </div>
+    </div>
+
+    <div class="over" id="over"></div>
+  </div>
+
+  <div class="duo">
+    <section>
+      <h2>Go on, edit the log.</h2>
+      <p class="sub">Every swap up there gets written down, and each entry is chained to the one before it. Click any entry to quietly change it.</p>
+      <div class="blocks" id="blocks"></div>
+      <div class="ok" id="ok"></div>
+    </section>
+    <aside class="receipt">
+      <div class="rh">Taintward<span>checkpoint receipt</span></div>
+      <hr>
+      <p><span>added per call</span><b>~8 ms</b></p>
+      <p><span>raw values sent to the model</span><b>0</b></p>
+      <p><span>frameworks it plugs into</span><b>12</b></p>
+      <p><span>tests behind it</span><b>700+</b></p>
+      <hr>
+      <p><span>caught while you watched</span><b id="r-caught">0</b></p>
+      <p><span>leaked while the guard slept</span><b id="r-leaked">0</b></p>
+      <hr>
+      <p class="total"><span>You pay</span><b>$0</b></p>
+      <div class="thx">open source &middot; Apache-2.0</div>
+    </aside>
+  </div>
+
+  <div class="install" id="install">
+    <h2>Add it in about a minute.</h2>
+    <p class="sub">Wrap your tools and your model. Your agent code stays the same.</p>
+    <div class="tabs" id="tabs">
+      <button class="btn on" data-t="py">Python</button>
+      <button class="btn" data-t="ts">TypeScript</button>
+      <button class="btn" data-t="mcp">MCP gateway</button>
+      <button class="btn" data-t="k8s">Kubernetes</button>
+    </div>
+    <div class="code"><button class="btn copy" id="copy">Copy</button><span id="code"></span></div>
+    <div class="marq"><div id="marq"></div></div>
+  </div>
+
+  <div class="cta">
+    <h2>It's free. Go poke at it.</h2>
+    <a class="btn copper" href="https://github.com/DCchoudhury15/Taintward">Star on GitHub</a>
+    <a class="btn" href="https://dcchoudhury15.github.io/Taintward/">Read the docs</a>
+    <a class="btn" href="https://pypi.org/project/taintward/">PyPI</a>
+  </div>
+
+  <footer>
+    <span>Taintward &middot; Apache-2.0 &middot; built on OpenTelemetry</span>
+    <span>
+      <a href="https://github.com/DCchoudhury15/Taintward/blob/main/docs/threat-model.md">threat model</a> &middot;
+      <a href="https://github.com/DCchoudhury15/Taintward/blob/main/docs/benchmark.md">benchmarks</a> &middot;
+      <a href="https://arxiv.org/abs/2603.07557">AgentRaft paper</a>
+    </span>
+  </footer>
 </div>
 
-<section id="how">
-  <div class="wrap">
-    <div class="kicker">How it works</div>
-    <h2>The model gets placeholders. Your agent still works.</h2>
-    <p class="intro">Masking everything to <code>[PII]</code> breaks the agent: it can no longer write to Alice about her tax form. Taintward swaps each value for a stable placeholder on the way to the LLM, and swaps the real value back on the way to your user or your own systems.</p>
-    <div class="swap">
-      <div class="col">
-        <h3>1 &middot; your agent sends</h3>
-<pre>Write to <span class="r">Alice Lee</span> (<span class="r">alice@acme.com</span>)
-about the missing form for
-SSN <span class="r">234-12-1234</span>.</pre>
-      </div>
-      <div class="col mid">
-        <h3>2 &middot; the LLM provider sees</h3>
-<pre>Write to <span class="ph">&lt;PERSON_1&gt;</span> (<span class="ph">&lt;EMAIL_1&gt;</span>)
-about the missing form for
-SSN <span class="ph">&lt;SSN_1&gt;</span>.</pre>
-        <p class="note">The real values never leave your process.</p>
-      </div>
-      <div class="col">
-        <h3>3 &middot; your user gets</h3>
-<pre>Hi <span class="r">Alice Lee</span>, we are still
-missing one form for the account
-ending in <span class="r">1234</span>...</pre>
-        <p class="note">An external API or a log line only ever gets a one-way mask.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="install">
-  <div class="wrap">
-    <div class="kicker">Install</div>
-    <h2>Three ways in. Pick the one that fits.</h2>
-    <p class="intro">Every path writes standard OpenTelemetry spans, so you can view them in SigNoz, Jaeger, Grafana, Datadog or anything else that speaks OTLP.</p>
-    <div class="paths">
-      <div class="path">
-        <div class="who">you write the agent</div>
-        <h3>Python SDK</h3>
-        <p>LangChain, LangGraph, the OpenAI Agents SDK, or plain OpenAI and Anthropic clients. A few lines, no decorators on every tool.</p>
-<pre>pip install "taintward[langchain]"
-
-<span class="c"># unknown tools are treated as external</span>
-ward = tw.init("support-bot", destinations={
-  "search_crm": "internal",
-  "send_email": "external",
-})
-tools = tw.wrap_langchain_tools(tools)
-model = tw.protect_langchain_model(model)</pre>
-        <a class="more" href="https://github.com/DCchoudhury15/Taintward/blob/main/docs/integrations.md">Integration guide</a>
-      </div>
-      <div class="path">
-        <div class="who">you use MCP tools</div>
-        <h3>MCP gateway</h3>
-        <p>Put it in front of any MCP server. No code changes. Per tool: redact, block, or only record.</p>
-<pre><span class="c"># gateway.yaml</span>
-upstreams:
-  crm: { command: crm-mcp-server }
-tools:
-  - match: "crm.get_*"
-    destination: internal
-  - match: "*.send_*"
-    destination: external
-    mode: block</pre>
-        <a class="more" href="https://github.com/DCchoudhury15/Taintward/blob/main/docs/mcp-gateway.md">Gateway guide</a>
-      </div>
-      <div class="path">
-        <div class="who">you run the platform</div>
-        <h3>Collector + Helm</h3>
-        <p>An OpenTelemetry collector with a Rego policy step. Scales out on Kubernetes, and edits to the policy roll out without a rebuild.</p>
-<pre>helm install taintward \
-  ./deploy/helm/taintward \
-  --set exporter.endpoint=signoz:4317
-
-<span class="c"># the policy is a plain .rego file</span>
-<span class="c"># your security team can read</span></pre>
-        <a class="more" href="https://github.com/DCchoudhury15/Taintward/blob/main/docs/deploy-kubernetes.md">Deploy guide</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="proof">
-  <div class="wrap">
-    <div class="kicker">Proof</div>
-    <h2>When a customer asks "do you send our data to OpenAI?", send them this.</h2>
-    <p class="intro">One command turns your traces into a report: what data your agents touched, where it went, what was redacted or blocked, and a signed, tamper-evident log root anyone can verify.</p>
-    <div class="proof">
-      <div class="report" aria-label="Example report">
-        <div class="rh"><b>Agent data handling report</b><span>example &middot; support-bot &middot; 30 days</span></div>
-        <div class="kpis">
-          <div class="kpi"><i>12,408</i><small>tool calls</small></div>
-          <div class="kpi"><i>831</i><small>touched personal data</small></div>
-          <div class="kpi"><i>0</i><small>raw values sent out</small></div>
-        </div>
-        <div class="stmt">No raw sensitive values were sent to LLM or external destinations in this window. Method and limits are listed in section 4.</div>
-        <div class="root">merkle root 9f2c41e0b7...a61d &middot; signed checkpoint #212 (Ed25519)</div>
-      </div>
-      <div class="facts">
-        <div class="fact"><h3>GDPR Art. 30 and Art. 44</h3><p>Which tools and which services received personal data, and which calls crossed borders.</p></div>
-        <div class="fact"><h3>Tamper-evident</h3><p>Every violation goes into an append-only Merkle log with signed checkpoints, so a deleted or edited record is detected.</p></div>
-        <div class="fact"><h3>Honest by design</h3><p>The report only claims what was measured, and says how. Detection accuracy is published, not promised.</p></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="policy">
-  <div class="wrap">
-    <div class="kicker">The decision</div>
-    <h2>No LLM judge. A policy file you can read.</h2>
-    <p class="intro">The sidecar collector evaluates this Rego policy on every span before it is stored. Hover a rule to see which tools it fires on in the breach run.</p>
-    <div class="policy">
-      <div class="code">
-        <div class="code-head"><span>collector/policy/pii_egress.rego</span><span>excerpt</span></div>
-<pre><span class="ln"><span class="kw">package</span> taintward</span><span class="ln"> </span><span class="ln"><span class="cm"># Sinks where raw sensitive data must not land.</span></span><span class="ln">sensitive_sinks := {<span class="st">"external"</span>, <span class="st">"llm"</span>, <span class="st">"log"</span>}</span><span class="ln">non_adequate_jurisdictions := {<span class="st">"us"</span>}</span><span class="ln"> </span><span class="ln rule" data-rule="egress"><span class="cm"># Rule 1: sensitive data reaching an external / llm / log sink.</span></span><span class="ln rule" data-rule="egress"><span class="kw">violation contains</span> {<span class="st">"rule"</span>: <span class="st">"pii_egress"</span>, ...} <span class="kw">if</span> {</span><span class="ln rule" data-rule="egress">    input.sensitive == true</span><span class="ln rule" data-rule="egress">    input.destination <span class="kw">in</span> sensitive_sinks</span><span class="ln rule" data-rule="egress">}</span><span class="ln"> </span><span class="ln rule" data-rule="transfer"><span class="cm"># Rule 2: PII to a non-adequate jurisdiction (GDPR Art. 44).</span></span><span class="ln rule" data-rule="transfer"><span class="kw">transfer_violation contains</span> {<span class="st">"rule"</span>: <span class="st">"transfer"</span>, ...} <span class="kw">if</span> {</span><span class="ln rule" data-rule="transfer">    has_class(input.classes, <span class="st">"pii"</span>)</span><span class="ln rule" data-rule="transfer">    input.jurisdiction <span class="kw">in</span> non_adequate_jurisdictions</span><span class="ln rule" data-rule="transfer">}</span><span class="ln"> </span><span class="ln rule" data-rule="redact"><span class="cm"># Always redact raw sensitive values from stored spans.</span></span><span class="ln rule" data-rule="redact"><span class="kw">redact if</span> {</span><span class="ln rule" data-rule="redact">    input.sensitive == true</span><span class="ln rule" data-rule="redact">}</span></pre>
-      </div>
-      <div class="rule-cards">
-        <div class="rc" data-rule="egress"><h3><i>rule 1</i> Egress</h3><p>Sensitive data headed to an LLM, an external API or a log is a violation.</p><div class="hits"><span>ask_llm</span><span>call_external_api</span><span>write_log</span></div></div>
-        <div class="rc" data-rule="transfer"><h3><i>rule 2</i> Cross-border transfer</h3><p>PII sent to a non-adequate jurisdiction, the GDPR Art. 44 case. Fires on top of rule 1.</p><div class="hits"><span>ask_llm</span><span>call_external_api</span></div></div>
-        <div class="rc" data-rule="redact"><h3><i>always</i> Redact before storage</h3><p>SigNoz never stores the raw value, even for tools that legitimately need it internally.</p><div class="hits"><span>every sensitive span</span></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="pipeline">
-  <div class="wrap">
-    <div class="kicker">The pipeline</div>
-    <h2>Six stages, all in real time.</h2>
-    <p class="intro">Each stage replaces a piece of the AgentRaft research pipeline with something that runs live on OpenTelemetry.</p>
-    <div class="stepper">
-      <div class="steps" id="steps"></div>
-      <div class="step-panel" id="panel"></div>
-    </div>
-  </div>
-</section>
-
-<section id="vs">
-  <div class="wrap">
-    <div class="kicker">Research to runtime</div>
-    <h2>Built on research. AgentRaft measured the leak, Taintward stops it.</h2>
-    <p class="intro">AgentRaft (Lin et al., 2026) found data over-exposure in 57% of the agent call chains it analyzed. Taintward keeps its formal model, <code>D_OE = (D_trans \ (D_nec &cup; D_int)) &cap; D_total</code>, and makes it enforceable.</p>
-    <div class="compare">
-      <div class="cmp-row head"><div class="what"></div><div class="old">AgentRaft</div><div class="new">Taintward</div></div>
-      <div class="cmp-row"><div class="what">propagation</div><div class="old">LLM-judged semantic dependency</div><div class="new">OTel baggage and span links, no LLM</div></div>
-      <div class="cmp-row"><div class="what">necessity</div><div class="old">Majority vote of three LLMs</div><div class="new">Deterministic, auditable Rego policy</div></div>
-      <div class="cmp-row"><div class="what">input</div><div class="old">Custom benchmark trace format</div><div class="new">Standard OTel <code>gen_ai.*</code> spans in SigNoz</div></div>
-      <div class="cmp-row"><div class="what">outcome</div><div class="old">Offline detection</div><div class="new">Runtime enforcement, redacted before egress</div></div>
-      <div class="cmp-row"><div class="what">evidence</div><div class="old">Metrics</div><div class="new">Merkle-logged lineage and blast radius</div></div>
-    </div>
-  </div>
-</section>
-
-<section id="run">
-  <div class="wrap">
-    <div class="kicker">Try it</div>
-    <h2>See it in one command.</h2>
-    <p class="intro">Starts the collector, a demo agent that leaks an SSN and an AWS key, and a trace viewer. Open <code>localhost:16686</code> and look for the raw values. You will not find them.</p>
-    <div class="term">
-      <div class="term-head"><span>bash</span><button class="copy" id="copy" type="button">copy</button></div>
-<pre id="cmds"><span class="p">$ </span>git clone https://github.com/DCchoudhury15/Taintward &amp;&amp; cd Taintward
-<span class="p">$ </span>docker compose up --build
-<span class="c"># open http://localhost:16686, service taintward-hr-bot</span></pre>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="wrap">
-    <span>Taintward &middot; open source, Apache-2.0 &middot; Divyanshu Choudhury</span>
-    <span><a href="https://github.com/DCchoudhury15/Taintward">github</a></span>
-  </div>
-</footer>
-
 <script>
-const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-// Background: drifting nodes linked by thin lines; the pointer taints nearby nodes amber.
 (() => {
-  const canvas = document.getElementById("bg"), ctx = canvas.getContext("2d");
-  const p = { x: -9999, y: -9999 };
-  let w = 0, h = 0, nodes = [];
-  const resize = () => {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    w = innerWidth; h = innerHeight;
-    canvas.width = w * dpr; canvas.height = h * dpr;
-    canvas.style.width = w + "px"; canvas.style.height = h + "px";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const n = Math.round((w * h) / 16000);
-    nodes = Array.from({ length: n }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25, t: 0 }));
-  };
-  addEventListener("mousemove", e => { p.x = e.clientX; p.y = e.clientY; }, { passive: true });
-  addEventListener("touchmove", e => { if (e.touches[0]) { p.x = e.touches[0].clientX; p.y = e.touches[0].clientY; } }, { passive: true });
-  addEventListener("resize", resize);
-  const LINK = 120;
-  const draw = () => {
-    ctx.clearRect(0, 0, w, h);
-    const g = ctx.createRadialGradient(w * 0.5, 0, 0, w * 0.5, 0, Math.max(w, h) * 0.75);
-    g.addColorStop(0, "rgba(139, 94, 60, 0.15)"); g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    for (const n of nodes) {
-      if (!still) { n.x += n.vx; n.y += n.vy; if (n.x < 0 || n.x > w) n.vx *= -1; if (n.y < 0 || n.y > h) n.vy *= -1; }
-      if (Math.hypot(n.x - p.x, n.y - p.y) < 110) n.t = 1;
-      n.t *= 0.985;
-    }
-    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
-      const a = nodes[i], b = nodes[j], d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (d > LINK) continue;
-      const k = 1 - d / LINK, t = Math.max(a.t, b.t);
-      if (t > 0.3) { a.t = Math.max(a.t, t * 0.97); b.t = Math.max(b.t, t * 0.97); }
-      ctx.strokeStyle = t > 0.05 ? `rgba(212, 137, 74, ${k * 0.45 * t})` : `rgba(139, 94, 60, ${k * 0.16})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-    for (const n of nodes) {
-      ctx.fillStyle = n.t > 0.05 ? `rgba(236, 193, 149, ${0.25 + n.t * 0.6})` : "rgba(214, 167, 122, 0.25)";
-      ctx.beginPath(); ctx.arc(n.x, n.y, n.t > 0.05 ? 2 : 1.4, 0, Math.PI * 2); ctx.fill();
-    }
-    requestAnimationFrame(draw);
-  };
-  resize(); draw();
-})();
-
-// Flow graph. Stored values come from the README's breach run against live SigNoz.
-const RAW = '"ssn": "421-58-9036"';
-const TOOLS = [
-  { id: "query_db", dest: "internal", x: 95, y: 175, on: ['"ssn": "[PII]"', "mask", "safe, redacted in storage", "good"], icon: "M-7 -5h14v10h-14z" },
-  { id: "internal_store", dest: "internal", x: 255, y: 105, on: ['"ssn": "103-48-0677" (reversible token)', "tok", "safe, reversible token", "good"], icon: "M-6 -6h12v12h-12z" },
-  { id: "ask_llm", dest: "llm", x: 440, y: 225, on: ['"ssn": "[PII]"', "mask", "violation + transfer, masked", "bad"], icon: "M0 -7l7 7l-7 7l-7 -7z", rules: ["egress", "transfer", "redact"] },
-  { id: "rag_retrieve", dest: "rag", x: 610, y: 110, on: ["[PII]", "mask", "masked (embeddings are invertible)", "good"], icon: "M-7 -3h14v6h-14z" },
-  { id: "call_external_api", dest: "external", x: 775, y: 230, on: ["[PII]", "mask", "violation + transfer, masked", "bad"], icon: "M-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0", rules: ["egress", "transfer", "redact"] },
-  { id: "write_log", dest: "log", x: 920, y: 120, on: ["[PII]", "mask", "violation, masked", "bad"], icon: "M-6 -7h12v14h-12z", rules: ["egress", "redact"] },
-];
-TOOLS[0].rules = ["redact"]; TOOLS[1].rules = ["redact"]; TOOLS[3].rules = ["redact"];
-
-(() => {
-  const NS = "http://www.w3.org/2000/svg";
-  const edgesG = document.getElementById("edges"), nodesG = document.getElementById("nodes");
-  const packet = document.getElementById("packet");
-  const rTool = document.getElementById("rTool"), rVal = document.getElementById("rVal"), rDec = document.getElementById("rDec");
-  const btns = document.querySelectorAll(".switch button");
-  let mode = "on", raf, idleTimer;
-  // Wide screens: left to right. Narrow screens: top to bottom, so labels stay readable.
-  const LAYOUTS = {
-    wide: { box: "0 0 1000 330", zIn: [10, 20, 330, 290], zOut: [360, 20, 630, 290], lIn: [28, 46], lOut: [378, 46],
-      pts: TOOLS.map(t => [t.x, t.y]), vertical: false },
-    narrow: { box: "0 0 360 800", zIn: [10, 10, 340, 250], zOut: [10, 275, 340, 515], lIn: [26, 36], lOut: [26, 301],
-      pts: [[100, 105], [255, 180], [100, 360], [255, 470], [100, 580], [255, 690]], vertical: true },
-  };
-  const svg = document.getElementById("graph");
-  const edges = [], nodeEls = [];
-  let layoutName = "";
-  const build = () => {
-    const name = svg.parentElement.clientWidth < 600 ? "narrow" : "wide";
-    if (name === layoutName) return false;
-    layoutName = name;
-    const L = LAYOUTS[name];
-    svg.setAttribute("viewBox", L.box);
-    for (const [id, v] of [["zIn", L.zIn], ["zOut", L.zOut]]) {
-      const r = document.getElementById(id);
-      ["x", "y", "width", "height"].forEach((a, k) => r.setAttribute(a, v[k]));
-    }
-    for (const [id, v] of [["lIn", L.lIn], ["lOut", L.lOut]]) {
-      const t = document.getElementById(id); t.setAttribute("x", v[0]); t.setAttribute("y", v[1]);
-    }
-    edgesG.innerHTML = ""; nodesG.innerHTML = ""; edges.length = 0; nodeEls.length = 0;
-    for (let i = 0; i < TOOLS.length - 1; i++) {
-      const [ax, ay] = L.pts[i], [bx, by] = L.pts[i + 1];
-      const path = document.createElementNS(NS, "path");
-      const d = L.vertical
-        ? `M ${ax} ${ay} C ${ax} ${(ay + by) / 2}, ${bx} ${(ay + by) / 2}, ${bx} ${by}`
-        : `M ${ax} ${ay} C ${(ax + bx) / 2} ${ay}, ${(ax + bx) / 2} ${by}, ${bx} ${by}`;
-      path.setAttribute("d", d);
-      path.setAttribute("class", "edge");
-      edgesG.appendChild(path);
-      edges.push(path);
-    }
-    TOOLS.forEach((t, i) => {
-      const g = document.createElementNS(NS, "g");
-      g.setAttribute("class", "node");
-      g.setAttribute("transform", `translate(${L.pts[i][0]} ${L.pts[i][1]})`);
-      g.setAttribute("tabindex", "0");
-      g.innerHTML = `<circle class="ring" r="30"/><path class="icon" d="${t.icon}"/><text class="t" y="52">${t.id}</text><text class="d" y="68">${t.dest}</text>`;
-      g.addEventListener("click", () => { stop(); show(i, true); });
-      g.addEventListener("keydown", e => { if (e.key === "Enter") { stop(); show(i, true); } });
-      nodesG.appendChild(g);
-      nodeEls.push(g);
-    });
-    return true;
-  };
-  build();
-  addEventListener("resize", () => { if (build() && raf) run(); });
-  const valueFor = t => mode === "on" ? t.on : [RAW, "raw", t.dest === "internal" ? "stored in plain text" : "leaked in plain text", "bad"];
-  const show = (i, all) => {
-    const t = TOOLS[i], [v, vc, d, dc] = valueFor(t);
-    rTool.textContent = `${t.id} → ${t.dest}`;
-    rVal.textContent = v; rVal.className = "v " + vc;
-    rDec.textContent = d; rDec.className = "v " + dc;
-    nodeEls.forEach((g, j) => {
-      g.classList.remove("safe", "redact", "leak");
-      if (all || j <= i) {
-        const tt = TOOLS[j];
-        if (mode === "off") g.classList.add(tt.dest === "internal" ? "safe" : "leak");
-        else g.classList.add(tt.on[3] === "bad" ? "redact" : "safe");
-      }
-    });
-    edges.forEach((e, j) => { e.classList.toggle("lit", (all || j < i) && mode === "on"); e.classList.toggle("hot", (all || j < i) && mode === "off"); });
-  };
-  const stop = () => { cancelAnimationFrame(raf); clearTimeout(idleTimer); packet.setAttribute("cx", -50); };
-  const run = () => {
-    stop();
-    nodeEls.forEach(g => g.classList.remove("safe", "redact", "leak"));
-    edges.forEach(e => e.classList.remove("lit", "hot"));
-    packet.classList.toggle("raw", mode === "off");
-    if (still) { show(TOOLS.length - 1, true); return; }
-    let seg = 0, t0 = performance.now();
-    show(0, false);
-    const SEG_MS = 900;
-    const tick = now => {
-      const k = Math.min(1, (now - t0) / SEG_MS);
-      const e = edges[seg], L = e.getTotalLength(), pt = e.getPointAtLength(L * k);
-      packet.setAttribute("cx", pt.x); packet.setAttribute("cy", pt.y);
-      if (k >= 1) {
-        seg++;
-        show(seg, false);
-        if (seg >= edges.length) { packet.setAttribute("cx", -50); idleTimer = setTimeout(run, 3200); return; }
-        t0 = now;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-  };
-  btns.forEach(b => b.addEventListener("click", () => {
-    mode = b.dataset.mode;
-    btns.forEach(x => { x.classList.toggle("on", x === b); x.classList.toggle("off-mode", x === b && mode === "off"); });
-    run();
-  }));
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { if (!raf) run(); } }), { threshold: 0.2 });
-  io.observe(document.getElementById("stage"));
-
-  // Policy hover highlights the tools each rule fires on.
-  const lines = document.querySelectorAll(".code .rule"), cards = document.querySelectorAll(".rc");
-  const light = rule => {
-    lines.forEach(l => l.classList.toggle("on", l.dataset.rule === rule));
-    cards.forEach(c => c.classList.toggle("on", c.dataset.rule === rule));
-    nodeEls.forEach((g, i) => g.classList.toggle("policy", !!rule && (TOOLS[i].rules || []).includes(rule)));
-  };
-  [...lines, ...cards].forEach(el => {
-    el.addEventListener("mouseenter", () => light(el.dataset.rule));
-    el.addEventListener("mouseleave", () => light(null));
-    el.addEventListener("click", () => { light(el.dataset.rule); document.getElementById("stage").scrollIntoView({ behavior: "smooth", block: "center" }); });
-  });
-})();
-
-// Pipeline stepper.
-(() => {
-  const STEPS = [
-    ["Detect", "replaces: static field lists", "Presidio plus secret patterns scan every tool's input and output as it passes through, so new sensitive data introduced mid-chain is still caught."],
-    ["Propagate", "replaces: AgentRaft's LLM-judged propagation", "A compact tag (<code>taint.id</code>, <code>taint.classes</code>, never the value) rides in OTel baggage to every downstream span. It survives even when an LLM rewrites the data beyond recognition."],
-    ["Decide", "replaces: the three-LLM voting committee", "A Rego policy in the collector decides per span: sensitive data to an external, llm or log sink is a violation. Admins edit the policy without rebuilding the SDK."],
-    ["Redact", "replaces: static field-name masking", "Context-aware: internal tools get a reversible token with the same shape as the original, anything leaving gets a one-way mask, before it is ever stored."],
-    ["Record", "turns metrics into evidence", "A tamper-evident Merkle log plus SigNoz dashboards for lineage, blast radius and SLOs, usable as GDPR Art. 30 records."],
-    ["Recover", "AgentRaft has no recovery step", "A fix suggester walks the agent's source code (AST) for unguarded sinks and proposes a one-line patch, prioritized by the dashboards."],
+  const $ = (id) => document.getElementById(id);
+  const stage = $("stage"), guard = $("guard"), over = $("over");
+  const BINS = [
+    { key: "db", name: "your database", tag: "DB", el: $("bin-db"), color: "var(--mint)", leaky: false },
+    { key: "llm", name: "the LLM", tag: "LLM", el: $("bin-llm"), color: "var(--gold)", leaky: true },
+    { key: "ext", name: "an outside API", tag: "API", el: $("bin-ext"), color: "var(--sky)", leaky: true },
   ];
-  const steps = document.getElementById("steps"), panel = document.getElementById("panel");
-  let cur = 0, timer;
-  const render = i => {
-    cur = i;
-    [...steps.children].forEach((b, j) => b.classList.toggle("on", j === i));
-    const [t, r, d] = STEPS[i];
-    panel.innerHTML = `<div class="big">0${i + 1}</div><h3>${t}</h3><div class="replaces">${r}</div><p>${d}</p>`;
+  const PRIVATE = [
+    ["Asha Verma", "PERSON"], ["234-12-1234", "SSN"], ["asha@example.com", "EMAIL"],
+    ["4242 4242 4242 4242", "CARD"], ["+1 415 555 0134", "PHONE"], ["tw_demo_8f3k2m9q", "SECRET"],
+    ["Liam Chen", "PERSON"], ["pw: hunter2-demo", "SECRET"], ["maya@example.org", "EMAIL"], ["512-90-4471", "SSN"],
+  ];
+  /* whole messages: [destination, ...parts]; a part that is [value, TYPE] is private */
+  const MSGS = [
+    [1, "Refund ", ["Asha Verma", "PERSON"], ", card ", ["4242 4242 4242 4242", "CARD"]],
+    [0, "Save ", ["asha@example.com", "EMAIL"], " for ", ["Liam Chen", "PERSON"]],
+    [2, "Text the tracking link to ", ["+1 415 555 0134", "PHONE"]],
+    [1, "Is SSN ", ["234-12-1234", "SSN"], " already on file?"],
+    [2, "Call billing with ", ["tw_demo_8f3k2m9q", "SECRET"]],
+    [1, "Summarise ticket #812"],
+    [0, "Log ", ["512-90-4471", "SSN"], " under ", ["maya@example.org", "EMAIL"]],
+    [1, "Email ", ["maya@example.org", "EMAIL"], " the invoice"],
+    [1, "Log in with ", ["pw: hunter2-demo", "SECRET"]],
+    [2, "Deploy v2 to staging"],
+  ];
+  const THROW = {
+    ssn: [1, "My SSN is ", ["234-12-1234", "SSN"]], card: [1, "Charge card ", ["4242 4242 4242 4242", "CARD"]],
+    email: [2, "Notify ", ["asha@example.com", "EMAIL"]], key: [2, "Use key ", ["tw_demo_8f3k2m9q", "SECRET"]],
   };
-  STEPS.forEach(([t], i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.innerHTML = `<span>0${i + 1}</span>${t}`;
-    b.addEventListener("click", () => { clearInterval(timer); render(i); });
-    steps.appendChild(b);
-  });
-  render(0);
-  if (!still) timer = setInterval(() => render((cur + 1) % STEPS.length), 4500);
-})();
+  const esc = (t) => String(t).replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch]));
+  const PLAIN = ["update payroll", "refund order", "hello!", "ticket #812", "deploy v2", "thanks", "invoice due", "meeting at 3"];
 
-document.getElementById("copy").addEventListener("click", e => {
-  const text = document.getElementById("cmds").innerText.split("\n").filter(l => l.startsWith("$ ")).map(l => l.slice(2)).join("\n");
-  try { navigator.clipboard.writeText(text); e.target.textContent = "copied"; } catch { e.target.textContent = "select + copy"; }
-  setTimeout(() => (e.target.textContent = "copy"), 1500);
-});
+  /* ---------- small detector for typed text ---------- */
+  const luhn = (s) => { const d = s.replace(/\D/g, ""); let sum = 0, alt = false; for (let i = d.length - 1; i >= 0; i--) { let n = +d[i]; if (alt) { n *= 2; if (n > 9) n -= 9; } sum += n; alt = !alt; } return d.length >= 13 && sum % 10 === 0; };
+  const RULES = [
+    ["EMAIL", /[\w.+-]+@[\w-]+\.[\w.-]*\w/g],
+    ["SECRET", /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g],
+    ["SECRET", /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g],
+    ["SECRET", /\b(?:api[_ -]?key|token|secret|password|passwd|pwd|pw)\b\s*(?:is|=|:)?\s*["']?([^\s"',;]{5,})/gi, 1],
+    ["SSN", /\b\d{3}-\d{2}-\d{4}\b/g],
+    ["CARD", /\b\d(?:[ -]?\d){12,15}\b/g, 0, luhn],
+    ["PHONE", /(?:\+\d{1,3}[ -]?)?(?:\(\d{3}\)|\d{3})[ -]\d{3}[ -]\d{4}\b|\+?\d{10,12}\b/g],
+    ["PERSON", /(?:\b[Ii] am|\b[Ii]'m|\b[Mm]y name is|\b[Nn]ame:?|\bMr\.?|\bMs\.?|\bDr\.?|\b[Cc]ustomer|\b[Uu]ser|\b[Hh]i|\b[Hh]ello)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/g, 1],
+  ];
+  function detect(text) {
+    const hits = [];
+    for (const [type, re, g, ok] of RULES) {
+      re.lastIndex = 0; let m;
+      while ((m = re.exec(text))) {
+        if (!m[0]) { re.lastIndex++; continue; }
+        const v = g ? m[g] : m[0], s = g ? m.index + m[0].lastIndexOf(v) : m.index;
+        if (ok && !ok(v)) continue;
+        if (hits.some((h) => s < h.e && s + v.length > h.s)) continue;
+        hits.push({ s, e: s + v.length, v, type });
+      }
+    }
+    return hits.sort((a, b) => a.s - b.s);
+  }
+
+  /* ---------- how each destination gets a value ---------- */
+  const ids = {}, counts = {};
+  function token(v) {
+    let h = 2166136261, out = "";
+    for (let i = 0; i < v.length; i++) { h ^= v.charCodeAt(i); h = Math.imul(h, 16777619); }
+    for (let i = 0; i < v.length; i++) {
+      h = Math.imul(h ^ (i + 7), 16777619) >>> 0; const c = v[i];
+      out += /\d/.test(c) ? h % 10 : /[a-z]/.test(c) ? String.fromCharCode(97 + (h % 26)) : /[A-Z]/.test(c) ? String.fromCharCode(65 + (h % 26)) : c;
+    }
+    return out;
+  }
+  function safeText(c) {
+    if (c.bin.key === "db") return token(c.v);
+    if (c.bin.key === "ext") return c.type === "SECRET" ? "[SECRET]" : "[PII]";
+    const k = c.type + c.v;
+    if (!ids[k]) { counts[c.type] = (counts[c.type] || 0) + 1; ids[k] = c.type + "_" + counts[c.type]; }
+    return "<" + ids[k] + ">";
+  }
+
+  /* ---------- geometry ---------- */
+  const mid = (el) => { const a = el.getBoundingClientRect(), s = stage.getBoundingClientRect(); return { x: a.left - s.left + a.width / 2, y: a.top - s.top + a.height / 2, w: a.width, h: a.height }; };
+  let P = {};
+  function measure() {
+    const narrow = stage.clientWidth < 700, a = mid($("agent")), g = mid(guard.querySelector("svg"));
+    P.start = narrow ? { x: a.x, y: a.y + a.h / 2 + 6 } : { x: a.x + a.w / 2 + 6, y: a.y };
+    P.gate = { x: g.x, y: g.y };
+    P.ends = BINS.map((b) => { const m = mid(b.el); return narrow ? { x: m.x, y: m.y - m.h / 2 } : { x: m.x - m.w / 2, y: m.y }; });
+    $("lines").innerHTML = BINS.map((b, i) =>
+      `<path d="M${P.start.x} ${P.start.y} L${P.gate.x} ${P.gate.y} L${P.ends[i].x} ${P.ends[i].y}" stroke="${b.color}"/>`).join("");
+  }
+  addEventListener("resize", measure);
+
+  /* ---------- state ---------- */
+  let on = true, mode = "auto", chips = [], nextSpawn = 0, caught = 0, leaked = 0, mi = 0, rushUntil = 0, nextRush = 0;
+  let game = null, mouse = null;
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+
+  function setOn(v) {
+    on = v; stage.classList.toggle("off", !on); guard.setAttribute("aria-checked", on);
+    $("tag").textContent = mode === "game" ? "asleep. you're up" : on ? "awake. click me, I dare you" : "asleep. wake me up!";
+  }
+  function bump(id, n) { const el = $(id); el.querySelector("b").textContent = n; $("r" + id.slice(1)).textContent = n; el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
+  const say = (html) => { $("msg").innerHTML = html; };
+
+  /* one whole message leaves the agent; each private part flies out as its own tag */
+  function send(to, parts) {
+    const bin = BINS[to], m = { parts, out: [], left: 0 };
+    say(`<b class="to" style="color:${bin.color}">to ${bin.name}:</b> ` + parts.map((p) => (typeof p === "string" ? esc(p) : `<mark>${esc(p[0])}</mark>`)).join(""));
+    let k = 0;
+    parts.forEach((p, i) => {
+      if (typeof p === "string") return;
+      m.left++; setTimeout(() => { if (mode === "auto") spawn(p[0], p[1], to, m, i); }, k++ * 300);
+    });
+    if (!m.left) { m.left = 1; spawn(parts.join("").slice(0, 24), null, to, m, -1); }
+  }
+
+  function spawn(v, type, binIdx, m, i) {
+    const el = document.createElement("div");
+    el.className = "chip"; el.textContent = v;
+    const c = { el, v, type, m, i, bin: BINS[binIdx], end: P.ends[binIdx], t0: performance.now(), passed: false, handled: false,
+      wob: (Math.random() - 0.5) * 60, d1: mode === "game" ? 2300 : 1500, d2: mode === "game" ? 1700 : 1200 };
+    el.addEventListener("pointerdown", () => hit(c));
+    stage.appendChild(el); chips.push(c);
+  }
+  function makeSafe(c) {
+    c.handled = true; c.el.textContent = safeText(c);
+    c.el.style.setProperty("--c", c.bin.color); c.el.classList.add("safe", "pop");
+  }
+  function hit(c) {
+    if (mode !== "game" || c.handled || c.clicked) return;
+    c.clicked = true;
+    if (c.type) { makeSafe(c); game.hit++; chomp(); }
+    else { game.fa++; c.el.classList.add("oops"); }
+  }
+  function chomp() { guard.classList.remove("chomp"); void guard.offsetWidth; guard.classList.add("chomp"); setTimeout(() => guard.classList.remove("chomp"), 350); }
+
+  function land(c) {
+    const b = c.bin, n = b.el.querySelector(".n"), full = b.el.querySelector(".full"), short = b.el.querySelector(".short");
+    const raw = !!c.type && !c.handled && b.leaky, txt = c.el.textContent;
+    const cell = (t, r) => `<i class="${r ? "raw" : ""}">${esc(t)}</i>`;
+    n.textContent = +n.textContent + 1;
+    if (c.type) short.innerHTML = cell(txt, raw);
+    if (c.m) {
+      if (c.i >= 0) c.m.out[c.i] = [txt, raw];
+      if (--c.m.left === 0) full.innerHTML = c.m.parts.map((p, i) => (typeof p === "string" ? esc(p) : cell(...(c.m.out[i] || [p[0], false])))).join("");
+    } else if (c.type) full.innerHTML = cell(txt, raw);
+    if (raw) {
+      leaked++; bump("c-leaked", leaked); addBlock(true, c);
+      b.el.classList.remove("shake"); void b.el.offsetWidth; b.el.classList.add("shake");
+      setTimeout(() => b.el.classList.remove("shake"), 400);
+      b.el.classList.remove("stamp"); void b.el.offsetWidth; b.el.classList.add("stamp");
+      stage.classList.remove("alarm"); void stage.offsetWidth; stage.classList.add("alarm");
+      if (game) game.miss++;
+    } else if (c.type && c.handled) { caught++; bump("c-caught", caught); addBlock(false, c); }
+    c.el.remove();
+  }
+
+  /* ---------- main loop ---------- */
+  function frame(now) {
+    if (mode === "auto" && now < rushUntil) {
+      if (now > nextRush && chips.length < 70) {
+        nextRush = now + 85;
+        if (Math.random() < 0.8) { const [v, t] = pick(PRIVATE); spawn(v, t, Math.floor(Math.random() * 3)); }
+        else spawn(pick(PLAIN), null, Math.floor(Math.random() * 3));
+      }
+    } else if (mode === "auto" && now > nextSpawn && chips.length < 12) {
+      nextSpawn = now + 2000 + Math.random() * 600;
+      const m = MSGS[mi++ % MSGS.length]; send(m[0], m.slice(1));
+    }
+    if (mode === "game" && game.queue.length && now > nextSpawn) {
+      nextSpawn = now + 780; const [v, t] = game.queue.pop(); spawn(v, t, 1 + Math.floor(Math.random() * 2));
+    }
+    let near = null;
+    chips = chips.filter((c) => {
+      const el = now - c.t0; let x, y;
+      if (el < c.d1) {
+        const t = el / c.d1, e = t * t * (3 - 2 * t);
+        x = P.start.x + (P.gate.x - P.start.x) * e; y = P.start.y + (P.gate.y - P.start.y) * e + Math.sin(Math.PI * t) * c.wob;
+        if (!near || t > near.t) near = { x, y, t };
+      } else {
+        if (!c.passed) {
+          c.passed = true;
+          if (c.type && on && !c.handled) { makeSafe(c); chomp(); }
+          else if (c.type && !c.handled && c.bin.leaky) c.el.classList.add("raw");
+          else if (!c.type) c.el.classList.add("plain");
+        }
+        const t = Math.min(1, (el - c.d1) / c.d2), e = t * t * (3 - 2 * t);
+        x = P.gate.x + (c.end.x - P.gate.x) * e; y = P.gate.y + (c.end.y - P.gate.y) * e;
+        if (t >= 1) { land(c); return false; }
+        if (t > 0.85) c.el.style.opacity = (1 - t) / 0.15;
+      }
+      c.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+      return true;
+    });
+    const look = on ? near || mouse : null;
+    if (look) { const dx = look.x - P.gate.x, dy = look.y - P.gate.y, d = Math.hypot(dx, dy) || 1; $("pupil").setAttribute("transform", `translate(${(dx / d) * 11} ${(dy / d) * 11})`); }
+    if (mode === "game" && !game.queue.length && !chips.length) endGame();
+    requestAnimationFrame(frame);
+  }
+  stage.addEventListener("pointermove", (ev) => { const s = stage.getBoundingClientRect(); mouse = { x: ev.clientX - s.left, y: ev.clientY - s.top }; });
+
+  /* ---------- guard switch ---------- */
+  const toggle = () => { if (mode === "auto") setOn(!on); };
+  guard.addEventListener("click", toggle);
+  guard.addEventListener("keydown", (ev) => { if (ev.key === " " || ev.key === "Enter") { ev.preventDefault(); toggle(); } });
+
+  /* ---------- type your own, throw a tag, rush hour ---------- */
+  const mine = (to, parts) => { if (mode !== "auto") return; rushUntil = 0; nextSpawn = performance.now() + 3200; send(to, parts); };
+  $("say").addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter") return;
+    const text = ev.target.value.trim().slice(0, 90); if (!text) return;
+    ev.target.value = "";
+    const parts = []; let at = 0;
+    for (const h of detect(text)) { if (h.s > at) parts.push(text.slice(at, h.s)); parts.push([h.v.slice(0, 26), h.type]); at = h.e; }
+    if (at < text.length) parts.push(text.slice(at));
+    mine(1, parts);
+  });
+  $("throw").addEventListener("click", (ev) => { const b = ev.target.closest("[data-k]"); if (b) { const m = THROW[b.dataset.k]; mine(m[0], m.slice(1)); } });
+  $("rush").addEventListener("click", () => {
+    if (mode !== "auto") return;
+    rushUntil = performance.now() + 4500; nextSpawn = rushUntil + 900;
+    say('<b class="to" style="color:var(--copper)">rush hour:</b> fifty calls at once, to everyone');
+  });
+
+  /* ---------- the game ---------- */
+  function clearChips() { chips.forEach((c) => c.el.remove()); chips = []; }
+  function startGame() {
+    clearChips(); mode = "countdown"; rushUntil = 0; setOn(false);
+    over.className = "over show"; over.innerHTML = '<div class="go">3</div>';
+    let n = 3;
+    const tick = setInterval(() => {
+      n--; if (n > 0) { over.innerHTML = `<div class="go">${n}</div>`; return; }
+      clearInterval(tick); over.className = "over"; mode = "game";
+      const q = [...PRIVATE.map((p) => [...p]), ...PLAIN.slice(0, 6).map((p) => [p, null])].sort(() => Math.random() - 0.5);
+      game = { queue: q, total: PRIVATE.length, hit: 0, miss: 0, fa: 0 };
+      stage.classList.add("game"); setOn(false); nextSpawn = 0;
+      say('<b class="to" style="color:var(--gold)">your turn:</b> tap the private ones before they get through. Leave the boring ones.');
+    }, 600);
+  }
+  function endGame() {
+    mode = "result"; stage.classList.remove("game");
+    const g = game; game = null;
+    over.className = "over show";
+    const line = g.miss === 0 && g.fa === 0 ? "Okay, you're hired." : g.miss === 0 ? "Nothing leaked, but you got jumpy." : `${g.miss} got past you.`;
+    over.innerHTML = `<div class="result">
+      <p class="say">${line}</p>
+      <div class="bar" style="--c: var(--gold)"><span>You</span><span class="t"><i id="b-you"></i></span><span>${g.hit}/${g.total}</span></div>
+      <div class="bar" style="--c: var(--mint)"><span>Taintward</span><span class="t"><i id="b-tw"></i></span><span>${g.total}/${g.total}</span></div>
+      <div class="fa">${g.miss} leaked &middot; ${g.fa} false alarm${g.fa === 1 ? "" : "s"} &middot; it does this all day</div>
+      <button class="btn copper" id="again">Play again</button>
+      <button class="btn" id="wake">Wake Taintward</button></div>`;
+    setTimeout(() => { $("b-you").style.width = (100 * g.hit) / g.total + "%"; $("b-tw").style.width = "100%"; }, 60);
+    $("again").onclick = startGame;
+    $("wake").onclick = () => { over.className = "over"; mode = "auto"; nextSpawn = 0; setOn(true); };
+  }
+  $("play").addEventListener("click", () => { if (mode === "auto") startGame(); });
+
+  /* ---------- evidence log (a visual stand-in for the real hash chain) ---------- */
+  let chain = [], tampered = -1, prev = 7, seq = 0, viewEnd = 0, hover = false;
+  function addBlock(leak, c) {
+    prev = Math.imul(prev ^ (leak ? 0x9e37 : 0x85eb) ^ seq, 16777619) >>> 0;
+    chain.push({ n: ++seq, h: (prev & 0xffff).toString(16).padStart(4, "0"), leak, what: c.type, to: c.bin.tag });
+    if (chain.length > 400) { chain.shift(); viewEnd--; if (tampered >= 0) tampered--; }
+    drawChain();
+  }
+  function drawChain() {
+    if (!hover && tampered < 0) viewEnd = chain.length;
+    const from = Math.max(0, viewEnd - (innerWidth < 820 ? 8 : 12));
+    $("blocks").innerHTML = chain.slice(from, viewEnd).map((b, i) => {
+      const k = from + i, bad = tampered >= 0 && k >= tampered;
+      return `<span class="blk ${b.leak ? "leak" : ""} ${bad ? "bad" : ""} ${k === tampered ? "first" : ""}" data-i="${k}"><b>#${b.n}</b>${b.leak ? "LEAKED " : ""}${b.what} &rarr; ${b.to}<u>${b.h}</u></span>`;
+    }).join("");
+    const ok = $("ok"); ok.classList.toggle("bad", tampered >= 0);
+    ok.textContent = tampered >= 0 ? `\u2717 Caught. Entry #${chain[tampered].n} was edited, so every entry after it stops matching. Click it again to put it back.`
+      : chain.length ? `\u2713 ${seq} entries so far, and the chain checks out.` : "Nothing logged yet. Give the guard a second.";
+  }
+  $("blocks").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".blk"); if (!b) return;
+    tampered = tampered >= 0 ? -1 : +b.dataset.i; drawChain();
+  });
+  $("blocks").addEventListener("pointerenter", () => { hover = true; });
+  $("blocks").addEventListener("pointerleave", () => { hover = false; drawChain(); });
+
+  /* ---------- install tabs ---------- */
+  const CODE = {
+    py: `<span class="c"># pip install "taintward[langchain]"</span>
+<span class="k">import</span> taintward <span class="k">as</span> tw
+
+tw.init(<span class="s">"my-agent"</span>)
+tools = tw.wrap_langchain_tools(tools)
+model = tw.protect_langchain_model(model)`,
+    ts: `<span class="k">import</span> { wrapLanguageModel } <span class="k">from</span> <span class="s">"ai"</span>;
+<span class="k">import</span> { taintwardMiddleware } <span class="k">from</span> <span class="s">"taintward/ai-sdk"</span>;
+
+<span class="k">const</span> model = wrapLanguageModel({
+  model: openai(<span class="s">"gpt-4.1"</span>),
+  middleware: taintwardMiddleware(),
+});`,
+    mcp: `<span class="c"># no code changes</span>
+pip install <span class="s">"taintward[mcp]"</span>
+taintward-gateway --config gateway.yaml`,
+    k8s: `git clone https://github.com/DCchoudhury15/Taintward
+helm install taintward Taintward/deploy/helm/taintward`,
+  };
+  const showTab = (t) => { $("code").innerHTML = CODE[t]; document.querySelectorAll("#tabs .btn").forEach((b) => b.classList.toggle("on", b.dataset.t === t)); };
+  $("tabs").addEventListener("click", (ev) => { const b = ev.target.closest("[data-t]"); if (b) showTab(b.dataset.t); });
+  $("copy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("code").textContent); $("copy").textContent = "Copied"; } catch { $("copy").textContent = "Select and copy"; }
+    setTimeout(() => ($("copy").textContent = "Copy"), 1200);
+  });
+  const FW = ["LangChain", "LangGraph", "OpenAI Agents", "CrewAI", "LlamaIndex", "Pydantic AI", "Google ADK", "LiteLLM", "OpenAI", "Anthropic", "Vercel AI SDK", "Mastra"];
+  $("marq").innerHTML = [...FW, ...FW].map((f) => `<span>${f}</span>`).join("");
+
+  /* headline: a real value gets wiped into a placeholder, forever */
+  const HEAD = [["234-12-1234", "<SSN_1>"], ["asha@example.com", "<EMAIL_1>"], ["4242 4242 4242 4242", "<CARD_1>"], ["Asha Verma", "<PERSON_1>"], ["pw: hunter2", "<SECRET_1>"]];
+  let hi = 0; const val = $("val"), note = $("valnote"), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  (async () => {
+    for (;;) {
+      const [raw, safe] = HEAD[hi++ % HEAD.length];
+      val.className = "val"; val.textContent = raw; note.textContent = "your agent was about to send this"; await wait(1500);
+      val.classList.add("wipe"); await wait(300);
+      val.textContent = safe; note.textContent = "the LLM gets this instead"; val.classList.add("safe", "unwipe"); await wait(2200);
+      val.className = "val safe wipe"; await wait(300);
+      val.textContent = HEAD[hi % HEAD.length][0]; val.className = "val wipe unwipe"; await wait(40);
+    }
+  })();
+  setInterval(() => { if (on) { guard.classList.add("blink"); setTimeout(() => guard.classList.remove("blink"), 130); } }, 3700);
+
+  showTab("py"); measure(); setOn(true); drawChain();
+  if (document.fonts) document.fonts.ready.then(measure);
+  requestAnimationFrame(frame);
+})();
 </script>
 </body>
 </html>
