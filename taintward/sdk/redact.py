@@ -307,7 +307,8 @@ class Redactor:
         Overlapping detections (e.g. AWS_ACCESS_KEY and GENERIC_API_KEY on the
         same region) are deduped to the longest per region so the output is
         well-formed regardless of how many recognizers match. For spans of the
-        same length a SECRET wins over PII, then the higher score.
+        same length a SECRET wins over PII, then the higher score. Two spans
+        that only partly overlap are redacted together as one value.
 
         ``placeholders`` (a PlaceholderMap): for the ``llm`` destination each
         span becomes its stable placeholder (``<SSN_1>``) instead of a mask.
@@ -320,14 +321,22 @@ class Redactor:
         sens.sort(key=lambda x: (x.start, -(x.end - x.start),
                                  x.sensitivity != Sensitivity.SECRET,
                                  -float(getattr(x, "score", 0.0) or 0.0)))
-        kept: list = []
+        # [start, end, detection]. A span that starts inside the previous one
+        # is dropped when it also ends inside it. When it reaches past its
+        # end, the two are redacted as one value, so no part of either stays.
+        kept: list[list] = []
         for d in sens:
-            if kept and d.start < kept[-1].end:
-                continue  # overlaps the previous (longer, same-start) kept span
-            kept.append(d)
+            if kept and d.start < kept[-1][1]:
+                if d.end > kept[-1][1]:
+                    kept[-1][1] = d.end
+                    if (d.sensitivity == Sensitivity.SECRET
+                            and kept[-1][2].sensitivity != Sensitivity.SECRET):
+                        kept[-1][2] = d
+                continue
+            kept.append([d.start, d.end, d])
         out = text
-        for d in sorted(kept, key=lambda x: x.start, reverse=True):
-            original = text[d.start:d.end]
+        for start, end, d in reversed(kept):
+            original = text[start:end]
             if placeholders is not None and destination == DEST_LLM:
                 redacted = placeholders.placeholder_for(
                     original, getattr(d, "entity_type", None), d.sensitivity)
@@ -337,7 +346,7 @@ class Redactor:
             else:
                 redacted = self.redact_value(original, d.sensitivity, destination,
                                              subject=subject)
-            out = out[:d.start] + redacted + out[d.end:]
+            out = out[:start] + redacted + out[end:]
         return out
 
     def reverse(self, token: str) -> str | None:

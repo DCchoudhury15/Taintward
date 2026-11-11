@@ -46,6 +46,7 @@ from opentelemetry import context as context_api
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
+from taintward import __version__ as _version
 from taintward.gateway.config import (
     MODE_AUDIT,
     MODE_BLOCK,
@@ -376,6 +377,18 @@ class GatewaySession:
         # Field-level taint on the arguments, merged with the session taint.
         in_dets = await anyio.to_thread.run_sync(detect_mapping, scanned)
         args_label = taint_for(in_dets)
+        # Detection can break during this very call (it then finds nothing,
+        # so the arguments would go out unredacted): with fail closed on,
+        # check again now that it has run.
+        if (_instr.FAIL_CLOSED and policy.destination != DEST_INTERNAL
+                and await anyio.to_thread.run_sync(_detect.is_degraded)):
+            raise MCPError(
+                BLOCKED_ERROR_CODE,
+                f"Taintward refused tools/call {name}: sensitive-data detection failed "
+                "during this call and TAINTWARD_FAIL_CLOSED is on",
+                data={"tool": name, "destination": policy.destination,
+                      "detection": _detect.health()},
+            )
         # The agent's context now holds whatever it sent, so the session
         # keeps it. The store merge is atomic and returns the whole session
         # taint, including classes other replicas added.
@@ -590,7 +603,7 @@ class Gateway:
 
         return Server(
             "taintward-gateway",
-            version="0.1.0",
+            version=_version,
             instructions="Taintward MCP gateway: tools are proxied with data-exposure policy.",
             lifespan=self._lifespan,
             on_list_tools=on_list_tools,

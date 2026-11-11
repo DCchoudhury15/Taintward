@@ -634,3 +634,125 @@ class TestLiteLLM:
             asyncio.run(g.async_pre_call_hook(
                 None, None, {"messages": [{"role": "user", "content": ASK}]}, "acompletion"))
         assert len(g._pending) == 2
+
+
+# ---------------------------------------------------------------------------
+# Tool arguments and tool results whose fields are named like protocol keys
+# ("name", "id", "data"), and data in shapes other than one string
+# ---------------------------------------------------------------------------
+
+RECORD = {"name": EMAIL, "id": SSN, "data": f"ssn {SSN}"}
+
+
+@pytest.mark.skipif(not _has("pydantic_ai"), reason="pydantic-ai not installed")
+class TestPydanticAIShapes:
+    def _sent(self, ward, messages):
+        from pydantic_ai.messages import ModelResponse, TextPart
+        from pydantic_ai.models import ModelRequestParameters
+        from pydantic_ai.models.function import FunctionModel
+
+        from taintward.sdk.integrations.pydanticai import protect_model
+        got = []
+
+        def answer(msgs, info):
+            got.extend(msgs)
+            return ModelResponse(parts=[TextPart("ok")])
+
+        model = protect_model(FunctionModel(answer), ward=ward)
+
+        async def go():
+            with ward.run():
+                await model.request(messages, None, ModelRequestParameters())
+        asyncio.run(go())
+        return got
+
+    def test_tool_call_and_a_list_of_records_are_redacted(self, ward):
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+        sent = self._sent(ward, [
+            ModelRequest(parts=[UserPromptPart(content="find her")]),
+            ModelResponse(parts=[ToolCallPart(tool_name="lookup", args=dict(RECORD),
+                                              tool_call_id="c1")]),
+            ModelRequest(parts=[ToolReturnPart(tool_name="lookup", content=[dict(RECORD)],
+                                               tool_call_id="c1")]),
+        ])
+        assert no_raw(repr(sent))
+        assert sent[1].parts[0].tool_name == "lookup"
+        assert set(sent[1].parts[0].args) == set(RECORD)  # the field names are kept
+
+    def test_text_next_to_an_image_is_redacted(self, ward):
+        from pydantic_ai.messages import ImageUrl, ModelRequest, UserPromptPart
+        image = ImageUrl(url="https://example.com/a.png")
+        sent = self._sent(ward, [ModelRequest(parts=[
+            UserPromptPart(content=[f"her SSN is {SSN}", image, f"mail {EMAIL}"])])])
+        content = sent[0].parts[0].content
+        assert no_raw(repr(content))
+        assert content[1] is image and len(content) == 3
+
+
+@pytest.mark.skipif(not _has("llama_index.core"), reason="llama-index not installed")
+class TestLlamaIndexShapes:
+    def test_tool_call_arguments_are_redacted(self):
+        from llama_index.core.base.llms.types import (
+            ChatMessage,
+            TextBlock,
+            ToolCallBlock,
+        )
+
+        from taintward.sdk.integrations.llamaindex import _messages_redactor
+        msg = ChatMessage(role="assistant", blocks=[
+            TextBlock(text="calling"),
+            ToolCallBlock(tool_name="lookup", tool_kwargs=dict(RECORD), tool_call_id="c1")])
+        out = _messages_redactor(None)([msg], "llm")
+        assert no_raw(repr(out))
+        assert out[0].blocks[1].tool_name == "lookup"
+        assert set(out[0].blocks[1].tool_kwargs) == set(RECORD)
+
+
+@pytest.mark.skipif(not _has("google.adk"), reason="google-adk not installed")
+class TestGoogleADKShapes:
+    def test_function_parts_and_a_content_system_instruction_are_redacted(self, ward):
+        from google.adk.models.base_llm import BaseLlm
+        from google.adk.models.llm_request import LlmRequest
+        from google.adk.models.llm_response import LlmResponse
+        from google.genai import types
+
+        from taintward.sdk.integrations.google_adk import protect_model
+        sent = []
+
+        class Scripted(BaseLlm):
+            model: str = "scripted"
+
+            async def generate_content_async(self, llm_request, stream=False):
+                sent.append(llm_request.model_dump_json(exclude={"tools_dict"}))
+                yield LlmResponse(content=types.Content(role="model",
+                                                        parts=[types.Part(text="ok")]))
+
+        request = LlmRequest(
+            model="scripted",
+            contents=[
+                types.Content(role="user", parts=[types.Part(text="find her")]),
+                types.Content(role="model", parts=[types.Part(
+                    function_call=types.FunctionCall(name="lookup", args=dict(RECORD)))]),
+                types.Content(role="user", parts=[types.Part(
+                    function_response=types.FunctionResponse(name="lookup",
+                                                             response=dict(RECORD)))]),
+            ],
+            config=types.GenerateContentConfig(system_instruction=types.Content(
+                parts=[types.Part(text=f"The customer's SSN is {SSN}.")])))
+        model = protect_model(Scripted(), ward=ward)
+
+        async def go():
+            with ward.run():
+                return [r async for r in model.generate_content_async(request)]
+        asyncio.run(go())
+        assert no_raw(sent[0])
+        body = json.loads(sent[0])
+        call = body["contents"][1]["parts"][0]["function_call"]
+        assert call["name"] == "lookup" and set(call["args"]) == set(RECORD)
+        assert "The customer's SSN is" in sent[0]  # the rest of the instruction is kept

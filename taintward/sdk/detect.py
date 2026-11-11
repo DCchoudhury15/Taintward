@@ -1182,14 +1182,20 @@ def mask_text(text: str, detections: Iterable[Detection]) -> str:
         (d for d in detections if d.is_sensitive),
         key=lambda d: (d.start, -(d.end - d.start)),
     )
-    kept: list = []
+    # [start, end, sensitivity]. A span that reaches past the end of the
+    # one it starts in is masked together with it, so no part of it stays.
+    kept: list[list] = []
     for d in sens_dets:
-        if kept and d.start < kept[-1].end:
-            continue  # overlaps the previous (longer, same-start) kept span
-        kept.append(d)
+        if kept and d.start < kept[-1][1]:
+            if d.end > kept[-1][1]:
+                kept[-1][1] = d.end
+                if d.sensitivity == Sensitivity.SECRET:
+                    kept[-1][2] = d.sensitivity
+            continue
+        kept.append([d.start, d.end, d.sensitivity])
     out = text
-    for d in sorted(kept, key=lambda d: d.start, reverse=True):
-        out = out[:d.start] + _MASK_TOKEN.get(d.sensitivity, "[REDACTED]") + out[d.end:]
+    for start, end, sens in reversed(kept):
+        out = out[:start] + _MASK_TOKEN.get(sens, "[REDACTED]") + out[end:]
     return out
 
 

@@ -1017,7 +1017,9 @@ def render_html(data: dict) -> str:
       "checked by a script.</p>")
     w("<p>To save as PDF: open this file in a browser, choose Print, then Save as PDF.</p>")
     w("</footer></main>")
-    blob = json.dumps(data, sort_keys=True).replace("</", "<\\/")
+    # "<" is written as \u003c (still the same JSON), so no value can close
+    # the script element or open an HTML comment inside it.
+    blob = json.dumps(data, sort_keys=True).replace("<", "\\u003c")
     w(f"<script type='application/json' id='taintward-report-data'>{blob}</script>")
     w("</body></html>")
     return "\n".join(out)

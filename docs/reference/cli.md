@@ -14,14 +14,14 @@ The package installs seven commands. Each one can also be run as a module
 | `taintward-control` | `taintward.control.app` | control plane for many tenants |
 
 Options below are taken from each command's `--help` output for version
-0.2.0, with the defaults from the code.
+0.4.0, with the defaults from the code.
 
 ## taintward-gateway
 
 ```text
 taintward-gateway --config CONFIG [--listen HOST:PORT]
                   [--shutdown-timeout SECONDS] [--otlp-endpoint URL]
-                  [--log-level LEVEL]
+                  [--log-level LEVEL] [--print-tool-pins]
 ```
 
 | option | default | meaning |
@@ -31,6 +31,7 @@ taintward-gateway --config CONFIG [--listen HOST:PORT]
 | `--shutdown-timeout SECONDS` | `25` | HTTP mode: seconds to let in-flight requests finish on SIGTERM |
 | `--otlp-endpoint URL` | `$TAINTWARD_OTLP_ENDPOINT` | OTLP/HTTP traces endpoint, for example `http://localhost:4318/v1/traces`; no export when unset |
 | `--log-level LEVEL` | `WARNING` | Python log level; logs go to stderr |
+| `--print-tool-pins` | off | connect to the upstreams, print a `tool_pins:` block for their tools and exit |
 
 Over stdio, stdout carries the MCP protocol. Over HTTP the endpoint is
 `POST /mcp`, and `GET /healthz` returns 200. Environment:
@@ -76,6 +77,7 @@ Output:
 | `--system SYSTEM` | the service names | system name in the header |
 | `--deep-scan` | off | also scan sent inputs with the Presidio detectors (needs the spaCy model) |
 | `--max-rows N` | `500` | rows in the violation list |
+| `--frameworks LIST` | none | add the compliance mapping section: a comma list of `gdpr`, `eu-ai-act`, `hipaa`, `soc2`, or `all` |
 
 Evidence log:
 
@@ -149,15 +151,16 @@ taintward-fix taintward/fix_suggester/sample_buggy_agent.py
 ## taintward-keys
 
 ```text
-taintward-keys {rotate,retire,generate,show,reseal} ...
+taintward-keys {rotate,retire,generate,show,status,reseal} ...
 ```
 
 | subcommand | options | does |
 |---|---|---|
-| `rotate` | `--file` (required), `--purpose fpe\|vault` (required), `--id` (default `v1`, `v2`, ...), `--kms SPEC` (default: the ring's `kms`) | add a new key and make it active; old keys stay. The first `--kms` becomes the ring's default. Writes the file with mode `0600` |
-| `retire` | `--file`, `--purpose`, `--id` (all required) | remove an inactive key; refuses the active one |
+| `rotate` | `--file FILE` or `--keys vault-kv:<mount>/<path>` (one is required), `--purpose fpe\|vault` (required), `--id` (default `v1`, `v2`, ...), `--kms SPEC` (default: the ring's `kms`), `--if-older-than DAYS` (for cron: rotate only when the active key is older, for example `90` or `90d`), `--reseal` (vault keys: seal the rows in `$TAINTWARD_VAULT` again right after) | add a new key and make it active; old keys stay. The first `--kms` becomes the ring's default. Writes the file with mode `0600` |
+| `retire` | `--file FILE` or `--keys vault-kv:<mount>/<path>` (one is required), `--purpose`, `--id` (both required) | remove an inactive key; refuses the active one |
 | `generate` | `--purpose` (required), `--kms SPEC` | print one new key entry as JSON |
 | `show` | `--keys SPEC` (default `$TAINTWARD_KEYS`) | list key ids per purpose, never key bytes |
+| `status` | `--keys SPEC` (default `$TAINTWARD_KEYS`), `--max-age DAYS` | print the active key ids and their ages; exit `1` when an active key is `--max-age` days old or more, or its age is not known |
 | `reseal` | `--vault SPEC` (default `$TAINTWARD_VAULT`) | seal every vault row that is not on the active vault key again. With `TAINTWARD_TENANT` set, only that tenant's rows |
 
 Exit codes: `0` done, `1` the ring or KMS failed (message on stderr), `2`

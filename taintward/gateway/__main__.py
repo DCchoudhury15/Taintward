@@ -61,7 +61,14 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             p.error(str(exc))
 
-    config = load_config(args.config)
+    try:
+        config = load_config(args.config)
+    except OSError as exc:
+        p.error(f"cannot read --config {args.config}: {exc.strerror or exc}")
+    except ConfigError as exc:
+        p.error(f"{args.config}: {exc}")
+    except Exception as exc:  # noqa: BLE001 - a YAML syntax error
+        p.error(f"{args.config} is not valid YAML: {str(exc).splitlines()[0]}")
     if args.print_tool_pins:
         import yaml
         try:

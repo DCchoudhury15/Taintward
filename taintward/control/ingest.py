@@ -113,7 +113,11 @@ def mask_string(text: str) -> tuple[str, list[tuple[str, str]]]:
     kept: list[tuple[int, int, str]] = []
     for a, b, kind in hits:
         if kept and a < kept[-1][1]:
-            continue  # overlaps a longer or earlier match
+            # Inside an earlier match: dropped. Reaching past its end: the
+            # two are masked as one, so no part of either stays.
+            if b > kept[-1][1]:
+                kept[-1] = (kept[-1][0], b, kept[-1][2])
+            continue
         kept.append((a, b, kind))
     if not kept:
         return text, []

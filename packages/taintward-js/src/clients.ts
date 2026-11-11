@@ -46,13 +46,25 @@ const MARK = Symbol.for("taintward.protected");
 const MAP_OPTION = "__taintwardMap";
 const EXACT_G = new RegExp(PLACEHOLDER_SOURCE, "g");
 
-// Fields that are protocol, not content: never redacted.
-const STRUCTURAL = new Set([
+// Protocol keys. Their value is protocol data when it is a plain value
+// ("role": "user", "id": "call_1", "data": "<base64>"), never user content.
+const LEAF = new Set([
   "role", "type", "id", "call_id", "tool_call_id", "tool_use_id", "name", "model", "signature",
-  "cache_control", "media_type", "data", "file_id", "image_url", "input_audio", "file_data",
-  "source", "status", "index", "finish_reason", "stop_reason", "response_format", "tool_choice",
-  "mime_type", "detail", "format",
+  "media_type", "data", "file_id", "status", "index", "finish_reason", "stop_reason", "mime_type",
+  "detail", "format",
 ]);
+// Protocol keys whose whole value is kept, also when it is an object or an array.
+const OPAQUE = new Set(["cache_control", "image_url", "input_audio", "file_data", "response_format", "tool_choice"]);
+// Keys that hold free data when their value is an object: the arguments of an
+// earlier tool call and structured tool results. Inside them every key is the
+// application's own ("name", "id", "data" are fields of a customer record
+// there, not protocol), so nothing in them is skipped.
+const FREE = new Set([
+  "input", "args", "arguments", "response", "output", "result", "parsed", "content", "artifact",
+  "structured_content", "structuredContent",
+]);
+// Every key that is kept as it is (not redacted as data).
+const STRUCTURAL = new Set([...LEAF, ...OPAQUE, "source"]);
 
 type Kind = "openai.chat" | "openai.responses" | "anthropic";
 type AnyFn = (...args: any[]) => any;
@@ -72,7 +84,39 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-/** Redact content, leave protocol fields alone. */
+/** An Anthropic image or document `source`: url, file_id and base64 data are kept, text is content. */
+function redactSource(value: unknown, map: PlaceholderMap | undefined, depth: number): unknown {
+  if (!isObject(value)) return redactStructure(value, map, "source", depth);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] =
+      k === "data" && value.type === "text"
+        ? redactPayload(v, "llm", { placeholders: map })
+        : k === "content"
+          ? redactStructure(v, map, k, depth + 1)
+          : v;
+  }
+  return out;
+}
+
+/** The value of one key of a protocol object. */
+function redactItem(k: string, v: unknown, map: PlaceholderMap | undefined, depth: number): unknown {
+  if (OPAQUE.has(k)) return v;
+  if (k === "source") return redactSource(v, map, depth + 1);
+  const container = v !== null && typeof v === "object";
+  // A protocol value is a string or a number. An object or an array under
+  // one of these names is the application's data.
+  if (LEAF.has(k)) return container ? redactPayload(v, "llm", { placeholders: map }) : v;
+  if (FREE.has(k) && isObject(v)) return redactPayload(v, "llm", { placeholders: map });
+  return redactStructure(v, map, k, depth + 1);
+}
+
+/**
+ * Redact content, leave protocol fields alone. Protocol fields are skipped
+ * only where the protocol puts them: a plain value under a protocol key and
+ * the few whole values in OPAQUE. The arguments of an earlier tool call and
+ * structured tool results are redacted in full.
+ */
 function redactStructure(value: unknown, map: PlaceholderMap | undefined, key = "", depth = 0): unknown {
   if (depth > 64) return value;
   if (typeof value === "string") return redactString(value, "llm", { placeholders: map, key });
@@ -80,9 +124,7 @@ function redactStructure(value: unknown, map: PlaceholderMap | undefined, key = 
   if (isObject(value)) {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      out[STRUCTURAL.has(k) ? k : redactString(k, "llm", { placeholders: map })] = STRUCTURAL.has(k)
-        ? v
-        : redactStructure(v, map, k, depth + 1);
+      out[STRUCTURAL.has(k) ? k : redactString(k, "llm", { placeholders: map })] = redactItem(k, v, map, depth);
     }
     return out;
   }
@@ -146,18 +188,29 @@ function redactRequest(kind: Kind, body: Record<string, any>, call: Call): Recor
   return sent;
 }
 
-/** Restored copy of a value; `arguments` / `partial_json` and JSON answers are JSON-escaped. */
-function restoreDeep(v: unknown, call: Call, key = "", depth = 0): unknown {
+/**
+ * Restored copy of a value; `arguments` / `partial_json` and JSON answers are
+ * JSON-escaped. `free`: inside tool arguments or a structured result, where
+ * no key is a protocol key.
+ */
+function restoreDeep(v: unknown, call: Call, key = "", depth = 0, free = false): unknown {
   const map = call.map!;
   if (depth > 64) return v;
   if (typeof v === "string") {
     const json = key === "arguments" || key === "partial_json" || (call.json && (key === "content" || key === "text" || key === "output_text"));
     return json ? map.restoreJsonFragment(v) : map.restoreText(v);
   }
-  if (Array.isArray(v)) return v.map((x) => restoreDeep(x, call, key, depth + 1));
+  if (Array.isArray(v)) return v.map((x) => restoreDeep(x, call, key, depth + 1, free));
   if (isObject(v)) {
     const out: Record<string, unknown> = Object.create(Object.getPrototypeOf(v));
-    for (const [k, x] of Object.entries(v)) out[k] = STRUCTURAL.has(k) ? x : restoreDeep(x, call, k, depth + 1);
+    for (const [k, x] of Object.entries(v)) {
+      const container = x !== null && typeof x === "object";
+      if (free) out[k] = restoreDeep(x, call, k, depth + 1, true);
+      // Only a plain protocol value is skipped: an object under "input" or
+      // "data" holds placeholders the caller needs back.
+      else if (OPAQUE.has(k) || (LEAF.has(k) && !container)) out[k] = x;
+      else out[k] = restoreDeep(x, call, k, depth + 1, (LEAF.has(k) && container) || (FREE.has(k) && isObject(x)));
+    }
     return out;
   }
   return v;

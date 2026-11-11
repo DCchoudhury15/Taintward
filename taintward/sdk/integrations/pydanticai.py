@@ -60,7 +60,7 @@ from taintward.sdk.integrations._common import (
     llm_call,
     tool_call,
 )
-from taintward.sdk.integrations._payload import plain_view
+from taintward.sdk.integrations._payload import payload_redactor, plain_view
 from taintward.sdk.integrations._stream import Pieces, StreamCall
 
 log = logging.getLogger("taintward.sdk")
@@ -75,37 +75,49 @@ _FIELDS = {
 }
 
 
-def _text_only(value: Any) -> bool:
-    """User prompt content can hold images or files; only strings are sent
-    through redaction, other items are kept as they are."""
-    return isinstance(value, (str, dict, list)) and not (
-        isinstance(value, list) and any(not isinstance(v, str) for v in value))
+def _slots(messages: list[ModelMessage]) -> list[tuple[int, int | None, str, int | None]]:
+    """Where the data of a request is: (message, part, field, item).
 
-
-def _slots(messages: list[ModelMessage]) -> list[tuple[int, int | None, str]]:
-    out = []
+    A user prompt can be a list that mixes text with images or files. Each
+    text item is its own slot (``item`` is its position); the other items
+    are kept as they are. Every other part is one slot with its whole value,
+    whatever its type: a tool may return a list of records or an object."""
+    out: list[tuple[int, int | None, str, int | None]] = []
     for i, msg in enumerate(messages):
         if isinstance(msg, ModelRequest) and isinstance(msg.instructions, str):
-            out.append((i, None, "instructions"))
+            out.append((i, None, "instructions", None))
         for j, part in enumerate(msg.parts):
             field = _FIELDS.get(type(part))
-            if field and _text_only(getattr(part, field)):
-                out.append((i, j, field))
+            if not field:
+                continue
+            value = getattr(part, field)
+            if isinstance(part, UserPromptPart) and not isinstance(value, str):
+                if isinstance(value, (list, tuple)):
+                    out += [(i, j, field, k) for k, item in enumerate(value)
+                            if isinstance(item, str)]
+                continue
+            if value is not None:
+                out.append((i, j, field, None))
     return out
 
 
 def _get(messages, slot):
-    i, j, field = slot
-    return getattr(messages[i] if j is None else messages[i].parts[j], field)
+    i, j, field, k = slot
+    value = getattr(messages[i] if j is None else messages[i].parts[j], field)
+    return value if k is None else value[k]
 
 
 def _rebuild(messages: list[ModelMessage], slots, values) -> list[ModelMessage]:
     new = [dataclasses.replace(m, parts=list(m.parts)) for m in messages]
-    for (i, j, field), v in zip(slots, values):
+    for (i, j, field, k), v in zip(slots, values):
         if j is None:
             new[i] = dataclasses.replace(new[i], **{field: v})
-        else:
-            new[i].parts[j] = dataclasses.replace(new[i].parts[j], **{field: v})
+            continue
+        if k is not None:
+            items = list(getattr(new[i].parts[j], field))
+            items[k] = v
+            v = items
+        new[i].parts[j] = dataclasses.replace(new[i].parts[j], **{field: v})
     return new
 
 
@@ -310,8 +322,11 @@ class TaintwardModel(WrapperModel):
         ward = _resolve(self.ward, None)
         pmap = ward.llm_placeholder_map()
         slots = _slots(messages)
+        # The slots hold data only (text, tool arguments, tool results), with
+        # no protocol fields around them, so every key in them is redacted.
         call = llm_call(ward, self.model_name, FRAMEWORK, self.system,
-                        {"parts": [_get(messages, s) for s in slots]}, pmap)
+                        {"parts": [_get(messages, s) for s in slots]}, pmap,
+                        redact=payload_redactor(pmap))
         return ward, pmap, slots, call
 
     def _send(self, messages, ward, pmap, slots, call):

@@ -738,3 +738,100 @@ def test_enum_member_is_masked_in_span_attributes():
         OWNER = "asha.verma@example.com"
 
     assert "asha.verma@example.com" not in repr(detect.mask_leaf(Contact.OWNER))
+
+
+# Protocol keys are skipped only where the protocol puts them
+# ---------------------------------------------------------------------------
+def test_tool_call_arguments_in_history_are_redacted():
+    """``name``, ``id`` and ``data`` are protocol keys at the top of a
+    message block, but inside the input of an earlier tool call they are the
+    application's own fields and must not reach the model unredacted."""
+    from taintward.sdk.integrations._payload import redact_structure
+
+    ssn, email = "234-12-1234", "asha.verma@example.com"
+    history = [
+        {"role": "assistant", "content": [
+            {"type": "tool_use", "id": "toolu_1", "name": "lookup",
+             "input": {"name": email, "id": ssn, "data": email, "status": f"ssn {ssn}"}}]},
+        {"role": "user", "parts": [{"function_response": {
+            "name": "lookup", "response": {"name": email, "id": ssn}}}]},
+        {"role": "tool", "tool_call_id": "c1", "content": [
+            {"type": "json", "data": {"email": email}}]},
+    ]
+    out = redact_structure(history, "llm")
+    assert ssn not in repr(out) and email not in repr(out)
+    block = out[0]["content"][0]
+    assert (block["type"], block["id"], block["name"]) == ("tool_use", "toolu_1", "lookup")
+    assert out[1]["parts"][0]["function_response"]["name"] == "lookup"
+    assert out[2]["tool_call_id"] == "c1"
+
+
+def test_document_source_text_is_redacted_and_base64_is_kept():
+    from taintward.sdk.integrations._payload import redact_structure
+
+    b64 = "aGVsbG8gd29ybGQ="
+    msg = [{"role": "user", "content": [
+        {"type": "document", "source": {"type": "text", "media_type": "text/plain",
+                                        "data": "SSN 234-12-1234"}},
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": b64}},
+        {"type": "image", "source": {"type": "url", "url": "https://example.com/a.png"}},
+        {"type": "image_url", "image_url": {"url": "https://example.com/b.png"}},
+    ]}]
+    out = redact_structure(msg, "llm")
+    assert "234-12-1234" not in repr(out)
+    blocks = out[0]["content"]
+    assert blocks[1]["source"]["data"] == b64
+    assert blocks[2]["source"]["url"] == "https://example.com/a.png"
+    assert blocks[3]["image_url"] == {"url": "https://example.com/b.png"}
+
+
+# Two detections that only partly overlap
+# ---------------------------------------------------------------------------
+def test_partly_overlapping_detections_leave_nothing_behind():
+    """A span that starts inside another one and ends after it used to be
+    dropped, so its tail stayed in the text."""
+    from taintward.core.doe import Sensitivity
+    from taintward.sdk.redact import redact_text
+
+    text = "0123456789ABCDEFGHIJ tail"
+    dets = [detect.Detection("PERSON", 0, 10, 0.9, Sensitivity.PII, "a"),
+            detect.Detection("GENERIC_API_KEY", 5, 20, 0.9, Sensitivity.SECRET, "b")]
+    assert redact_text(text, dets, "external") == "[SECRET] tail"
+    assert detect.mask_text(text, dets) == "[SECRET] tail"
+    # one inside the other: still one mask for the longer one
+    inner = [detect.Detection("PERSON", 0, 20, 0.9, Sensitivity.PII, "a"),
+             detect.Detection("US_SSN", 5, 10, 0.9, Sensitivity.PII, "b")]
+    assert redact_text(text, inner, "external") == "[PII] tail"
+
+
+def test_fail_closed_refuses_the_call_in_which_detection_breaks(monkeypatch):
+    """Detection that breaks during a call returns no findings, so that
+    call's input is not redacted. With fail closed on it must not go out."""
+    from taintward.sdk.destinations import DEST_EXTERNAL
+
+    monkeypatch.setattr(instr, "FAIL_CLOSED", True)
+    detect._reset_engine()
+    detect.health()  # loaded and healthy before the call
+
+    def boom(*a, **k):
+        raise RuntimeError("detector broke")
+
+    monkeypatch.setattr(detect, "_analyze", boom)
+    sent = []
+    try:
+        with pytest.raises(detect.DetectionDegradedError):
+            with instr.GuardedCall("send", destination=DEST_EXTERNAL,
+                                   kwargs={"body": "SSN 234-12-1234"}) as call:
+                sent.append(call.kwargs)
+        assert sent == []
+    finally:
+        monkeypatch.undo()
+        detect._reset_engine()
+
+
+def test_allow_given_as_one_name_is_one_name():
+    from taintward.sdk.destinations import _to_policy
+
+    assert _to_policy({"destination": "external", "allow": "to"}).allow == frozenset({"to"})
+    assert _to_policy({"destination": "external", "allow": ["to", "cc"]}).allow == {"to", "cc"}
+    assert _to_policy({"destination": "external", "allow": None}).allow == frozenset()

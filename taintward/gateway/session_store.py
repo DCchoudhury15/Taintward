@@ -32,8 +32,11 @@ from taintward.sdk import taint as tnt
 DEFAULT_SESSION_TTL = 24 * 3600.0
 
 # Session ids come from a client header; only accept a safe shape so they can
-# be used in store keys as is. The gateway issues uuid4 hex ids.
-_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+# be used in store keys as is. The gateway issues uuid4 hex ids. No ":": the
+# store also keeps the taint of each named client under "client:<name>"
+# (gap G4), and a request must not be able to name that row as its session
+# (a DELETE would clear the client's taint).
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 
 
 class SessionStoreError(RuntimeError):

@@ -323,6 +323,15 @@ class GuardedCall:
             if DRY_RUN and MASK_IN_PROCESS:
                 view = mask_value(view)  # the sink gets raw values, the span never
 
+        # Detection can break during this very call (it then returns no
+        # findings, so the input above was not redacted). With fail closed
+        # on, that call must not go out either.
+        if FAIL_CLOSED and self.destination != DEST_INTERNAL and _detect.is_degraded():
+            raise _detect.DetectionDegradedError(
+                f"taintward: refusing {self.name!r} ({self.destination} sink): "
+                f"sensitive-data detection failed during this call "
+                f"({_detect.health()['mode']}) and TAINTWARD_FAIL_CLOSED is on")
+
         merged_in = (incoming or tnt.TaintLabel.of(set())).merge(input_label)
         self.merged_in = merged_in
         ctx = tnt.attach(merged_in)  # nested calls inherit the taint

@@ -4,6 +4,36 @@
 
 ### Security
 
+- Tool call arguments and structured tool results in the chat history are
+  now redacted in full before a model request. Fields named like protocol
+  keys (`name`, `id`, `data`, `source`, `status`, ...) were skipped at any
+  depth, so `{"name": "Alice Lee", "id": "234-12-1234"}` inside an Anthropic
+  `tool_use.input`, a Gemini `function_response` or a dict tool result went
+  to the model unredacted. Protocol keys are now skipped only where the
+  protocol puts them. The text of an Anthropic plain text document
+  (`source.type: text`) is redacted too. Python and TypeScript.
+- Google ADK: function call arguments, function responses and a system
+  instruction given as a `Content` are redacted in full.
+- LlamaIndex: the arguments of a `ToolCallBlock` are redacted in full.
+- Pydantic AI: a tool result that is a list of records (or any value that
+  is not one string) is redacted; it used to be sent as it was. Text items
+  next to an image or a file in a user prompt are redacted too.
+- Two detections that only partly overlap are now redacted together. The
+  second one used to be dropped, which left its tail in the text. Python
+  (`redact_text`, `mask_text`, the control plane's upload masking) and
+  TypeScript.
+- `TAINTWARD_FAIL_CLOSED=1` now also refuses the call during which
+  detection breaks (SDK and gateway). Before, only the calls after it were
+  refused.
+- MCP gateway: a request can no longer name the row that holds a client's
+  taint (`client:<name>`) as its session id. A `DELETE` with that id cleared
+  the taint kept per client (gap G4).
+- The data block embedded in the HTML report writes `<` as `\u003c`.
+- More link forms keep their placeholders (gap G1, Python and TypeScript):
+  a host written without a scheme (`//attacker.example/?d=<SSN_1>`), a
+  markdown reference definition (`[1]: ...`), an HTML attribute without
+  quotes, and a link target or attribute that starts on the next line.
+  Before, these were restored to the real value.
 - An Enum member in a tool payload is now checked by its value. Before,
   only its name (`Contact.OWNER`) was checked, so a member whose value was
   an email or a key went through unredacted.
@@ -196,6 +226,22 @@
   check for link addresses (gap G1) now looks only at the JSON string the
   placeholder is in, so a link in another argument no longer keeps a
   placeholder unrestored.
+
+### Fixed
+
+- `allow: to` (one name instead of a list) in a tool policy means the
+  argument `to`, not the letters `t` and `o`.
+- `TAINTWARD_RESTORE_IN_URLS` accepts the same on/off words as every other
+  flag (`on`, `off`, ...).
+- `taintward-gateway` prints one clear line for a missing, unreadable or
+  invalid config instead of a traceback, and reports its real version.
+- A policy from the control plane that the SDK cannot read no longer stops
+  the background refresh.
+- `frameworks=eu_ai_act` is accepted for `eu-ai-act`.
+- `taintward-keys rotate` prints the right `retire` command for a ring in
+  Vault KV.
+- Checkpoint verification reports a malformed shard entry instead of
+  stopping with an error.
 
 ### Release
 

@@ -144,7 +144,14 @@ def refresh_ward(ward, client: ControlClient | None = None) -> bool:
         return False
     if client.etag == before and ward.policy_version is not None:
         return False
-    ward.apply_policy(doc["policy"])
+    try:
+        ward.apply_policy(doc["policy"])
+    except (TypeError, ValueError) as exc:
+        # A policy this SDK cannot read: keep the current one, and keep the
+        # refresh thread alive for the next version.
+        log.warning("taintward: policy v%s could not be applied, keeping v%s: %s",
+                    doc.get("version"), ward.policy_version, exc)
+        return False
     ward.policy_version = doc.get("version")
     log.info("taintward: tool policy v%s applied", ward.policy_version)
     return True

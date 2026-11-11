@@ -593,8 +593,9 @@ def cmd_rotate(args) -> int:
         if getattr(args, "reseal", False):
             reload_keys()
             return cmd_reseal(argparse.Namespace(vault=None))
+        where = f"--file {target.file}" if target.file else f"--keys {target.name}"
         print("run `taintward-keys reseal` to move vault rows to the new key, "
-              f"then `taintward-keys retire --file {target.name} --purpose vault --id {old}`")
+              f"then `taintward-keys retire {where} --purpose vault --id {old}`")
     return 0
 
 

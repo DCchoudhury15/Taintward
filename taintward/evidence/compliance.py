@@ -265,7 +265,8 @@ def parse_frameworks(text: str | None) -> tuple[str, ...]:
     """'gdpr,hipaa' or 'all' -> framework ids. Raises ValueError for unknown ones."""
     if not text:
         return ()
-    names = [t.strip().lower() for t in text.split(",") if t.strip()]
+    # eu_ai_act is accepted for eu-ai-act
+    names = [t.strip().lower().replace("_", "-") for t in text.split(",") if t.strip()]
     if names == ["all"]:
         return tuple(FRAMEWORKS)
     bad = [n for n in names if n not in FRAMEWORKS]

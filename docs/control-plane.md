@@ -127,7 +127,7 @@ Every request except `GET /healthz` needs `Authorization: Bearer <token>`.
 | `PUT /v1/policy` | admin | store a new version. `If-Match: "<etag>"` gives `412` when someone else wrote a newer one. The same policy again is not a new version |
 | `GET /v1/policy/history` | agent, reader, admin | versions, newest first: number, ETag, time, token name, tool count |
 | `POST /v1/traces` | agent, admin | OTLP/HTTP spans, JSON or protobuf, optionally gzip. What the OpenTelemetry exporters send |
-| `GET /v1/report` | reader, admin | the [report](evidence-report.md): `?since=7d` or `?start=...&end=...`, `&format=html\|json`, `&frameworks=gdpr,eu_ai_act,hipaa,soc2` or `all` |
+| `GET /v1/report` | reader, admin | the [report](evidence-report.md): `?since=7d` or `?start=...&end=...`, `&format=html\|json`, `&frameworks=gdpr,eu-ai-act,hipaa,soc2` or `all` |
 | `POST /v1/audit` | reader, admin | the [audit](audit.md) against the current policy and the uploaded spans: `{"tools": <MCP tools/list>, "max_hops": 3, "since": "30d"}`; `?format=md` for Markdown |
 | `GET /v1/evidence` | reader, admin | the tenant's evidence log shard heads |
 | `GET /v1/evidence/proof?trace_id=&span_id=` | reader, admin | the evidence record of one violation and its Merkle inclusion proof, which can be checked offline |

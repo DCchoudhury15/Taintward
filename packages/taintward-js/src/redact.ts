@@ -64,6 +64,7 @@ export function redactValue(value: string, sensitivity: Sensitivity, destination
 /**
  * Apply redaction to the given spans of `text`. Overlapping spans keep the
  * longest; for equal length a secret wins over PII, then the higher score.
+ * Two spans that only partly overlap are redacted together as one value.
  */
 export function redactText(text: string, spans: readonly Span[], destination: string, opts: RedactOptions = {}): string {
   if (!text) return text;
@@ -74,9 +75,19 @@ export function redactText(text: string, spans: readonly Span[], destination: st
       Number(a.sensitivity !== "secret") - Number(b.sensitivity !== "secret") ||
       b.score - a.score,
   );
+  // A span that starts inside the previous one is dropped when it also ends
+  // inside it. When it reaches past its end, the two are redacted as one
+  // value, so no part of either stays.
   const kept: Span[] = [];
   for (const d of sorted) {
-    if (kept.length > 0 && d.start < kept[kept.length - 1]!.end) continue;
+    const last = kept[kept.length - 1];
+    if (last && d.start < last.end) {
+      if (d.end > last.end) {
+        const secret = d.sensitivity === "secret" && last.sensitivity !== "secret";
+        kept[kept.length - 1] = { ...(secret ? d : last), start: last.start, end: d.end };
+      }
+      continue;
+    }
     kept.push(d);
   }
   let out = text;

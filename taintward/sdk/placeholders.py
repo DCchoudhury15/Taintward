@@ -51,7 +51,6 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import re
 import threading
 import unicodedata
@@ -141,33 +140,55 @@ _LABEL_SAFE = re.compile(r"[^A-Z0-9]+")
 # letter value would match inside too many unrelated words.
 _MIN_KNOWN_LEN = 3
 
-# Link and image addresses (gap G1). A placeholder is inside one when the
-# word it is part of starts a URL, or when it sits in a markdown link target
-# or an HTML URL attribute that is still open on the same line (those may
-# hold spaces).
-_URL_START = re.compile(r"(?i)[a-z][a-z0-9+.\-]*://|\bwww\.|(?<![a-z])(?:mailto|data):")
+# Link and image addresses (gap G1). A placeholder is inside one when
+# * the word it is part of starts a URL (a scheme, "www.", or a host written
+#   as "//host", "\\\\host" or "/\\host"),
+# * its line is a markdown reference definition ("[1]: ..."),
+# * it sits in a markdown link target or an HTML URL attribute that is still
+#   open. Those may hold spaces and may start on the next line, so the check
+#   looks back over the paragraph, not only the line.
+_URL_START = re.compile(
+    r"(?i)[a-z][a-z0-9+.\-]*://|\bwww\.|(?<![a-z])(?:mailto|data):"
+    r"""|(?:^|[=<("'\[])[/\\]{2}(?=[^\s/\\])""")
 _URL_ATTR = re.compile(
     r"""(?i)\b(?:href|src|srcset|action|formaction|poster|background|cite|ping|data)"""
-    r"""\s*=\s*(["'])""")
+    r"""\s*=\s*(["']?)""")
+_REF_DEF = re.compile(r"[ \t]{0,3}\[[^\]\n]+\]:[ \t]")
+_BLANK_LINE = re.compile(r"\n[ \t]*\n")
+_URL_LOOKBACK = 2000
 
 
 def restore_in_urls_default() -> bool:
-    return os.environ.get("TAINTWARD_RESTORE_IN_URLS", "").lower() in ("1", "true", "yes")
+    from taintward.sdk.envflags import env_flag
+    return env_flag("TAINTWARD_RESTORE_IN_URLS", False)
 
 
 def in_url(text: str, pos: int) -> bool:
     """Is position ``pos`` of ``text`` inside a link or image address?"""
-    line = text[text.rfind("\n", 0, pos) + 1:pos]
+    head = text[max(0, pos - _URL_LOOKBACK):pos]
+    line = head[head.rfind("\n") + 1:]
     word = line[max(line.rfind(" "), line.rfind("\t")) + 1:]
-    if _URL_START.search(word):
+    if _URL_START.search(word) or _REF_DEF.match(line):
         return True
-    i = line.rfind("](")
-    if i >= 0 and ")" not in line[i + 2:]:
+    # The paragraph so far: a blank line ends a link target or an HTML tag.
+    para = head
+    for blank in _BLANK_LINE.finditer(head):
+        para = head[blank.end():]
+    i = para.rfind("](")
+    if i >= 0 and ")" not in para[i + 2:]:
         return True
     attr = None
-    for attr in _URL_ATTR.finditer(line):
+    for attr in _URL_ATTR.finditer(para):
         pass
-    return attr is not None and attr.group(1) not in line[attr.end():]
+    if attr is None:
+        return False
+    rest = para[attr.end():]
+    if attr.group(1):
+        return attr.group(1) not in rest
+    # No quote (src=//host/x): only inside an open tag, up to the next space.
+    tag = para.rfind("<", 0, attr.start())
+    return (tag >= 0 and para[tag + 1:tag + 2].isalpha() and ">" not in para[tag:attr.start()]
+            and not re.search(r"[\s>]", rest))
 
 
 def label_for(entity_type: str | None, sensitivity: Sensitivity) -> str:

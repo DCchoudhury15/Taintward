@@ -45,7 +45,7 @@ from taintward.sdk.integrations._common import (
     tool_call,
     ward_of,
 )
-from taintward.sdk.integrations._payload import plain_view, to_plain
+from taintward.sdk.integrations._payload import payload_redactor, plain_view, to_plain
 from taintward.sdk.integrations._stream import Pieces
 
 FRAMEWORK = "google-adk"
@@ -131,8 +131,14 @@ def _with_value(part: types.Part, kind: str, v: Any) -> types.Part:
 
 
 def _system_text(config) -> Any:
+    """The system instruction's text: a string, or the list of text parts of
+    a ``Content`` (None for a part without text). None when there is none."""
     si = getattr(config, "system_instruction", None) if config is not None else None
-    return si if isinstance(si, str) else None
+    if isinstance(si, str):
+        return si
+    if isinstance(si, types.Content):
+        return [p.text for p in si.parts or []]
+    return None
 
 
 def _rebuild(request, slots, values, system: Any, line: str | None):
@@ -145,8 +151,14 @@ def _rebuild(request, slots, values, system: Any, line: str | None):
         if isinstance(si, str) or si is None:
             text = system if system is not None else si
             si = f"{text}\n\n{line}" if text and line else (line or text)
-        elif line and isinstance(si, types.Content):
-            si = si.model_copy(update={"parts": [*(si.parts or []), types.Part(text=line)]})
+        elif isinstance(si, types.Content):
+            parts = list(si.parts or [])
+            if isinstance(system, list):  # the redacted text of each part
+                parts = [p if t is None else p.model_copy(update={"text": t})
+                         for p, t in zip(parts, system)]
+            if line:
+                parts.append(types.Part(text=line))
+            si = si.model_copy(update={"parts": parts})
         config = config.model_copy(update={"system_instruction": si})
     return request.model_copy(update={"contents": contents, "config": config})
 
@@ -204,8 +216,11 @@ def _model_class(base: type) -> type:
             system = _system_text(llm_request.config)
             if system is not None:
                 content["system"] = system
+            # The parts are data only (text, function call arguments, function
+            # responses), with no protocol fields around them, so every key
+            # in them is redacted: a response {"name": ..., "id": ...} too.
             with llm_call(ward, str(llm_request.model or self.model), FRAMEWORK, "gemini",
-                          content, pmap) as call:
+                          content, pmap, redact=payload_redactor(pmap)) as call:
                 line = instruction(pmap, ward, call.kwargs)
                 if line:
                     call.span.set_attribute("taintward.placeholders.instruction", True)

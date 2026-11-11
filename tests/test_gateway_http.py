@@ -470,3 +470,45 @@ def test_session_store_down_fails_closed():
 
     anyio.run(main)
     assert hr_server.OUTBOX == []
+
+
+def test_a_request_cannot_name_a_clients_taint_row_as_its_session():
+    """The taint kept per client (gap G4) lives in the session store under
+    ``client:<name>``. A request that sends that as its Mcp-Session-Id must
+    be refused, or a DELETE would clear the client's taint."""
+    import anyio
+
+    from taintward.core.doe import Sensitivity
+    from taintward.gateway.http import GatewayHTTPApp
+    from taintward.gateway.server import CLIENT_TAINT_PREFIX
+    from taintward.gateway.session_store import MemorySessionStore
+    from taintward.sdk import taint as tnt
+
+    store = MemorySessionStore()
+    row = CLIENT_TAINT_PREFIX + "alice"
+
+    async def inner(scope, receive, send):  # the MCP app must not be reached
+        raise AssertionError("request reached the MCP app")
+
+    app = GatewayHTTPApp(inner, store, client_tokens={"tok": "alice"})
+
+    async def go():
+        await store.merge(row, tnt.TaintLabel.of({Sensitivity.PII}))
+        sent = []
+
+        async def send(message):
+            sent.append(message)
+
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        scope = {"type": "http", "path": "/mcp", "method": "DELETE",
+                 "headers": [(b"authorization", b"Bearer tok"),
+                             (b"mcp-session-id", row.encode())]}
+        await app(scope, receive, send)
+        return sent[0]["status"], (await store.get(row)).is_tainted
+
+    status, still_tainted = anyio.run(go)
+    assert status == 400
+    assert still_tainted
+    assert not valid_session_id(row)

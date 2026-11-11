@@ -359,7 +359,11 @@ def _check_extends(log: ShardedLog, prev_body: dict, body: dict, res: VerifyResu
 
 def _check_shards_against(log: ShardedLog, body: dict, res: VerifyResult, label: str) -> None:
     for sh in body.get("shards", []):
-        tenant, day, size, root = sh["tenant"], sh["day"], int(sh["size"]), sh["root"]
+        try:
+            tenant, day, size, root = sh["tenant"], sh["day"], int(sh["size"]), sh["root"]
+        except (KeyError, TypeError, ValueError):
+            res.error(f"{label}: a shard entry is malformed")
+            continue
         name = f"{tenant}/{day}"
         path = log.shard_path(tenant, day)
         if not path.exists():

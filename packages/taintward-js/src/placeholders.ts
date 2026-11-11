@@ -116,19 +116,40 @@ const MIN_KNOWN_LEN = 3;
 // inside one when the word it is part of starts a URL, or when it sits in a
 // markdown link target or an HTML URL attribute that is still open on the
 // same line (those may hold spaces). The same rules as the Python SDK.
-const URL_START = /[a-z][a-z0-9+.-]*:\/\/|\bwww\.|(?<![a-z])(?:mailto|data):/i;
-const URL_ATTR = /\b(?:href|src|srcset|action|formaction|poster|background|cite|ping|data)\s*=\s*(["'])/gi;
+const URL_START =
+  /[a-z][a-z0-9+.-]*:\/\/|\bwww\.|(?<![a-z])(?:mailto|data):|(?:^|[=<("'\[])[/\\]{2}(?=[^\s/\\])/i;
+const URL_ATTR = /\b(?:href|src|srcset|action|formaction|poster|background|cite|ping|data)\s*=\s*(["']?)/gi;
+const REF_DEF = /^[ \t]{0,3}\[[^\]\n]+\]:[ \t]/;
+const BLANK_LINE = /\n[ \t]*\n/g;
+const URL_LOOKBACK = 2000;
 
-/** Is position `pos` of `text` inside a link or image address? */
+/**
+ * Is position `pos` of `text` inside a link or image address? True when the
+ * word starts a URL (a scheme, "www.", or a host written as "//host"), when
+ * the line is a markdown reference definition, or when a markdown link target
+ * or an HTML URL attribute is still open. Those may start on the next line,
+ * so the check looks back over the paragraph, not only the line.
+ */
 export function inUrl(text: string, pos: number): boolean {
-  const line = text.slice(text.lastIndexOf("\n", pos - 1) + 1, pos);
+  const head = text.slice(Math.max(0, pos - URL_LOOKBACK), pos);
+  const line = head.slice(head.lastIndexOf("\n") + 1);
   const word = line.slice(Math.max(line.lastIndexOf(" "), line.lastIndexOf("\t")) + 1);
-  if (URL_START.test(word)) return true;
-  const i = line.lastIndexOf("](");
-  if (i >= 0 && !line.slice(i + 2).includes(")")) return true;
+  if (URL_START.test(word) || REF_DEF.test(line)) return true;
+  // The paragraph so far: a blank line ends a link target or an HTML tag.
+  let para = head;
+  for (const blank of head.matchAll(BLANK_LINE)) para = head.slice(blank.index! + blank[0].length);
+  const i = para.lastIndexOf("](");
+  if (i >= 0 && !para.slice(i + 2).includes(")")) return true;
   let attr: RegExpMatchArray | undefined;
-  for (const m of line.matchAll(URL_ATTR)) attr = m;
-  return attr !== undefined && !line.slice(attr.index! + attr[0].length).includes(attr[1]!);
+  for (const m of para.matchAll(URL_ATTR)) attr = m;
+  if (attr === undefined) return false;
+  const rest = para.slice(attr.index! + attr[0].length);
+  if (attr[1]) return !rest.includes(attr[1]);
+  // No quote (src=//host/x): only inside an open tag, up to the next space.
+  const tag = para.lastIndexOf("<", attr.index! - 1);
+  return (
+    tag >= 0 && /[a-z]/i.test(para.charAt(tag + 1)) && !para.slice(tag, attr.index!).includes(">") && !/[\s>]/.test(rest)
+  );
 }
 
 /** Where the JSON string holding position `pos` starts (after its quote); 0 if none. */
@@ -145,7 +166,7 @@ function jsonStringStart(s: string, pos: number): number {
 
 function restoreInUrlsDefault(): boolean {
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  return ["1", "true", "yes"].includes((env?.TAINTWARD_RESTORE_IN_URLS ?? "").toLowerCase());
+  return ["1", "true", "yes", "on"].includes((env?.TAINTWARD_RESTORE_IN_URLS ?? "").trim().toLowerCase());
 }
 
 export interface PlaceholderMapOptions {

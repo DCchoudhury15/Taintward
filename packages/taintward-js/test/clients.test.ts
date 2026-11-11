@@ -209,6 +209,35 @@ describe("protectAnthropic", () => {
     expect((r.content[1] as any).input).toEqual({ ssn: SSN });
   });
 
+  it("redacts the arguments of an earlier tool call and structured tool results", async () => {
+    // "name", "id" and "data" are protocol keys at the top of a block, but
+    // inside a tool call's input they are the application's own fields.
+    const sent: any[] = [];
+    const client = anthropic([{ json: message([{ type: "text", text: "ok" }]) }], sent);
+    await client.messages.create({
+      model: "claude-test",
+      max_tokens: 50,
+      messages: [
+        { role: "user", content: "look her up" },
+        { role: "assistant", content: [{ type: "tool_use", id: "tu_1", name: "lookup", input: { name: "x", id: SSN, data: `ssn ${SSN}` } }] },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "tu_1", content: [{ type: "text", text: `ssn ${SSN}` }] }] },
+      ],
+    });
+    const body = JSON.stringify(sent[0]);
+    expect(body).not.toContain(SSN);
+    const block = sent[0].messages[1].content[0];
+    expect(block.id).toBe("tu_1"); // protocol values are kept
+    expect(block.name).toBe("lookup");
+    expect(block.type).toBe("tool_use");
+  });
+
+  it("restores a tool input field named like a protocol key", async () => {
+    const client = anthropic([{ json: message([{ type: "tool_use", id: "tu", name: "lookup", input: { id: "<SSN_1>", data: { name: "<SSN_1>" } } }]) }], []);
+    const r = await client.messages.create({ model: "claude-test", max_tokens: 50, messages: [{ role: "user", content: ASK }] });
+    expect((r.content[0] as any).input).toEqual({ id: SSN, data: { name: SSN } });
+    expect((r.content[0] as any).name).toBe("lookup");
+  });
+
   it("create with stream: true", async () => {
     const client = anthropic([{ sse: anthropicEvents(["Hi <S", "SN_1", "> bye"]) }], []);
     const stream = await client.messages.create({ model: "claude-test", max_tokens: 50, stream: true, messages: [{ role: "user", content: ASK }] });

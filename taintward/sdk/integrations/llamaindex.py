@@ -60,6 +60,7 @@ from taintward.sdk.integrations._common import (
 )
 from taintward.sdk.integrations._payload import redact_structure
 from taintward.sdk.integrations._stream import Pieces
+from taintward.sdk.redact import redact_payload
 
 FRAMEWORK = "llamaindex"
 
@@ -122,13 +123,15 @@ def wrap_tools(tools: Iterable[BaseTool], mapping: Mapping[str, Any] | None = No
 # messages
 # ---------------------------------------------------------------------------
 
-def _map_message(m: ChatMessage, fn) -> ChatMessage:
+def _map_message(m: ChatMessage, fn, args_fn=None) -> ChatMessage:
+    """``fn`` on the text and the extra kwargs, ``args_fn`` (default ``fn``)
+    on the arguments of a tool call, which are data only."""
     blocks = []
     for b in m.blocks:
         if isinstance(b, TextBlock):
             b = b.model_copy(update={"text": fn(b.text)})
         elif isinstance(b, ToolCallBlock):
-            b = b.model_copy(update={"tool_kwargs": fn(b.tool_kwargs)})
+            b = b.model_copy(update={"tool_kwargs": (args_fn or fn)(b.tool_kwargs)})
         blocks.append(b)
     return m.model_copy(update={"blocks": blocks,
                                 "additional_kwargs": fn(dict(m.additional_kwargs))})
@@ -140,7 +143,9 @@ def _dump(messages: list[ChatMessage]) -> list[dict]:
 
 def _messages_redactor(pmap):
     def redact(messages, destination):
-        return [_map_message(m, lambda v: redact_structure(v, destination, pmap))
+        # Tool call arguments have no protocol fields: every key is data.
+        return [_map_message(m, lambda v: redact_structure(v, destination, pmap),
+                             lambda v: redact_payload(v, destination, placeholders=pmap))
                 for m in messages]
     return redact
 

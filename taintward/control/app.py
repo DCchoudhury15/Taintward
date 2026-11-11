@@ -13,7 +13,7 @@ caller can only ever see and change its own tenant.
     GET  /v1/policy/history    policy:read   versions, newest first
     POST /v1/traces            traces:write  OTLP/HTTP spans (JSON or protobuf)
     GET  /v1/report            report:read   ?since=7d|start=&end= &format=html|json
-                                             &frameworks=gdpr,eu_ai_act,hipaa,soc2|all
+                                             &frameworks=gdpr,eu-ai-act,hipaa,soc2|all
     POST /v1/audit             audit:run     {"tools": <MCP tools/list>, "max_hops", "since"}
     GET  /v1/evidence          evidence:read the tenant's evidence log shard heads
     GET  /v1/evidence/proof    evidence:read ?trace_id=&span_id= inclusion proof

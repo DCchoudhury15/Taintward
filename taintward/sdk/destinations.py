@@ -52,9 +52,13 @@ def _to_policy(value: Any) -> ToolPolicy:
     if isinstance(value, (tuple, list)) and 1 <= len(value) <= 2:
         return ToolPolicy(*value)
     if isinstance(value, Mapping):
+        allow = value.get("allow") or ()
+        if isinstance(allow, str):
+            # allow: to   (one name, not a list): not the letters "t" and "o"
+            allow = (allow,)
         return ToolPolicy(
             destination=value.get("destination", DEFAULT_DESTINATION),
             jurisdiction=value.get("jurisdiction", ""),
-            allow=frozenset(value.get("allow", ())),
+            allow=frozenset(allow),
         )
     raise TypeError(f"cannot read a tool policy from {value!r}")
