@@ -40,6 +40,7 @@ once per process and a warning is logged: tokens then differ after a restart.
 
 from __future__ import annotations
 
+import enum
 import logging
 import os
 import re
@@ -420,6 +421,11 @@ def _redact_walk(value, destination: str, r: "Redactor", subject, placeholders):
             value, [_redact_walk(v, destination, r, subject, placeholders) for v in value])
     if _walk.is_scalar_leaf(value):
         return value
+    if isinstance(value, enum.Enum) and not isinstance(value, str):
+        # str(Color.RED) is "Color.RED", which hides the value a JSON or
+        # pydantic encoder would send, so check the value itself.
+        redacted = _redact_walk(value.value, destination, r, subject, placeholders)
+        return value if redacted == value.value else redacted
     # int, float, Decimal, bytes, any object: check its str form. A sensitive
     # value is replaced by the redacted string, never passed on unchanged.
     text = safe_str(value)
@@ -443,7 +449,9 @@ def redact_payload(value, destination: str, redactor: "Redactor | None" = None, 
     * Leaves that are not strings (int, float, Decimal, any object) are
       checked in their ``str`` form; a sensitive one is replaced by the
       redacted string (a mask, or a token for ``internal``). None and
-      booleans are kept.
+      booleans are kept. An Enum member is checked by its value.
+    * A payload that contains itself, or is nested too deep to walk, raises
+      ``ValueError``; it is never passed on unchecked.
     * Outside a ``detection_scope`` the whole payload is detected first in
       one pass, so JSON keys count as context (``{"ssn": 234121234}``).
 
@@ -455,9 +463,13 @@ def redact_payload(value, destination: str, redactor: "Redactor | None" = None, 
     from taintward.sdk import detect as _detect
 
     r = redactor or get_redactor()
-    if ((isinstance(value, Mapping) or _walk.is_collection(value))
-            and not _detect.in_detection_scope()):
-        with _detect.detection_scope():
-            _detect.detect_leaves(value)
-            return _redact_walk(value, destination, r, subject, placeholders)
-    return _redact_walk(value, destination, r, subject, placeholders)
+    try:
+        if ((isinstance(value, Mapping) or _walk.is_collection(value))
+                and not _detect.in_detection_scope()):
+            with _detect.detection_scope():
+                _detect.detect_leaves(value)
+                return _redact_walk(value, destination, r, subject, placeholders)
+        return _redact_walk(value, destination, r, subject, placeholders)
+    except RecursionError:
+        raise ValueError(
+            "payload contains itself or is nested too deep to redact") from None

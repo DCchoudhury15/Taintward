@@ -42,6 +42,7 @@ from __future__ import annotations
 import bisect
 import contextlib
 import contextvars
+import enum
 import hashlib
 import logging
 import os
@@ -1095,6 +1096,8 @@ def _leaves(payload: object, key: str, out: list[tuple[str, str]]) -> None:
         return
     elif isinstance(payload, str):
         out.append((payload, key))
+    elif isinstance(payload, enum.Enum):
+        _leaves(payload.value, key, out)  # str(member) hides the value
     else:
         text = safe_str(payload)
         if text:
@@ -1204,6 +1207,9 @@ def mask_leaf(value: object) -> object:
         return value
     if isinstance(value, str):
         return _mask_str(value)
+    if isinstance(value, enum.Enum):
+        masked = mask_leaf(value.value)  # str(member) hides the value
+        return value if masked == value.value else masked
     text = safe_str(value)
     if text is None:
         return "[REDACTED]"

@@ -705,3 +705,36 @@ def test_gateway_fail_closed(broken_model, monkeypatch):
                                        {"to": "a@b.c", "subject": "s", "body": "hi"})
     anyio.run(main)
     assert hr_server.OUTBOX == []
+
+
+# Enum members and payloads that contain themselves
+# ---------------------------------------------------------------------------
+def test_enum_member_is_checked_by_its_value():
+    import enum
+
+    class Contact(enum.Enum):
+        OWNER = "asha.verma@example.com"
+        KIND = "billing"
+
+    out = redact_payload({"to": Contact.OWNER, "kind": Contact.KIND}, "external")
+    assert "asha.verma@example.com" not in repr(out)
+    assert isinstance(out["to"], str)
+    assert out["kind"] is Contact.KIND  # nothing sensitive: member kept
+
+
+def test_payload_that_contains_itself_is_refused():
+    import pytest
+
+    loop = {"email": "asha.verma@example.com"}
+    loop["self"] = loop
+    with pytest.raises(ValueError, match="contains itself"):
+        redact_payload(loop, "external")
+
+
+def test_enum_member_is_masked_in_span_attributes():
+    import enum
+
+    class Contact(enum.Enum):
+        OWNER = "asha.verma@example.com"
+
+    assert "asha.verma@example.com" not in repr(detect.mask_leaf(Contact.OWNER))
