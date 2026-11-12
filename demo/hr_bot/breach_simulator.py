@@ -70,8 +70,9 @@ def main() -> int:
         pass
 
     print(f"\nexternal API ack: {ack}")
-    print("\nInspect in SigNoz: service=taintward-hr-bot, "
-          "filter taintward.violation=true (should see call_external_api + write_log)")
+    print("\nInspect the trace in your trace viewer (Jaeger at http://localhost:16686 in the "
+          "docker quickstart, or SigNoz): service=taintward-hr-bot, filter "
+          "taintward.violation=true (should see ask_llm, call_external_api and write_log)")
     return 0
 
 

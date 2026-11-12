@@ -196,6 +196,9 @@ _analyzer = None  # lazily built; expensive (loads spaCy model)
 _analyzer_lock = threading.Lock()
 
 
+_NER_MODEL = "en_core_web_sm"
+
+
 def _get_analyzer():
     """Build (once) and return the Presidio AnalyzerEngine with secrets added.
 
@@ -213,14 +216,27 @@ def _get_analyzer():
     with _analyzer_lock:
         if _analyzer is not None:
             return _analyzer
+        # Presidio downloads a missing model with pip in the middle of the
+        # first call, and spaCy ends the process (SystemExit) when that fails:
+        # no network, no pip in the environment. So a missing model is an
+        # ordinary error here, and detection goes on in regex-only mode.
+        import spacy.util
         from presidio_analyzer import AnalyzerEngine  # local import: heavy
         from presidio_analyzer.nlp_engine import NlpEngineProvider
 
+        if not spacy.util.is_package(_NER_MODEL):
+            raise RuntimeError(
+                f"the spaCy model {_NER_MODEL} is not installed "
+                f"(install it with: python -m spacy download {_NER_MODEL})")
         config = {
             "nlp_engine_name": "spacy",
-            "models": [{"lang_code": "en", "model_name": "en_core_web_sm"}],
+            "models": [{"lang_code": "en", "model_name": _NER_MODEL}],
         }
-        engine = NlpEngineProvider(nlp_configuration=config).create_engine()
+        try:
+            engine = NlpEngineProvider(nlp_configuration=config).create_engine()
+        except SystemExit as exc:  # a library must never end the caller's process
+            raise RuntimeError(f"loading the spaCy model {_NER_MODEL} ended with "
+                               f"SystemExit({exc.code})") from exc
         analyzer = AnalyzerEngine(nlp_engine=engine)
         for rec in _build_secret_recognizers() + build_extra_recognizers():
             analyzer.registry.add_recognizer(rec)

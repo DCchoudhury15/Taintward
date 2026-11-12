@@ -29,6 +29,13 @@
   taint (`client:<name>`) as its session id. A `DELETE` with that id cleared
   the taint kept per client (gap G4).
 - The data block embedded in the HTML report writes `<` as `\u003c`.
+- A fresh install without the spaCy model no longer ends your program.
+  Presidio tried to download the missing `en_core_web_sm` with pip during
+  the first call, and when that failed (no network, or no pip in the
+  environment) spaCy ended the process with exit code 2. Nothing is
+  downloaded at run time now: detection goes on with patterns, checksums
+  and key context, `tw.health()` reports `regex_only`, and the log says how
+  to install the model.
 - A value that makes a recognizer raise no longer switches redaction off.
   A 16-character string shaped like an Italian fiscal code with digits of
   another script (for example Arabic-Indic) raised inside the check digit

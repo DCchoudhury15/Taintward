@@ -378,3 +378,32 @@ def test_a_table_of_numbers_is_not_slow():
     t = time.perf_counter()
     assert detect.detect_text(text) == []
     assert time.perf_counter() - t < 1.5
+
+
+# ---------------------------------------------------------------------------
+# a fresh install without the spaCy model
+# ---------------------------------------------------------------------------
+
+def test_missing_spacy_model_falls_back_and_never_exits(monkeypatch):
+    """Presidio tried to download the missing model with pip; when that
+    failed (no network, no pip) spaCy ended the caller's process."""
+    import spacy.cli
+    import spacy.util
+
+    def no_download(*a, **k):
+        raise SystemExit(2)     # what spaCy does when pip fails
+
+    monkeypatch.setattr(spacy.util, "is_package", lambda name: False)
+    monkeypatch.setattr(spacy.cli, "download", no_download)
+    monkeypatch.setattr(detect, "_analyzer", None)
+    detect._reset_engine()
+    try:
+        dets = detect.detect_text(f"ssn {SSN}, mail {EMAIL}")     # must not raise SystemExit
+        h = detect.health()
+        assert h["mode"] == "regex_only" and h["ok"] is False
+        assert "python -m spacy download en_core_web_sm" in h["error"]
+        assert {"US_SSN", "EMAIL_ADDRESS"} <= {d.entity_type for d in dets}
+    finally:
+        monkeypatch.undo()
+        detect._reset_engine()
+    assert detect.health()["mode"] == "full"
