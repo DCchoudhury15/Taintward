@@ -194,7 +194,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default="-")
     ap.add_argument("--prompts", help="write test prompts for the paths that never ran (JSONL)")
     args = ap.parse_args(argv)
+    try:
+        return _run(args)
+    except (OSError, ValueError) as exc:
+        # a missing file, JSON that does not parse, a bad gateway config
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
+
+def _run(args: argparse.Namespace) -> int:
     tools_doc = json.loads(Path(args.tools).read_text())
     if args.gateway_config:
         policy = policy_from_gateway(args.gateway_config)

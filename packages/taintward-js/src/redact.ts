@@ -17,6 +17,7 @@ import {
   detectPayload,
   detectText,
   isWalkableObject,
+  isWholeValue,
   leafText,
   type Detection,
   type Sensitivity,
@@ -93,10 +94,14 @@ export function redactText(text: string, spans: readonly Span[], destination: st
   let out = text;
   for (const d of kept.reverse()) {
     const original = text.slice(d.start, d.end);
+    // A value that was not scanned (too large, or a recognizer threw on it)
+    // is masked, never passed raw or turned into an FF1 token as a whole.
     const redacted =
       opts.placeholders && destination === DEST_LLM
         ? opts.placeholders.placeholderFor(original, d.entityType, d.sensitivity)
-        : redactValue(original, d.sensitivity, destination, opts);
+        : isWholeValue(d.entityType)
+          ? MASK_TOKEN.secret
+          : redactValue(original, d.sensitivity, destination, opts);
     out = out.slice(0, d.start) + redacted + out.slice(d.end);
   }
   return out;

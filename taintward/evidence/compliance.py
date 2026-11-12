@@ -297,9 +297,16 @@ def _evidence(key: str, data: dict) -> str:
         ev = data.get("evidence_log")
         if not ev:
             return "Section 8: no evidence log was given for this report"
-        ok = (ev.get("verification") or {}).get("ok")
-        return (f"Section 8: evidence log with {ev.get('records')} record(s), "
-                + ("verified" if ok else "verification failed"))
+        ver = ev.get("verification")
+        if ver is None:
+            # no public key was given (or no checkpoint exists yet): nothing
+            # was checked, which is not the same as a failed check
+            state = "not verified in this report"
+        else:
+            state = "verified" if ver.get("ok") else "verification failed"
+        n = ev.get("records")
+        size = "that could not be read" if n is None else f"with {n} record(s)"
+        return f"Section 8: evidence log {size}, {state}"
     return ""
 
 

@@ -88,7 +88,11 @@ const EMAIL = regexRecognizer(
   [
     {
       re: new RegExp(
-        `${B}((([${EMAIL_CH}])|([${EMAIL_CH}][${EMAIL_CH}.]{0,}[${EMAIL_CH}]))[@]${W}+(?:-+${W}+)*(?:\\.${W}+(?:-+${W}+)*)+)${B}`,
+        // The part before "@" is at most 256 characters here (Presidio's
+        // pattern has no limit). Without the limit every start position scans
+        // to the end of a long run with no "@", which is quadratic: 80 KB of
+        // "1-1-1-..." took seconds. A real local part is 64 at most.
+        `${B}((([${EMAIL_CH}])|([${EMAIL_CH}][${EMAIL_CH}.]{0,254}[${EMAIL_CH}]))[@]${W}+(?:-+${W}+)*(?:\\.${W}+(?:-+${W}+)*)+)${B}`,
         I,
       ),
       score: 0.5,

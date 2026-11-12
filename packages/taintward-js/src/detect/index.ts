@@ -43,8 +43,34 @@ export function fingerprint(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 8);
 }
 
+/** A value longer than the size limit: not scanned, treated as one secret. */
+export const OVERSIZE = "OVERSIZE_VALUE";
+/** A value a recognizer threw on: not fully scanned, treated as one secret. */
+export const UNSCANNED = "UNSCANNED_VALUE";
+const MAX_CHARS_DEFAULT = 500_000;
+
+/**
+ * Longest value that is scanned (TAINTWARD_DETECT_MAX_CHARS, default 500000,
+ * 0 = no limit), the same setting as the Python SDK. Read on each call.
+ */
+export function maxChars(): number {
+  const raw = typeof process !== "undefined" ? process.env?.TAINTWARD_DETECT_MAX_CHARS : undefined;
+  if (!raw) return MAX_CHARS_DEFAULT;
+  const n = Number(raw.trim());
+  return Number.isInteger(n) ? n : MAX_CHARS_DEFAULT;
+}
+
+/** True for the two "whole value" types above. */
+export function isWholeValue(entityType: string | undefined): boolean {
+  return entityType === OVERSIZE || entityType === UNSCANNED;
+}
+
+function wholeValue(text: string, entityType: string): Detection[] {
+  return [{ entityType, start: 0, end: text.length, score: 1.0, sensitivity: "secret", fingerprint: "" }];
+}
+
 export function classify(entityType: string): Sensitivity {
-  return SECRET_TYPES.has(entityType) ? "secret" : "pii";
+  return SECRET_TYPES.has(entityType) || isWholeValue(entityType) ? "secret" : "pii";
 }
 
 interface Hit extends RawHit {
@@ -156,11 +182,19 @@ export interface DetectOptions {
   threshold?: number;
 }
 
-/** Detect sensitive spans in `text`. Never throws; returns [] on error. */
+/**
+ * Detect sensitive spans in `text`. Never throws. A value over the size
+ * limit is not scanned and comes back as one OVERSIZE_VALUE span over all of
+ * it. When a recognizer throws, the value comes back as one UNSCANNED_VALUE
+ * span: text that breaks a recognizer must not get the values next to it
+ * through unredacted. Both are secrets, so the value is masked whole.
+ */
 export function detectText(text: string, opts: DetectOptions = {}): Detection[] {
   if (typeof text !== "string" || text.length === 0) return [];
   const key = opts.key ?? "";
   const threshold = opts.threshold ?? THRESHOLD;
+  const limit = maxChars();
+  if (limit > 0 && text.length > limit) return wholeValue(text, OVERSIZE);
   try {
     const n = normalizeForDetection(text);
     const hits: Hit[] = [];
@@ -172,7 +206,7 @@ export function detectText(text: string, opts: DetectOptions = {}): Detection[] 
     }
     return finish(text, n, key, hits, threshold);
   } catch {
-    return [];
+    return wholeValue(text, UNSCANNED);
   }
 }
 

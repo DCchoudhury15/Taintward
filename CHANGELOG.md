@@ -29,6 +29,24 @@
   taint (`client:<name>`) as its session id. A `DELETE` with that id cleared
   the taint kept per client (gap G4).
 - The data block embedded in the HTML report writes `<` as `\u003c`.
+- A value that makes a recognizer raise no longer switches redaction off.
+  A 16-character string shaped like an Italian fiscal code with digits of
+  another script (for example Arabic-Indic) raised inside the check digit
+  code, and the whole payload it was in, with every SSN and email next to
+  it, went out unchanged. The check is fixed, and any value a recognizer
+  raises on is now masked whole (`UNSCANNED_VALUE`, `<UNSCANNED_1>` for the
+  model) while the other values of the payload are scanned as usual. A
+  Presidio pattern recognizer that raised on a payload used to be skipped
+  for every value in it without a log line; it now runs on each value
+  alone. An ERROR names the recognizer, never the text.
+- TypeScript: the detector returned "nothing found" when a recognizer
+  threw, so the value went out as it was. It is masked whole now, the same
+  as in Python.
+- TypeScript: `TAINTWARD_DETECT_MAX_CHARS` (default 500000, `0` = off), the
+  same size limit as the Python SDK (gap G10). A longer value is masked
+  whole (`OVERSIZE_VALUE`, `<TOO_LARGE_1>` for the model). There was no
+  limit, and the email pattern was quadratic on long text with no `@`
+  (80 KB of `1-1-1-...` took over 3 seconds); it is linear now.
 - More link forms keep their placeholders (gap G1, Python and TypeScript):
   a host written without a scheme (`//attacker.example/?d=<SSN_1>`), a
   markdown reference definition (`[1]: ...`), an HTML attribute without
@@ -242,6 +260,28 @@
   Vault KV.
 - Checkpoint verification reports a malformed shard entry instead of
   stopping with an error.
+- `taintward-evidence record` into a single-file log now uses
+  `--clickhouse-url`, `--clickhouse-container`, the user and password
+  flags and every `--service` (it used `docker exec` and the first service
+  only), and records calls flagged by the SDK as well as by the collector,
+  the same as with `--evidence-dir`. `--checkpoint` without
+  `--evidence-dir` is an error instead of being ignored.
+- `taintward-evidence`, `taintward-report`, `taintward-audit` and
+  `taintward-fix` print one `error:` line for a trace source that cannot
+  be reached, a bad `--since`, a missing file or a file that does not
+  parse, instead of a traceback.
+- The compliance table in a report said "verification failed" for an
+  evidence log that was not checked (no `--public-key`, or a single-file
+  log). It now says "not verified in this report".
+- `taintward-fix` finds calls made on a client object
+  (`client.chat.completions.create`, `client.responses.create`,
+  `client.messages.create`, also `.parse`, `.stream` and
+  `.embeddings.create`); it only knew names with `openai` or `anthropic`
+  in them. A client wrapped with `protect_openai` or `protect_anthropic`
+  in the same file is not reported. The suggested fix uses the current
+  names.
+- `taintward-audit --tools` reads a saved JSON-RPC response
+  (`{"result": {"tools": [...]}}`); it used to find no tools in it.
 
 ### Release
 

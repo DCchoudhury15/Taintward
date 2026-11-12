@@ -185,6 +185,11 @@ tokenizer.reverse(row.ssn); // "234-12-1234"
   the final message, with the real values. The Python SDK keeps that
   snapshot out; this one does not yet.
 - **File parts** (images, PDFs) in the prompt are not scanned.
+- **Very large values are masked whole.** A string over
+  `TAINTWARD_DETECT_MAX_CHARS` characters (default 500000, `0` turns the
+  limit off) is not scanned: tools get `[SECRET]`, the model gets
+  `<TOO_LARGE_1>`. A value a recognizer fails on is handled the same way
+  (`<UNSCANNED_1>`).
 - **Placeholders reveal type and count.** `<EMAIL_2>` tells the model there
   are two emails.
 

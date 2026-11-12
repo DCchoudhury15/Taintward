@@ -128,6 +128,7 @@ _LABELS = {
     "IN_AADHAAR": "AADHAAR",
     "IN_PAN": "PAN",
     "OVERSIZE_VALUE": "TOO_LARGE",
+    "UNSCANNED_VALUE": "UNSCANNED",
 }
 
 # Labels that look like Taintward placeholders even when this map does not

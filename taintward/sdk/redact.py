@@ -59,6 +59,8 @@ from taintward.sdk.vault import MemoryVault, Vault, get_vault
 # detect.OVERSIZE: a value too large to scan (gap G10). Not imported: detect
 # is loaded lazily here.
 _OVERSIZE = "OVERSIZE_VALUE"
+# detect.UNSCANNED: a value a recognizer raised on. Masked whole the same way.
+_UNSCANNED = "UNSCANNED_VALUE"
 
 log = logging.getLogger("taintward.redact")
 # One line per reversal (gap G11): who turned a token back into a value.
@@ -340,8 +342,9 @@ class Redactor:
             if placeholders is not None and destination == DEST_LLM:
                 redacted = placeholders.placeholder_for(
                     original, getattr(d, "entity_type", None), d.sensitivity)
-            elif getattr(d, "entity_type", None) == _OVERSIZE:
-                # too large to scan (gap G10): masked, never FF1 over the whole value
+            elif getattr(d, "entity_type", None) in (_OVERSIZE, _UNSCANNED):
+                # not scanned (too large, gap G10, or a recognizer raised on
+                # it): masked, never FF1 over the whole value
                 redacted = _MASK_TOKEN[Sensitivity.SECRET]
             else:
                 redacted = self.redact_value(original, d.sensitivity, destination,

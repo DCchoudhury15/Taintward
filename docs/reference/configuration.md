@@ -41,7 +41,7 @@ runs after `import taintward`.
 | `TAINTWARD_LOCATION_ALONE` | flag | off | `1`: a place name (`LOCATION`) with nothing else sensitive in the same value counts as PII, as before 0.4. Off: it counts only next to other sensitive data; street addresses always count. Same as `detect.set_location_alone()`. Read at import | `taintward/sdk/detect.py` |
 | `TAINTWARD_DETECT_CACHE_SIZE` | integer | `4096` | entries in the per-value detection cache (hashes only, never raw text). `0` turns the cache off | `taintward/sdk/detect.py` |
 | `TAINTWARD_NER_MULTILINGUAL_MODEL` | string | `xx_ent_wiki_sm` | spaCy model for names and places in text that is not English (a function-word count decides). Used when it is installed; `off` turns it off and all text uses `en_core_web_sm`. Read when the detector loads | `taintward/sdk/detect.py` |
-| `TAINTWARD_DETECT_MAX_CHARS` | integer | `500000` | longest value that is scanned. A longer value is not scanned and is treated as one secret (`OVERSIZE_VALUE`): masked for tools and logs, `<TOO_LARGE_1>` for the model. `0` turns the limit off. Read on each call | `taintward/sdk/detect.py` |
+| `TAINTWARD_DETECT_MAX_CHARS` | integer | `500000` | longest value that is scanned. A longer value is not scanned and is treated as one secret (`OVERSIZE_VALUE`): masked for tools and logs, `<TOO_LARGE_1>` for the model. `0` turns the limit off. Read on each call. The TypeScript SDK reads the same variable | `taintward/sdk/detect.py`, `packages/taintward-js/src/detect/index.ts` |
 
 ### Keys and the token vault
 

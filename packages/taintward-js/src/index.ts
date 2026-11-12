@@ -8,7 +8,9 @@
 
 export {
   MASK_TOKEN,
+  OVERSIZE,
   THRESHOLD,
+  UNSCANNED,
   classify,
   detectAll,
   detectPayload,
@@ -16,6 +18,7 @@ export {
   fingerprint,
   maskString,
   maskText,
+  maxChars,
   normalizeForDetection,
   type DetectOptions,
   type Detection,

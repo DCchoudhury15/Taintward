@@ -1119,9 +1119,15 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         ap.error(str(exc))
 
-    start_ns, end_ns = window_from_args(args)
-    src = source_from_args(args)
-    spans = src.fetch(start_ns, end_ns)
+    try:
+        start_ns, end_ns = window_from_args(args)
+        src = source_from_args(args)
+        spans = src.fetch(start_ns, end_ns)
+    except (ValueError, OSError, RuntimeError, argparse.ArgumentTypeError) as exc:
+        # a bad --since/--start, a file that is not OTLP JSON, a trace store
+        # that cannot be reached: one line, not a traceback
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     if args.tenant is not None:
         spans = [s for s in spans if span_tenant(s) == args.tenant]
     data = build_report(

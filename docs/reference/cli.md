@@ -104,7 +104,7 @@ selects the single-file log for the commands that use it. Commands that take
 
 | command | options | does |
 |---|---|---|
-| `record` | `--source {clickhouse,jaeger,otlp-file}` (default `clickhouse`), `--service` (repeat), `--since-mins N` (default `10`), `--jaeger-url`, `--jaeger-search-depth`, `--otlp-file`, `--clickhouse-url`, `--clickhouse-container`, `--clickhouse-user`, `--clickhouse-password`, `--evidence-dir`, `--tenant` (default `default`), `--checkpoint`, `--private-key` | copy recent policy violations into the log; without `--evidence-dir` the single-file log is used; duplicates are skipped |
+| `record` | `--source {clickhouse,jaeger,otlp-file}` (default `clickhouse`), `--service` (repeat), `--since-mins N` (default `10`), `--jaeger-url`, `--jaeger-search-depth`, `--otlp-file`, `--clickhouse-url`, `--clickhouse-container`, `--clickhouse-user`, `--clickhouse-password`, `--evidence-dir`, `--tenant` (default `default`), `--checkpoint` (needs `--evidence-dir`), `--private-key` | copy recent policy violations into the log; without `--evidence-dir` the single-file log is used; duplicates are skipped |
 | `count` | | number of records in the single-file log |
 | `root` | `--size N` | Merkle root (hex) of the first `N` records, or of all |
 | `shards` | `--evidence-dir` (required) | list shards with size and root |
@@ -137,12 +137,21 @@ taintward-fix FILE.py [FILE.py ...]
 ```
 
 Walks the Python AST and reports calls to external sinks (`*.post`,
-`*.put`, `*.patch`, `*.delete`, `*.urlopen`) and LLM clients (dotted names
-with `openai` or `anthropic` ending in `.create`) that are not inside a
-function decorated with `@instrument_tool`, with a one-line fix for each.
+`*.put`, `*.patch`, `*.delete`, `*.urlopen`) and to LLM clients: dotted
+names with `openai` or `anthropic` ending in `.create`, and calls on a
+client object such as `client.chat.completions.create`,
+`client.responses.create` or `client.messages.create` (also `.parse`,
+`.stream` and `.embeddings.create`). A call is not reported when it is
+inside a function decorated with `@instrument_tool`, or made on a client
+the same file wrapped with `protect_openai` or `protect_anthropic`. Each
+finding comes with a one-line fix.
 
-Exit codes: `0` nothing found, `1` findings printed, `2` no file given.
-There are no options yet; `--help` is not supported.
+It reads one file at a time and does not follow imports, so a client that
+is protected in another module is still reported.
+
+Exit codes: `0` nothing found, `1` findings printed, `2` no file given or
+a file that cannot be read or parsed. There are no options; `-h` and
+`--help` print the usage line.
 
 ```bash
 taintward-fix taintward/fix_suggester/sample_buggy_agent.py

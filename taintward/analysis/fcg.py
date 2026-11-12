@@ -123,6 +123,8 @@ Policy = Callable[[str], tuple[str, str, bool]]
 def load_tools(doc: Any, policy: Policy) -> list[Tool]:
     """Tools from an MCP tools/list result (``{"tools": [...]}`` or a list).
     ``policy(name) -> (destination, jurisdiction, mapped)``."""
+    if isinstance(doc, Mapping) and isinstance(doc.get("result"), Mapping):
+        doc = doc["result"]  # a saved JSON-RPC response: {"result": {"tools": [...]}}
     items = doc.get("tools", []) if isinstance(doc, Mapping) else doc
     tools = []
     for t in items or []:

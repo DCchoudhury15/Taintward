@@ -79,7 +79,9 @@ _CF_ODD = dict(zip("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
 def codice_fiscale_ok(code: str) -> bool:
     """Italian fiscal code: 15 characters plus a check letter."""
     code = code.upper()
-    if len(code) != 16:
+    # ASCII letters and digits only: the pattern's \d also matches digits of
+    # other scripts, which are not in the table (and are not a fiscal code).
+    if len(code) != 16 or any(ch not in _CF_ODD for ch in code):
         return False
     total = 0
     for i, ch in enumerate(code[:15]):

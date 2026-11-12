@@ -441,7 +441,7 @@ def _name_filter(seg: "_Segment", a: int, b: int) -> tuple[int, int] | None:
 class _Segment:
     """One string value being analyzed, with its JSON key (may be "")."""
 
-    __slots__ = ("text", "key", "norm", "pmap", "results", "lower_words")
+    __slots__ = ("text", "key", "norm", "pmap", "results", "lower_words", "failed")
 
     def __init__(self, text: str, key: str):
         self.text = text
@@ -449,6 +449,9 @@ class _Segment:
         self.norm, self.pmap = _normalize_for_detection(text)
         self.results: list[tuple] = []  # (entity_type, start, end, score, context_words)
         self.lower_words: frozenset | None = None  # see _lower_words
+        # A recognizer raised on this value, so its result is not complete:
+        # the value is masked whole (see _unscanned).
+        self.failed = False
 
 
 def _best_score(rec, has_context: bool) -> float:
@@ -568,11 +571,14 @@ class _Engine:
                 group, text, starts = joined_all
             if not group:
                 continue
+            redo: set[int] = set()
             try:
                 found = self._match(rec, text)
-            except Exception:
-                continue
-            redo: set[int] = set()
+            except Exception:  # noqa: BLE001
+                # It raised on the joined text. Run it on each value alone, so
+                # one bad value cannot switch this recognizer off for the rest.
+                found = ()
+                redo.update(range(len(group)))
             for etype, a, b, score in found:
                 i = bisect.bisect_right(starts, a) - 1
                 seg = group[i]
@@ -588,7 +594,8 @@ class _Engine:
                 seg = group[i]
                 try:
                     again = self._match(rec, seg.norm)
-                except Exception:
+                except Exception as exc:  # noqa: BLE001
+                    _recognizer_failed(seg, getattr(rec, "name", type(rec).__name__), exc)
                     continue
                 have = {(x[0], x[1], x[2]) for x in seg.results}
                 for etype, a, b, score in again:
@@ -690,9 +697,23 @@ class _Engine:
     def run_context(segs: list[_Segment]) -> None:
         for s in segs:
             for fn in CONTEXT_RECOGNIZERS:
-                for etype, a, b, score in fn(s.norm, s.key):
+                try:
+                    found = fn(s.norm, s.key)
+                except Exception as exc:  # noqa: BLE001
+                    _recognizer_failed(s, fn.__name__, exc)
+                    continue
+                for etype, a, b, score in found:
                     if etype not in _noise_types:
                         s.results.append((etype, a, b, score, ()))
+
+
+def _recognizer_failed(seg: _Segment, name: str, exc: BaseException) -> None:
+    """A recognizer raised on this value. Text that makes a recognizer raise
+    could otherwise be used to get the values next to it through unscanned,
+    so the value is marked and later masked whole. The text is not logged."""
+    seg.failed = True
+    log.error("taintward: recognizer %s raised %s on a value of %d characters; the value "
+              "is masked whole instead of scanned", name, type(exc).__name__, len(seg.text))
 
 
 def _context_hit(seg: _Segment, start: int, ctx: tuple) -> bool:
@@ -917,6 +938,14 @@ def max_chars() -> int:
         return _MAX_CHARS_DEFAULT
 
 
+# A value on which a recognizer raised. Masked whole, like an oversize value.
+UNSCANNED = "UNSCANNED_VALUE"
+
+
+def _unscanned(text: str) -> list[Detection]:
+    return [Detection(UNSCANNED, 0, len(text), 1.0, Sensitivity.SECRET, "")]
+
+
 def _oversize(text: str) -> list[Detection]:
     log.warning("taintward: a value of %d characters is over TAINTWARD_DETECT_MAX_CHARS "
                 "(%d); it is masked whole instead of scanned", len(text), max_chars())
@@ -1033,6 +1062,9 @@ def _analyze(items: list[tuple[str, str]], threshold: float) -> list[list[Detect
             engine.nlp = None
             _degrade(exc)
         for i, seg, ck in todo:
+            if seg.failed:
+                out[i] = _unscanned(seg.text)  # not cached: tried again next time
+                continue
             dets = _finish(seg, threshold)
             _cache_put(ck, tuple(dets))
             out[i] = dets

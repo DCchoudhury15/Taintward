@@ -62,7 +62,6 @@ from taintward.evidence.merkle import (
     verify_consistency,
     verify_inclusion,
 )
-from taintward.evidence.recorder import record_violations
 
 # Current directory by default, never inside the installed package.
 DEFAULT_LOG = Path(os.environ.get("TAINTWARD_EVIDENCE_LOG", "violations.logl"))
@@ -92,6 +91,8 @@ def _record_from_source(args) -> int:
     start_ns = end_ns - int(args.since_mins) * 60 * 1_000_000_000
     if not args.service:
         args.service = ["taintward-hr-bot"]
+    if args.checkpoint and not args.evidence_dir:
+        raise ValueError("--checkpoint needs --evidence-dir (checkpoints sign a sharded log)")
     src = source_from_args(args)
     spans = sorted((s for s in src.fetch(start_ns, end_ns) if is_tool_call(s) and is_violation(s)),
                    key=lambda x: x.start_ns)
@@ -257,7 +258,10 @@ def _sharded(args) -> int | None:
         if not done:
             print("nothing to repair")
         return 0
-    if args.cmd == "record" and (args.source != "clickhouse" or args.evidence_dir):
+    if args.cmd == "record":
+        # every source goes the same way, so the ClickHouse flags (--clickhouse-url,
+        # --clickhouse-container, ...), every --service and the SDK's own
+        # violation flag are used for the single-file log too
         return _record_from_source(args)
     return None
 
@@ -266,12 +270,7 @@ def _single(args) -> int:
     """Commands on the single-file log."""
     log = _open(Path(args.log_file))
 
-    if args.cmd == "record":
-        service = args.service[0] if args.service else "taintward-hr-bot"
-        n = record_violations(log, service=service, since_minutes=args.since_mins)
-        print(f"recorded {n} new violation(s); log now has {len(log)} leaf/leaves")
-        print(f"root: {log.root().hex()}")
-    elif args.cmd == "root":
+    if args.cmd == "root":
         print((log.root() if args.size is None else log.prefix_root(args.size)).hex())
     elif args.cmd == "count":
         print(len(log))
@@ -337,7 +336,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         rc = _sharded(args)
-    except (ValueError, OSError, IndexError) as e:
+    except (ValueError, OSError, IndexError, RuntimeError) as e:
+        # RuntimeError: the trace source could not be read (Jaeger, ClickHouse)
         print(f"error: {e}", file=sys.stderr)
         return 1
     if rc is not None:
