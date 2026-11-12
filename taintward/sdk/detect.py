@@ -453,6 +453,31 @@ class _Segment:
         # the value is masked whole (see _unscanned).
         self.failed = False
 
+    # The same small interface as _Piece, so run_patterns can take either.
+    off = 0
+
+    @property
+    def owner(self) -> "_Segment":
+        return self
+
+    def add(self, etype: str, a: int, b: int, score: float, ctx: tuple) -> None:
+        self.results.append((etype, a, b, score, ctx))
+
+
+class _Piece:
+    """A part of a value that one recognizer is run on. Hits go to the value
+    it was cut from, with their offsets moved back."""
+
+    __slots__ = ("norm", "owner", "off")
+
+    def __init__(self, owner: _Segment, start: int, end: int):
+        self.owner = owner
+        self.off = start
+        self.norm = owner.norm[start:end]
+
+    def add(self, etype: str, a: int, b: int, score: float, ctx: tuple) -> None:
+        self.owner.results.append((etype, a + self.off, b + self.off, score, ctx))
+
 
 def _best_score(rec, has_context: bool) -> float:
     """Highest score a recognizer can ever give a match. A plain pattern
@@ -565,6 +590,13 @@ class _Engine:
                     dsegs = [s for s in segs if _PHONE_HINT.search(s.norm)]
                     joined_digits = (dsegs, *self._join(dsegs))
                 group, text, starts = joined_digits
+                if ctx and getattr(rec, "SCORE", 1.0) < threshold:
+                    # Its hits only count next to a context word (or under a
+                    # context key), so only those parts of each value are
+                    # scanned. A table of numbers with no phone word in it
+                    # cost seconds per 100 KB here for nothing.
+                    group = [p for s in group for p in _context_pieces(s, ctx)]
+                    text, starts = self._join(group)
             else:
                 if joined_all is None:
                     joined_all = (segs, *self._join(segs))
@@ -589,18 +621,18 @@ class _Engine:
                     redo.add(i)
                     redo.update(range(i + 1, min(len(group), bisect.bisect_right(starts, b))))
                     continue
-                seg.results.append((etype, a - s0, b - s0, score, ctx))
+                seg.add(etype, a - s0, b - s0, score, ctx)
             for i in sorted(redo):
                 seg = group[i]
                 try:
                     again = self._match(rec, seg.norm)
                 except Exception as exc:  # noqa: BLE001
-                    _recognizer_failed(seg, getattr(rec, "name", type(rec).__name__), exc)
+                    _recognizer_failed(seg.owner, getattr(rec, "name", type(rec).__name__), exc)
                     continue
-                have = {(x[0], x[1], x[2]) for x in seg.results}
+                have = {(x[0], x[1], x[2]) for x in seg.owner.results}
                 for etype, a, b, score in again:
-                    if (etype, a, b) not in have:
-                        seg.results.append((etype, a, b, score, ctx))
+                    if (etype, a + seg.off, b + seg.off) not in have:
+                        seg.add(etype, a, b, score, ctx)
 
     # -- spaCy NER -----------------------------------------------------------
     def run_ner(self, segs: list[_Segment]) -> None:
@@ -705,6 +737,44 @@ class _Engine:
                 for etype, a, b, score in found:
                     if etype not in _noise_types:
                         s.results.append((etype, a, b, score, ()))
+
+
+# A hit can start this far after the end of its context word (_context_hit
+# looks _CONTEXT_CHARS back from the hit), and the piece then runs on to
+# the end of the number.
+_PIECE_TAIL = 48
+_PIECE_EXTEND = 64
+
+
+def _context_pieces(seg: _Segment, ctx: tuple) -> list:
+    """The parts of a value where a hit of a context-only recognizer can
+    count: all of it under a context key, else from each context word to a
+    little past where _context_hit would still see that word. Never fewer
+    hits than scanning the whole value and filtering with _context_hit."""
+    norm = seg.norm
+    if seg.key:
+        kwords = [w.lower() for w in re.split(r"[^A-Za-z0-9#]+", seg.key) if w]
+        kwords.append(seg.key.lower())
+        if any(c in w for c in ctx for w in kwords):
+            return [seg]
+    spans: list[list[int]] = []
+    n = len(norm)
+    for m in _CONTEXT_WORD.finditer(norm):
+        word = m.group(0).lower()
+        if not any(c in word for c in ctx):
+            continue
+        end = min(n, m.end() + _CONTEXT_CHARS + _PIECE_TAIL)
+        # do not cut a number in two: go on to the next letter or line end
+        stop = min(n, end + _PIECE_EXTEND)
+        while end < stop and not norm[end].isalpha() and norm[end] != "\n":
+            end += 1
+        if spans and m.start() <= spans[-1][1]:
+            spans[-1][1] = max(spans[-1][1], end)
+        else:
+            spans.append([m.start(), end])
+    if len(spans) == 1 and spans[0] == [0, n]:
+        return [seg]
+    return [_Piece(seg, a, b) for a, b in spans]
 
 
 def _recognizer_failed(seg: _Segment, name: str, exc: BaseException) -> None:

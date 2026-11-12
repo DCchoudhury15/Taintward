@@ -312,7 +312,7 @@ Taintward handles it.
 | R | a call is made that no span records | open. Calls outside wrapped tools and protected clients are invisible |
 | I | sensitive value reaches an egress tool or the LLM | mitigated for detected and known values; see bypasses |
 | I | placeholder restore puts real values into a link in the final answer | mitigated: no restore inside link and image addresses (G1, `tests/test_link_restore.py`) |
-| D | huge or slow payloads | mitigated: a value over `TAINTWARD_DETECT_MAX_CHARS` (default 500000 characters) is not scanned and is masked whole (G10, `tests/test_detect_size_cap.py`). Below the limit detection is linear, about 15 ms per KB of dense prose |
+| D | huge or slow payloads | mitigated: a value over `TAINTWARD_DETECT_MAX_CHARS` (default 500000 characters) is not scanned and is masked whole (G10, `tests/test_detect_size_cap.py`). Below the limit detection is linear, about 15 ms per KB of dense prose and about 2 ms per KB of plain numbers |
 | D | a value makes a recognizer raise | mitigated: that value is masked whole (`UNSCANNED_VALUE`, placeholder `<UNSCANNED_1>`), the other values of the payload are scanned as usual, and an ERROR names the recognizer (`tests/test_readthrough_fixes.py`, `packages/taintward-js/test/failsafe.test.ts`). Before 0.4.0 the whole payload went out unredacted |
 | D | Presidio or spaCy fail to load | mitigated: regex fallback and `tw.health()`; `TAINTWARD_FAIL_CLOSED=1` refuses non-internal calls (`tests/test_review_fixes.py::test_degraded_falls_back_to_regex`, `::test_fail_closed_blocks_non_internal_calls`). Off by default |
 | E | `TAINTWARD_DRY_RUN=1` or an allow list turns redaction off | open by design: anyone who can set env vars or edit the destination map controls redaction |

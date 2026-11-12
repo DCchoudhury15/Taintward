@@ -49,7 +49,7 @@ Data source:
 | option | default | meaning |
 |---|---|---|
 | `--source` | `jaeger` | `jaeger`, `otlp-file` or `clickhouse` (SigNoz) |
-| `--service SERVICE` | none | service name; repeat for several. With `jaeger` and no `--service`, `taintward-hr-bot` (the demo) is used |
+| `--service SERVICE` | none | service name; repeat for several. Required with `jaeger`; without it ClickHouse and OTLP files are read for every service |
 | `--jaeger-url URL` | `http://localhost:16686` | Jaeger query API |
 | `--jaeger-search-depth N` | `1000` | maximum traces per Jaeger query; a window that hits it is split in two and fetched again |
 | `--otlp-file PATH` | none | OTLP JSON lines file or directory (`*.json`, `*.jsonl`, `*.json.gz`); repeat for several |
@@ -104,7 +104,7 @@ selects the single-file log for the commands that use it. Commands that take
 
 | command | options | does |
 |---|---|---|
-| `record` | `--source {clickhouse,jaeger,otlp-file}` (default `clickhouse`), `--service` (repeat), `--since-mins N` (default `10`), `--jaeger-url`, `--jaeger-search-depth`, `--otlp-file`, `--clickhouse-url`, `--clickhouse-container`, `--clickhouse-user`, `--clickhouse-password`, `--evidence-dir`, `--tenant` (default `default`), `--checkpoint` (needs `--evidence-dir`), `--private-key` | copy recent policy violations into the log; without `--evidence-dir` the single-file log is used; duplicates are skipped |
+| `record` | `--source {clickhouse,jaeger,otlp-file}` (default `clickhouse`), `--service` (repeat; required with `jaeger`, else every service), `--since-mins N` (default `10`), `--jaeger-url`, `--jaeger-search-depth`, `--otlp-file`, `--clickhouse-url`, `--clickhouse-container`, `--clickhouse-user`, `--clickhouse-password`, `--evidence-dir`, `--tenant` (default `default`), `--checkpoint` (needs `--evidence-dir`), `--private-key` | copy recent policy violations into the log; without `--evidence-dir` the single-file log is used; duplicates are skipped |
 | `count` | | number of records in the single-file log |
 | `root` | `--size N` | Merkle root (hex) of the first `N` records, or of all |
 | `shards` | `--evidence-dir` (required) | list shards with size and root |

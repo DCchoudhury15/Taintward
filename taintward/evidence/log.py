@@ -89,8 +89,6 @@ def _record_from_source(args) -> int:
 
     end_ns = time.time_ns()
     start_ns = end_ns - int(args.since_mins) * 60 * 1_000_000_000
-    if not args.service:
-        args.service = ["taintward-hr-bot"]
     if args.checkpoint and not args.evidence_dir:
         raise ValueError("--checkpoint needs --evidence-dir (checkpoints sign a sharded log)")
     src = source_from_args(args)

@@ -282,6 +282,15 @@
   names.
 - `taintward-audit --tools` reads a saved JSON-RPC response
   (`{"result": {"tools": [...]}}`); it used to find no tools in it.
+- Detection is much faster on text full of numbers. The phone matcher ran
+  over the whole value although its hits only count next to a phone word
+  or under a phone key; it now runs only on those parts. 80 KB of spaced
+  digits went from 1.9 s to 0.17 s, 500 KB from 12 s to 1 s. The
+  detections are the same (checked on 10,000 texts).
+- `taintward-report` and `taintward-evidence record` no longer fall back
+  to the demo service name `taintward-hr-bot`. `--source jaeger` without
+  `--service` is an error, and ClickHouse or OTLP files without
+  `--service` read every service.
 
 ### Release
 

@@ -1080,7 +1080,12 @@ def add_source_args(ap: argparse.ArgumentParser) -> None:
 
 def source_from_args(args):
     if args.source == "jaeger":
-        return JaegerSource(args.jaeger_url, args.service or ["taintward-hr-bot"],
+        if not args.service:
+            # Jaeger can only be asked per service. There is no default: a
+            # report on the demo service's (empty) data would look like a
+            # clean report on yours.
+            raise ValueError("--service is required with --source jaeger")
+        return JaegerSource(args.jaeger_url, args.service,
                             search_depth=args.jaeger_search_depth)
     if args.source == "otlp-file":
         if not args.otlp_file:
