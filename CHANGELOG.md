@@ -29,6 +29,16 @@
   taint (`client:<name>`) as its session id. A `DELETE` with that id cleared
   the taint kept per client (gap G4).
 - The data block embedded in the HTML report writes `<` as `\u003c`.
+- A protected OpenAI or Anthropic client no longer has side doors. These
+  sent everything raw (Python and TypeScript):
+  a copy made with `client.with_options(...)` / `client.copy()`
+  (`withOptions` in TypeScript); Anthropic's `client.beta.messages`
+  (`create`, `parse`, `stream`, `count_tokens`); `messages.count_tokens`;
+  and the request fields `prediction`, `metadata`, `user`,
+  `safety_identifier` and the variables of a stored `prompt`. All are
+  redacted now. An opaque user id such as `u_8841` is left as it is. Batch
+  requests are still not covered (their answers come back in another call);
+  the first one on a protected Anthropic client logs a warning.
 - A fresh install without the spaCy model no longer ends your program.
   Presidio tried to download the missing `en_core_web_sm` with pip during
   the first call, and when that failed (no network, or no pip in the
@@ -294,6 +304,13 @@
   or under a phone key; it now runs only on those parts. 80 KB of spaced
   digits went from 1.9 s to 0.17 s, 500 KB from 12 s to 1 s. The
   detections are the same (checked on 10,000 texts).
+- `collector/config.yaml` pointed at a policy path on one developer
+  machine; it is relative now (run the collector from `collector/`).
+- The demo's `--llm real --provider anthropic` called OpenAI. The option is
+  gone; the real path is OpenAI only and says so.
+- The demo image runs as a user without root. The chart's install notes
+  show the control plane address. CI builds the three Docker images on
+  every change and checks all three copies of the policy file.
 - `taintward-report` and `taintward-evidence record` no longer fall back
   to the demo service name `taintward-hr-bot`. `--source jaeger` without
   `--service` is an error, and ClickHouse or OTLP files without

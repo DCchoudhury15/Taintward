@@ -35,5 +35,7 @@ extensions:
   # policy tier (config.secure.yaml, Helm collector.auth).
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension v0.160.0
 
+# ocb needs an absolute path here. For a local build, change it to where your
+# checkout is. The Docker build (collector/Dockerfile) rewrites it by itself.
 replaces:
   - github.com/DCchoudhury15/taintward/collector/processor/taintpolicy => /home/divyanshu/taintward/collector/processor/taintpolicy

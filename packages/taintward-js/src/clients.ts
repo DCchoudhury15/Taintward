@@ -10,7 +10,16 @@
 //
 // * OpenAI: chat.completions.create, responses.create (and so their parse()
 //   and stream() helpers, which call create), embeddings.create.
-// * Anthropic: messages.create (and so parse()), messages.stream().
+// * Anthropic: messages.create (and so parse()), messages.stream() and
+//   messages.countTokens, and the same on client.beta.messages.
+// * client.withOptions(...): the client it returns is protected too.
+//
+// Besides the conversation, these request fields are redacted: prediction,
+// the variables of a stored prompt, metadata, and the end user identifiers
+// user and safety_identifier (an identifier that is an email address is
+// personal data too; an opaque id is left as it is). Batch requests are not
+// covered: their answers come back in another call and could not be
+// restored. The first one on a protected client logs a warning.
 //
 // The request's content fields are redacted (messages, system, input,
 // instructions; protocol fields such as role, type, ids and tool names are
@@ -62,6 +71,8 @@ const OPAQUE = new Set(["cache_control", "image_url", "input_audio", "file_data"
 const FREE = new Set([
   "input", "args", "arguments", "response", "output", "result", "parsed", "content", "artifact",
   "structured_content", "structuredContent",
+  // request fields that are the application's own data
+  "variables", "metadata",
 ]);
 // Every key that is kept as it is (not redacted as data).
 const STRUCTURAL = new Set([...LEAF, ...OPAQUE, "source"]);
@@ -137,11 +148,16 @@ function placeholdersIn(value: unknown): string[] {
   return [...seen];
 }
 
+// Everything in a request that can hold the user's data. The identifiers at
+// the end go to the provider too.
 const FIELDS: Record<Kind, readonly string[]> = {
-  "openai.chat": ["messages"],
-  "openai.responses": ["input", "instructions"],
-  anthropic: ["messages", "system"],
+  "openai.chat": ["messages", "prediction", "metadata", "user", "safety_identifier"],
+  "openai.responses": ["input", "instructions", "prompt", "metadata", "user", "safety_identifier"],
+  anthropic: ["messages", "system", "metadata"],
 };
+// Fields that are the application's own data as a whole: no key in them is
+// a protocol key ({ name, id } is a customer record).
+const DATA_FIELDS = new Set(["metadata"]);
 
 function withLine(kind: Kind, body: Record<string, any>, line: string): Record<string, any> {
   if (kind === "openai.chat") {
@@ -180,7 +196,13 @@ interface Call {
 
 function redactRequest(kind: Kind, body: Record<string, any>, call: Call): Record<string, any> {
   let sent: Record<string, any> = { ...body };
-  for (const f of FIELDS[kind]) if (f in body) sent[f] = redactStructure(body[f], call.map);
+  for (const f of FIELDS[kind]) {
+    if (!(f in body)) continue;
+    sent[f] =
+      DATA_FIELDS.has(f) && isObject(body[f])
+        ? redactPayload(body[f], "llm", { placeholders: call.map })
+        : redactStructure(body[f], call.map);
+  }
   if (call.map && call.map.size > 0 && call.options.instruction !== false) {
     const names = placeholdersIn(FIELDS[kind].map((f) => sent[f]));
     if (names.length) sent = withLine(kind, sent, instructionFor(names));
@@ -483,6 +505,43 @@ function wrapMessageStream(original: AnyFn, options: ProtectClientOptions): AnyF
   return wrapped;
 }
 
+/** Token counting sends the whole prompt to the provider: redact it. The answer is a number. */
+function wrapCountTokens(original: AnyFn, options: ProtectClientOptions): AnyFn {
+  const wrapped = function (this: unknown, body: any, reqOptions?: any) {
+    if (!isObject(body)) return original.call(this, body, reqOptions);
+    const map = options.placeholders === false ? undefined : new PlaceholderMap({ restoreInUrls: options.restoreInUrls });
+    const call: Call = { kind: "anthropic", map, json: false, options: { ...options, instruction: false } };
+    return original.call(this, redactRequest("anthropic", body, call), reqOptions);
+  };
+  (wrapped as any)[MARK] = true;
+  return wrapped;
+}
+
+/** Batch requests are not redacted. Say so once, on first use. */
+function warnOnBatches(resource: any, what: string): void {
+  let warned = false;
+  patch(resource?.batches, "create", (fn) => {
+    const wrapped = function (this: unknown, ...args: any[]) {
+      if (!warned) {
+        warned = true;
+        console.warn(`taintward: ${what} is not covered by the protected client; this batch request is sent as it is, without redaction`);
+      }
+      return fn.apply(this, args);
+    };
+    (wrapped as any)[MARK] = true;
+    return wrapped;
+  });
+}
+
+/** client.withOptions(...) builds a new client object: protect that one too. */
+function patchCopies(client: any, protect: (c: any, o: ProtectClientOptions) => any, options: ProtectClientOptions): void {
+  patch(client, "withOptions", (fn) => {
+    const wrapped = (...args: any[]) => protect(fn(...args), options);
+    (wrapped as any)[MARK] = true;
+    return wrapped;
+  });
+}
+
 function patch(resource: any, name: string, wrap: (fn: AnyFn) => AnyFn): boolean {
   const fn = resource?.[name];
   if (typeof fn !== "function") return false;
@@ -498,6 +557,7 @@ export function protectOpenAI<T>(client: T, options: ProtectClientOptions = {}):
   ok = patch(c?.responses, "create", (fn) => wrapCreate("openai.responses", fn, options)) || ok;
   ok = patch(c?.embeddings, "create", wrapEmbeddings) || ok;
   if (!ok) throw new TypeError("protectOpenAI: client has no chat.completions.create or responses.create");
+  patchCopies(c, protectOpenAI, options);
   return client;
 }
 
@@ -508,5 +568,16 @@ export function protectAnthropic<T>(client: T, options: ProtectClientOptions = {
     throw new TypeError("protectAnthropic: client has no messages.create");
   }
   patch(c.messages, "stream", (fn) => wrapMessageStream(fn, options));
+  patch(c.messages, "countTokens", (fn) => wrapCountTokens(fn, options));
+  warnOnBatches(c.messages, "messages.batches");
+  // The beta namespace is a second set of the same endpoints.
+  const beta = c.beta?.messages;
+  if (beta) {
+    patch(beta, "create", (fn) => wrapCreate("anthropic", fn, options));
+    patch(beta, "stream", (fn) => wrapMessageStream(fn, options));
+    patch(beta, "countTokens", (fn) => wrapCountTokens(fn, options));
+    warnOnBatches(beta, "beta.messages.batches");
+  }
+  patchCopies(c, protectAnthropic, options);
   return client;
 }

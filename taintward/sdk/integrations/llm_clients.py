@@ -11,8 +11,11 @@ Patched methods (sync and async clients):
 
 * OpenAI: ``client.chat.completions.create`` / ``.parse`` and
   ``client.responses.create`` / ``.parse``
-* Anthropic: ``client.messages.create`` / ``.parse`` and the
-  ``client.messages.stream()`` helper
+* Anthropic: ``client.messages.create`` / ``.parse`` / ``.count_tokens``
+  and the ``client.messages.stream()`` helper, and the same four on
+  ``client.beta.messages``
+* ``client.with_options(...)`` and ``client.copy(...)``: the client they
+  return is protected too
 * OpenAI embeddings: ``client.embeddings.create``. The input is masked for
   the ``rag`` destination (an embedding can be turned back into text), see
   ``_embed.py``.
@@ -52,9 +55,18 @@ real values. The SDK's own tracing reads that snapshot for its span when its
 ``content_mode`` is ``"content"``; the snapshot is kept from it, so that span
 gets no answer text, as for ``create(stream=True)``.
 
-The patch is applied to one client object only. Other clients, the
-token counting and batch endpoints, and the ``with_raw_response`` /
-``with_streaming_response`` helpers are not covered.
+Besides the conversation itself (``messages``, ``system``, ``input``,
+``instructions``) these request fields are redacted: ``prediction``, the
+``variables`` of a stored ``prompt``, ``metadata``, and the end user
+identifiers ``user`` and ``safety_identifier`` (an identifier that is an
+email address is personal data too; an opaque id is left as it is).
+
+The patch is applied to one client object and the copies made from it.
+Other clients and the batch endpoints are not covered (a batch answer comes
+back in another call, so it could not be restored; the first batch request
+on a protected client logs a warning). The answers of the
+``with_raw_response`` / ``with_streaming_response`` helpers are not
+restored.
 """
 
 from __future__ import annotations
@@ -70,7 +82,11 @@ from taintward.sdk import placeholders as ph
 from taintward.sdk.destinations import DEST_LLM
 from taintward.sdk.instrumentation import GuardedCall
 from taintward.sdk.integrations import Ward, _resolve
-from taintward.sdk.integrations._payload import structure_redactor, to_plain
+from taintward.sdk.integrations._payload import (
+    payload_redactor,
+    structure_redactor,
+    to_plain,
+)
 from taintward.sdk.integrations._stream import (
     ChatChunks,
     Pieces,
@@ -89,9 +105,12 @@ _PATCHED_MARK = "__taintward_patched__"
 
 # Request fields that carry content, per API. Everything else (model,
 # temperature, tool schemas, ...) is passed through unchanged.
-_OPENAI_CHAT_FIELDS = ("messages",)
-_OPENAI_RESPONSES_FIELDS = ("input", "instructions")
-_ANTHROPIC_FIELDS = ("messages", "system")
+# Everything in a request that can hold the user's data. The identifiers at
+# the end go to the provider too.
+_OPENAI_CHAT_FIELDS = ("messages", "prediction", "metadata", "user", "safety_identifier")
+_OPENAI_RESPONSES_FIELDS = ("input", "instructions", "prompt", "metadata", "user",
+                            "safety_identifier")
+_ANTHROPIC_FIELDS = ("messages", "system", "metadata")
 
 
 def _output_view(provider: str, resp: Any) -> Any:
@@ -298,6 +317,23 @@ def _anthropic_json(kwargs: dict) -> bool:
     return json_format(kwargs.get("output_format")) or json_format(kwargs.get("output_config"))
 
 
+# Request fields that are the application's own data as a whole: no key in
+# them is a protocol key ({"name": ..., "id": ...} is a customer record).
+_DATA_FIELDS = frozenset({"metadata"})
+
+
+def _request_redactor(content: dict, pmap) -> Callable:
+    """The redactor for the fields of one request. GuardedCall hands it one
+    field value at a time, so the fields in _DATA_FIELDS are told apart by
+    the object they are."""
+    data = {id(v) for k, v in content.items() if k in _DATA_FIELDS and isinstance(v, Mapping)}
+    structure, payload = structure_redactor(pmap), payload_redactor(pmap)
+
+    def redact(value: Any, destination: str) -> Any:
+        return (payload if id(value) in data else structure)(value, destination)
+    return redact
+
+
 def _guard_request(provider: str, system: str, fields: tuple[str, ...],
                    kwargs: dict, ward: Ward, pmap=None) -> GuardedCall:
     model = str(kwargs.get("model", ""))
@@ -308,7 +344,7 @@ def _guard_request(provider: str, system: str, fields: tuple[str, ...],
         jurisdiction=ward.llm_jurisdiction,
         tracer=ward.tracer,
         kwargs=content,
-        redact=structure_redactor(pmap),
+        redact=_request_redactor(content, pmap),
         input_attr="gen_ai.input.messages",
         output_attr="gen_ai.output.messages",
         input_view=lambda _a, kw: kw,
@@ -585,6 +621,90 @@ def _patch_embeddings(resource: Any, ward: Ward) -> bool:
     return True
 
 
+def _wrap_count_tokens(original: Callable, provider: str, system: str,
+                       fields: tuple[str, ...], ward: Ward) -> Callable:
+    """Token counting sends the whole prompt to the provider: redact it the
+    same way. The answer is a number, so nothing is restored."""
+    if inspect.iscoroutinefunction(inspect.unwrap(original)):
+        @functools.wraps(original)
+        async def acount(*args, **kwargs):
+            with _guard_request(provider, system, fields, kwargs, ward,
+                                ward.llm_placeholder_map()) as call:
+                return await original(*args, **{**kwargs, **call.kwargs})
+        setattr(acount, _PATCHED_MARK, True)
+        return acount
+
+    @functools.wraps(original)
+    def count(*args, **kwargs):
+        with _guard_request(provider, system, fields, kwargs, ward,
+                            ward.llm_placeholder_map()) as call:
+            return original(*args, **{**kwargs, **call.kwargs})
+    setattr(count, _PATCHED_MARK, True)
+    return count
+
+
+def _patch_count_tokens(resource: Any, provider: str, system: str,
+                        fields: tuple[str, ...], ward: Ward) -> bool:
+    original = getattr(resource, "count_tokens", None) if resource is not None else None
+    if original is None or getattr(original, _PATCHED_MARK, False):
+        return False
+    resource.count_tokens = _wrap_count_tokens(original, provider, system, fields, ward)
+    return True
+
+
+def _warn_on_batches(resource: Any, what: str) -> None:
+    """Batch requests are not redacted (their answers come back in another
+    call and could not be restored). Say so once, on first use."""
+    batches = getattr(resource, "batches", None) if resource is not None else None
+    original = getattr(batches, "create", None)
+    if original is None or getattr(original, _PATCHED_MARK, False):
+        return
+    warned = []
+
+    def warn() -> None:
+        if not warned:
+            warned.append(True)
+            log.warning("taintward: %s is not covered by the protected client; this "
+                        "batch request is sent as it is, without redaction", what)
+
+    if inspect.iscoroutinefunction(inspect.unwrap(original)):
+        @functools.wraps(original)
+        async def acreate(*args, **kwargs):
+            warn()
+            return await original(*args, **kwargs)
+        wrapped: Callable = acreate
+    else:
+        @functools.wraps(original)
+        def create(*args, **kwargs):
+            warn()
+            return original(*args, **kwargs)
+        wrapped = create
+    setattr(wrapped, _PATCHED_MARK, True)
+    try:
+        batches.create = wrapped
+    except Exception:  # noqa: BLE001 - a resource that cannot be patched
+        pass
+
+
+def _patch_copies(client: Any, protect: Callable, ward: Ward) -> None:
+    """``client.with_options(...)`` and ``client.copy(...)`` build a new
+    client object. Protect that one too: it was sending everything raw."""
+    for name in ("copy", "with_options"):
+        original = getattr(client, name, None)
+        if original is None or getattr(original, _PATCHED_MARK, False):
+            continue
+
+        @functools.wraps(original)
+        def derived(*args, _original=original, **kwargs):
+            return protect(_original(*args, **kwargs), ward=ward)
+        setattr(derived, _PATCHED_MARK, True)
+        try:
+            setattr(client, name, derived)
+        except Exception:  # noqa: BLE001 - a client that cannot be patched
+            log.warning("taintward: could not patch %s() on %s; a client made with it "
+                        "is not protected", name, type(client).__name__)
+
+
 def _patch(resource: Any, provider: str, system: str, fields: tuple[str, ...],
            ward: Ward) -> bool:
     """Patch ``create`` and ``parse`` (which sends its own request)."""
@@ -612,13 +732,14 @@ def protect_openai(client: Any, *, ward: Ward | None = None) -> Any:
     patched |= _patch_embeddings(getattr(client, "embeddings", None), w)
     if not patched and not _already(client, "openai"):
         raise TypeError("client has no chat.completions.create or responses.create")
+    _patch_copies(client, protect_openai, w)
     return client
 
 
 def protect_anthropic(client: Any, *, ward: Ward | None = None) -> Any:
     """Patch an ``anthropic.Anthropic`` / ``anthropic.AsyncAnthropic``
-    instance in place (``messages.create`` and ``messages.stream``) and
-    return it."""
+    instance in place and return it: ``create``, ``parse``, ``stream`` and
+    ``count_tokens`` of ``client.messages`` and of ``client.beta.messages``."""
     w = ward or _resolve(None, None)
     messages = getattr(client, "messages", None)
     patched = _patch(messages, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w)
@@ -626,6 +747,19 @@ def protect_anthropic(client: Any, *, ward: Ward | None = None) -> Any:
         patched |= _patch_message_stream(messages, w)
     if not patched and not _already(client, "anthropic"):
         raise TypeError("client has no messages.create")
+    _patch_count_tokens(messages, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w)
+    _warn_on_batches(messages, "messages.batches")
+    # The beta namespace is a second set of the same endpoints.
+    try:
+        beta = getattr(getattr(client, "beta", None), "messages", None)
+    except Exception:  # noqa: BLE001 - an SDK without it
+        beta = None
+    if beta is not None:
+        if _patch(beta, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w):
+            _patch_message_stream(beta, w)
+        _patch_count_tokens(beta, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w)
+        _warn_on_batches(beta, "beta.messages.batches")
+    _patch_copies(client, protect_anthropic, w)
     return client
 
 

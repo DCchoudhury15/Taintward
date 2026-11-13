@@ -34,6 +34,9 @@ OPAQUE_KEYS = frozenset({
 FREE_KEYS = frozenset({
     "input", "args", "arguments", "response", "output", "result", "parsed",
     "content", "artifact", "structured_content", "structuredContent",
+    # request fields that are the application's own data: the variables of a
+    # stored prompt and the metadata kept with a request
+    "variables", "metadata",
 })
 # Every key that is kept as it is (not redacted as data).
 STRUCTURAL_KEYS = LEAF_KEYS | OPAQUE_KEYS | {"source"}

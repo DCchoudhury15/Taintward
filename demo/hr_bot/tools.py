@@ -64,6 +64,10 @@ def ask_llm(prompt: str, *, mode: str = "passthrough",
         if mode == "summarize":
             return "Summary: the employee's record has been reviewed."
         raise ValueError(f"unknown stub mode {mode}")
+    if provider != "openai":
+        # This used to call OpenAI whatever the provider was.
+        raise SystemExit(f"the demo's real LLM path only supports --provider openai, "
+                         f"not {provider!r}")
     import openai  # type: ignore
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
@@ -93,8 +97,8 @@ def rag_retrieve(query: str, *, chunks: int = 3) -> list[str]:
     links: each chunk retrieval is a span linked back to the agent's decision
     span (passed by the agent as ``taintward_links``).
 
-    NOTE: embeddings are invertible (OWASP LLM08:2025), so Phase 5 will add
-    redact-before-embed here. For Phase 2 we only propagate taint.
+    Embeddings can be turned back into text (OWASP LLM08:2025), so the
+    query is masked for the ``rag`` destination before this tool runs.
     """
     # The links (if any) were already consumed by the decorator on this span.
     # Here we just return plausible chunks; the fan-out lineage is the link.

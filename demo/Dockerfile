@@ -20,6 +20,10 @@ RUN pip install --require-hashes --no-deps --only-binary=:all: --retries 10 --ti
 
 COPY taintward ./taintward
 COPY demo ./demo
+# Nothing here needs root.
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin taintward
+USER 10001
+ENV HOME=/tmp
 
 ENV COLLECTOR_ENDPOINT=http://taintward-collector:4319/v1/traces
 

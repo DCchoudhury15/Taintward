@@ -44,7 +44,8 @@ def main() -> int:
                          "Phase 3 sidecar at http://localhost:4319/v1/traces)")
     ap.add_argument("--console", action="store_true", help="also export spans to stdout")
     ap.add_argument("--llm", choices=["stub", "real"], default="stub")
-    ap.add_argument("--provider", choices=["openai", "anthropic"], default="openai")
+    ap.add_argument("--provider", choices=["openai"], default="openai",
+                    help="provider for --llm real (needs OPENAI_API_KEY)")
     ap.add_argument("--mode", choices=["passthrough", "reformat", "summarize"],
                     default="passthrough", help="stub LLM transformation mode")
     args = ap.parse_args()

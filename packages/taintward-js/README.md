@@ -112,8 +112,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import { protectAnthropic, protectOpenAI } from "taintward";
 
 const openai = protectOpenAI(new OpenAI());       // chat, responses, parse(), stream(), embeddings
-const anthropic = protectAnthropic(new Anthropic()); // messages.create, parse(), stream()
+const anthropic = protectAnthropic(new Anthropic()); // messages.create, parse(), stream(), countTokens, and beta.messages
 ```
+
+A client made with `client.withOptions(...)` is protected too. Besides the
+conversation, `prediction`, `metadata`, `user`, `safety_identifier` and the
+variables of a stored prompt are redacted (an opaque id such as `u_8841` is
+left as it is). Batch requests are not covered and log a warning.
 
 The patch is on that client object. Requests are redacted, answers (also
 streamed ones) are restored, and the calls still return the SDK's own

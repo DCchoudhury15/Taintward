@@ -115,6 +115,25 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
 
+  images:
+    # The same builds the release does, without the push, so a broken
+    # Dockerfile or lock file shows up here and not on release day. The
+    # gateway build ends with its own check that detection works.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: collector
+            dockerfile: collector/Dockerfile
+          - name: gateway
+            dockerfile: deploy/gateway.Dockerfile
+          - name: demo
+            dockerfile: demo/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f "${{ matrix.dockerfile }}" -t "taintward-${{ matrix.name }}:ci" .
+
   helm-lint:
     runs-on: ubuntu-latest
     steps:
@@ -122,7 +141,10 @@ jobs:
       - uses: azure/setup-helm@v4
         with:
           version: v3.20.2
+      # The policy exists three times (the editable file, the copy the Go
+      # processor embeds, the copy in the chart). They must stay the same.
       - run: diff collector/policy/pii_egress.rego deploy/helm/taintward/files/pii_egress.rego
+      - run: diff collector/policy/pii_egress.rego collector/processor/taintpolicy/pii_egress.rego
       - run: helm lint deploy/helm/taintward
       - run: helm template t deploy/helm/taintward > /dev/null
       - run: >-

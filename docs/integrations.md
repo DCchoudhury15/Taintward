@@ -306,9 +306,22 @@ client = taintward.protect_anthropic(Anthropic())    # or AsyncAnthropic()
 
 This patches the client object in place (calling it twice is safe):
 
-- OpenAI: `client.chat.completions.create` (`messages`) and
-  `client.responses.create` (`input`, `instructions`)
-- Anthropic: `client.messages.create` (`messages`, `system`)
+- OpenAI: `client.chat.completions.create` and `client.responses.create`,
+  with their `parse()` and `stream()` helpers
+- Anthropic: `client.messages.create`, `parse()`, `stream()` and
+  `count_tokens()`, and the same four on `client.beta.messages`
+- A client made from it with `client.with_options(...)` or
+  `client.copy(...)` is protected too
+
+Redacted in a request: the conversation (`messages`, `system`, `input`,
+`instructions`), `prediction`, the `variables` of a stored `prompt`,
+`metadata`, and the end user identifiers `user` and `safety_identifier`. An
+identifier that is an email address is personal data too; an opaque id such
+as `u_8841` is left as it is.
+
+Batch endpoints are not covered: a batch answer comes back in another call,
+so it could not be restored. The first batch request on a protected client
+logs a warning and is sent as it is.
 
 Each request is redacted for the `llm` destination. Protocol fields such as
 `role`, `type`, ids, `tool_call_id`, `tool_use_id`, tool names and base64
@@ -600,9 +613,9 @@ gateway refuses those calls.
   LiteLLM's object (and the proxy's) with the placeholders. Tool callbacks
   see what the tool got.
 - Not covered: LangChain `generate()` called directly with message lists,
-  OpenAI `with_raw_response` / `with_streaming_response`, token counting
-  and batch endpoints, OpenAI and Anthropic `beta` endpoints, other LLM
-  providers, and other clients you create without `protect_*`.
+  batch endpoints, other LLM providers, and other clients you create
+  without `protect_*`. The answers of OpenAI `with_raw_response` /
+  `with_streaming_response` are not restored.
 - The OpenAI Agents SDK has its own tracing, which by default uploads tool
   arguments to OpenAI. Turn it off with `set_tracing_disabled(True)` or set
   `RunConfig(trace_include_sensitive_data=False)`.

@@ -15,6 +15,11 @@ Checked spans go to: {{ .Values.exporter.endpoint }} ({{ .Values.exporter.protoc
 MCP gateway:
   http://{{ include "taintward.gateway.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.gateway.port }}
 {{- end }}
+{{- if .Values.controlPlane.enabled }}
+
+Control plane (policies, spans and reports per tenant):
+  {{ ternary "https" "http" (not (empty .Values.controlPlane.tlsSecret)) }}://{{ printf "%s-control" (include "taintward.fullname" .) | trunc 63 | trimSuffix "-" }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.controlPlane.port }}
+{{- end }}
 
 Check it:
   kubectl -n {{ .Release.Namespace }} get pods,svc,hpa,pdb -l app.kubernetes.io/instance={{ .Release.Name }}
