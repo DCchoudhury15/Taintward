@@ -171,7 +171,8 @@ values.
 | prevented | TypeScript: the same for the official OpenAI and Anthropic JS clients (`protectOpenAI`, `protectAnthropic`: create, `parse()`, `stream()` helpers, streamed answers, embeddings masked) and the AI SDK (`taintwardMiddleware`, `taintwardEmbeddingMiddleware`, Mastra agents through it) | `packages/taintward-js/src/clients.ts`, `packages/taintward-js/src/ai-sdk.ts` | `packages/taintward-js/test/clients.test.ts`, `ai-sdk.test.ts`, `mastra.test.ts` |
 | not handled | TypeScript: with the Anthropic JS SDK's own tracing in `content` mode (off by default), its span for `messages.stream()` records the final message with the real values (the Python SDK keeps that snapshot out of the span) | | |
 | prevented | a request that left a protected client by another door: a copy made with `with_options()` / `copy()`, Anthropic's `client.beta.messages`, `count_tokens`, and the request fields `prediction`, `metadata`, `user`, `safety_identifier` and the variables of a stored `prompt`. All sent raw before 0.4.0 | `taintward/sdk/integrations/llm_clients.py`, `packages/taintward-js/src/clients.ts` | `tests/test_llm_client_paths.py`, `packages/taintward-js/test/client-paths.test.ts` |
-| not handled | other clients and batch endpoints (`messages.batches`, OpenAI batches send their content unredacted; the first batch request on a protected Anthropic client logs a warning). The answers of `with_raw_response` / `with_streaming_response` are not restored (documented in `llm_clients.py`) | | |
+| prevented | an Anthropic batch request on a protected client: sent with one-way masks, because a batch answer comes back in another call and could not be restored (`tests/test_llm_client_paths.py`) | `taintward/sdk/integrations/llm_clients.py` | |
+| not handled | other clients, and OpenAI batches (built from a file you upload, sent unredacted). The answers of `with_raw_response` / `with_streaming_response` are not restored (documented in `llm_clients.py`) | | |
 
 ### 4. External API or service
 
@@ -276,7 +277,7 @@ them, but in `redact` mode the value itself goes through.
 | meaning, not values | "her neighbor, the only cardiologist in town" | out of scope: there is no value to find |
 | numbers and non-string leaves are checked as strings, but `None` and booleans are skipped | `{"is_hiv_positive": true}` | the key name is data the detector does not judge; the boolean passes |
 | side channels | placeholder numbers and types, mask counts, payload shape, span timing, `taintward.policy.masked_values` | leak how many sensitive values there were and of which type |
-| an endpoint that is not patched | `client.messages.batches.create(...)` on a protected client | the content goes to the provider unredacted, with a warning in the log; `create`, `parse`, `stream()`, `count_tokens`, the `beta.messages` namespace and copies made with `with_options()` are covered (`llm_clients.py`, `docs/integrations.md`) |
+| an endpoint that is not patched | an OpenAI batch file (`client.files.create(...)` then `client.batches.create(...)`) on a protected client | the file goes to the provider unredacted; `create`, `parse`, `stream()`, `count_tokens`, Anthropic batches, the `beta.messages` namespace and copies made with `with_options()` are covered (`llm_clients.py`, `docs/integrations.md`) |
 | collector input trust | a producer sets `taintward.sensitive=false` or `taintward.args_redacted=true` | without `trusted_services`: `sensitive=false` records no violation (the regex backstop still runs), and `args_redacted=true` makes the collector skip the backstop on `gen_ai.tool.call.arguments` (`hardening_test.go::TestArgs_SkippedWhenMarkerSet`, by design). With `trusted_services` both only work for listed services, and with producer auth only for token holders |
 
 ## Non-goals
@@ -438,9 +439,9 @@ Agent and SDK
       you forget are `external`, which is safe, but check that is what you
       want.
 - [ ] Keep allow lists (`passthrough=`) as short as possible and review them.
-- [ ] Wrap **every** LLM client the agent uses with `protect_*`. Do not
-      send personal data through batch endpoints, which the patch does not
-      cover.
+- [ ] Wrap **every** LLM client the agent uses with `protect_*`. Redact
+      an OpenAI batch file yourself before you upload it: the patch does
+      not see it.
 - [ ] Leave `TAINTWARD_RESTORE_IN_URLS` off, so placeholders inside links
       in the model's answer are not restored (G1). Alert on
       `taintward.placeholders.blocked`: it usually means an injection try.

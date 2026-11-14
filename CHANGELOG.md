@@ -36,9 +36,16 @@
   (`create`, `parse`, `stream`, `count_tokens`); `messages.count_tokens`;
   and the request fields `prediction`, `metadata`, `user`,
   `safety_identifier` and the variables of a stored `prompt`. All are
-  redacted now. An opaque user id such as `u_8841` is left as it is. Batch
-  requests are still not covered (their answers come back in another call);
-  the first one on a protected Anthropic client logs a warning.
+  redacted now. An opaque user id such as `u_8841` is left as it is.
+  Anthropic batch requests are sent with one-way masks instead of
+  placeholders, because a batch answer comes back in another call and could
+  not be restored; the first one logs a warning. OpenAI batch files are
+  still not covered.
+- A tool result given as a list of records (`"content": [{"name": ...,
+  "id": ...}]`) is redacted in full before a model request. `name` and
+  `id` were read as protocol fields there and sent as they were. Protocol
+  parts (`{"type": "text", ...}`, `{"role": ...}`) are handled as before.
+  Python and TypeScript.
 - A fresh install without the spaCy model no longer ends your program.
   Presidio tried to download the missing `en_core_web_sm` with pip during
   the first call, and when that failed (no network, or no pip in the

@@ -154,16 +154,35 @@ def test_anthropic_count_tokens_is_redacted(ward, beta):
 
 
 @needs_anthropic
-def test_anthropic_batches_warn_once(ward, caplog):
+def test_anthropic_batch_is_sent_with_masks_and_warns_once(ward, caplog):
+    """A batch answer comes back in another call, so placeholders could not
+    be put back: the requests get one-way masks. They used to go out raw."""
     sent: list = []
     client = _client("anthropic", sent, ward)
+    requests = [
+        {"custom_id": "a1", "params": {"model": "m", "max_tokens": 8, "messages": ASK,
+                                       "system": f"mail {EMAIL}", "metadata": {"user_id": EMAIL}}},
+        {"custom_id": "a2", "params": {"model": "m", "max_tokens": 8,
+                                       "messages": [{"role": "user", "content": "hello"}]}},
+    ]
     with caplog.at_level(logging.WARNING, logger="taintward.sdk"):
         for _ in range(2):
             try:
-                client.messages.batches.create(requests=[])
+                client.messages.batches.create(requests=requests)
             except Exception:  # noqa: BLE001 - the fake answer is not a batch
                 pass
-    assert caplog.text.count("messages.batches is not covered") == 1
+    path, text = sent[-1]
+    assert path.endswith("/batches")
+    assert SSN not in text and EMAIL not in text
+    body = json.loads(text)["requests"]
+    assert body[0]["custom_id"] == "a1"
+    assert body[0]["params"]["messages"][0]["content"] == "my ssn is [PII]"
+    assert body[0]["params"]["system"] == "mail [PII]"
+    assert body[0]["params"]["metadata"] == {"user_id": "[PII]"}
+    assert body[1]["params"]["messages"][0]["content"] == "hello"
+    assert caplog.text.count("messages.batches requests are sent with one-way masks") == 1
+    # the caller's own list is not changed
+    assert requests[0]["params"]["messages"][0]["content"] == f"my ssn is {SSN}"
 
 
 # --- request fields outside the conversation ------------------------------------------
@@ -216,3 +235,46 @@ def test_anthropic_metadata_user_id_is_redacted(ward):
     client.messages.create(model="m", max_tokens=8, messages=[{"role": "user", "content": "hi"}],
                            metadata={"user_id": "u_8841"})
     assert json.loads(_last(sent))["metadata"] == {"user_id": "u_8841"}
+
+
+# --- a tool result given as a list of records ---------------------------------------
+
+def test_list_of_records_is_data_and_protocol_parts_stay_valid():
+    """In [{"name": ..., "id": ...}] under "content" the keys are the
+    application's, not protocol: both values were sent raw."""
+    from taintward.sdk.destinations import DEST_LLM
+    from taintward.sdk.integrations._payload import redact_structure
+    from taintward.sdk.placeholders import PlaceholderMap
+
+    pmap = PlaceholderMap()
+    msg = {"role": "tool", "tool_call_id": "t1",
+           "content": [{"name": "Alice Lee", "id": SSN, "status": "active"}]}
+    out = redact_structure(msg, DEST_LLM, pmap)
+    assert out["tool_call_id"] == "t1" and out["role"] == "tool"
+    assert out["content"] == [{"name": "<PERSON_1>", "id": "<SSN_1>", "status": "active"}]
+
+    # protocol parts in the same place are left valid: type, ids and image data stay
+    parts = {"role": "user", "content": [
+        {"type": "text", "text": f"ssn {SSN}"},
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}},
+        # a protocol id is never rewritten, whatever it looks like: the
+        # request would no longer match its tool call
+        {"type": "tool_result", "tool_use_id": SSN, "content": "ok"}]}
+    out = redact_structure(parts, DEST_LLM, pmap)
+    assert out["content"][0] == {"type": "text", "text": "ssn <SSN_1>"}
+    assert out["content"][1] == parts["content"][1]
+    assert out["content"][2] == parts["content"][2]
+    # a list of messages (role, no type) is protocol too
+    items = {"input": [{"role": "user", "content": f"ssn {SSN}", "name": "alice"}]}
+    assert redact_structure(items, DEST_LLM, pmap) == {
+        "input": [{"role": "user", "content": "ssn <SSN_1>", "name": "alice"}]}
+
+
+@needs_openai
+def test_openai_tool_message_with_a_list_of_records(ward):
+    sent: list = []
+    client = _client("openai", sent, ward)
+    client.chat.completions.create(model="m", messages=[
+        {"role": "user", "content": "look it up"},
+        {"role": "tool", "tool_call_id": "t1", "content": [{"name": "Alice Lee", "id": SSN}]}])
+    assert SSN not in _last(sent) and "Alice Lee" not in _last(sent)

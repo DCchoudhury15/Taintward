@@ -170,9 +170,11 @@ helm upgrade taintward oci://ghcr.io/dcchoudhury15/taintward/charts/taintward --
 * For reversible tokens shared by all replicas, set `gateway.vault.url`
   (`redis://...` or `postgresql://...`) and put `TAINTWARD_VAULT_KEY` in the
   Secret.
-* The upstream MCP servers and tool rules come from `taintward.gateway.config` in the
+* The upstream MCP servers and tool rules come from `gateway.config` in the
   values (same format as `taintward/gateway/example-config.yaml`, see
-  [mcp-gateway.md](mcp-gateway.md)).
+  [mcp-gateway.md](mcp-gateway.md)). The default is the example HR server
+  that ships in the image, so the gateway starts on its own: replace it
+  with your servers before real use.
 
 ## 7. Optional: the control plane
 
@@ -253,7 +255,7 @@ kubectl delete namespace taintward
 | `gateway.enabled` | `false` | MCP gateway |
 | `gateway.existingSecret` | empty, required with the gateway | keys |
 | `gateway.sessionStore.redisUrl` | empty | shared sessions |
-| `taintward.gateway.config` | HR example | gateway.yaml content |
+| `gateway.config` | the example HR server (replace it) | gateway.yaml content |
 | `controlPlane.enabled` | `false` | control plane for many tenants |
 | `controlPlane.tenants` | empty, required unless `existingSecret` | tenants and the SHA-256 of their tokens |
 | `controlPlane.existingSecret` | empty | your own Secret with `control.yaml` (data_dir `/data`) |

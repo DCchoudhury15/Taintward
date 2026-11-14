@@ -87,7 +87,24 @@ def _redact_item(key: Any, v: Any, destination: str, placeholders) -> Any:
         return redact_payload(plain, destination, placeholders=placeholders) if container else v
     if key in FREE_KEYS and isinstance(plain, Mapping):
         return redact_payload(plain, destination, placeholders=placeholders)
+    if key in FREE_KEYS and _walk.is_collection(plain):
+        # A list here is either protocol parts ([{"type": "text", ...}],
+        # [{"role": "user", ...}]) or the application's own records (a tool
+        # result given as a list of rows). A record has neither marker, and
+        # in it "name" and "id" are data.
+        return _walk.rebuild_collection(plain, [
+            redact_payload(x, destination, placeholders=placeholders) if _is_record(x)
+            else redact_structure(x, destination, placeholders)
+            for x in plain])
     return redact_structure(v, destination, placeholders)
+
+
+def _is_record(item: Any) -> bool:
+    """A dict that is not a protocol part: no string ``type`` and no string
+    ``role``."""
+    item = to_plain(item)
+    return (isinstance(item, Mapping) and not isinstance(item.get("type"), str)
+            and not isinstance(item.get("role"), str))
 
 
 def redact_structure(value: Any, destination: str, placeholders=None) -> Any:

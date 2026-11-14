@@ -17,9 +17,10 @@
 // Besides the conversation, these request fields are redacted: prediction,
 // the variables of a stored prompt, metadata, and the end user identifiers
 // user and safety_identifier (an identifier that is an email address is
-// personal data too; an opaque id is left as it is). Batch requests are not
-// covered: their answers come back in another call and could not be
-// restored. The first one on a protected client logs a warning.
+// personal data too; an opaque id is left as it is). Anthropic batch
+// requests are sent with one-way masks, not placeholders: their answers
+// come back in another call and could not be restored. The first one logs
+// a warning. OpenAI batches are built from an uploaded file: not covered.
 //
 // The request's content fields are redacted (messages, system, input,
 // instructions; protocol fields such as role, type, ids and tool names are
@@ -119,7 +120,19 @@ function redactItem(k: string, v: unknown, map: PlaceholderMap | undefined, dept
   // one of these names is the application's data.
   if (LEAF.has(k)) return container ? redactPayload(v, "llm", { placeholders: map }) : v;
   if (FREE.has(k) && isObject(v)) return redactPayload(v, "llm", { placeholders: map });
+  if (FREE.has(k) && Array.isArray(v)) {
+    // A list here is either protocol parts ([{ type: "text", ... }],
+    // [{ role: "user", ... }]) or the application's own records (a tool
+    // result given as a list of rows). A record has neither marker, and in
+    // it "name" and "id" are data.
+    return v.map((x) => (isRecord(x) ? redactPayload(x, "llm", { placeholders: map }) : redactStructure(x, map, k, depth + 1)));
+  }
   return redactStructure(v, map, k, depth + 1);
+}
+
+/** An object that is not a protocol part: no string `type` and no string `role`. */
+function isRecord(x: unknown): boolean {
+  return isObject(x) && typeof x.type !== "string" && typeof x.role !== "string";
 }
 
 /**
@@ -222,7 +235,8 @@ function restoreDeep(v: unknown, call: Call, key = "", depth = 0, free = false):
     const json = key === "arguments" || key === "partial_json" || (call.json && (key === "content" || key === "text" || key === "output_text"));
     return json ? map.restoreJsonFragment(v) : map.restoreText(v);
   }
-  if (Array.isArray(v)) return v.map((x) => restoreDeep(x, call, key, depth + 1, free));
+  // A record in a list under a data key is the application's data, as in redactItem.
+  if (Array.isArray(v)) return v.map((x) => restoreDeep(x, call, key, depth + 1, free || (FREE.has(key) && isRecord(x))));
   if (isObject(v)) {
     const out: Record<string, unknown> = Object.create(Object.getPrototypeOf(v));
     for (const [k, x] of Object.entries(v)) {
@@ -517,16 +531,25 @@ function wrapCountTokens(original: AnyFn, options: ProtectClientOptions): AnyFn 
   return wrapped;
 }
 
-/** Batch requests are not redacted. Say so once, on first use. */
-function warnOnBatches(resource: any, what: string): void {
+/**
+ * A batch answer comes back later, in another call, so it could not be
+ * restored. The requests are sent with one-way masks instead of
+ * placeholders, and the first call says so.
+ */
+function patchBatches(resource: any, what: string, options: ProtectClientOptions): void {
   let warned = false;
   patch(resource?.batches, "create", (fn) => {
-    const wrapped = function (this: unknown, ...args: any[]) {
+    const wrapped = function (this: unknown, body: any, reqOptions?: any) {
+      if (!isObject(body) || !Array.isArray(body.requests)) return fn.call(this, body, reqOptions);
       if (!warned) {
         warned = true;
-        console.warn(`taintward: ${what} is not covered by the protected client; this batch request is sent as it is, without redaction`);
+        console.warn(`taintward: ${what} requests are sent with one-way masks ([PII], [SECRET]), not placeholders: a batch answer cannot be restored`);
       }
-      return fn.apply(this, args);
+      const call: Call = { kind: "anthropic", map: undefined, json: false, options: { ...options, instruction: false } };
+      const requests = body.requests.map((r: any) =>
+        isObject(r) && isObject(r.params) ? { ...r, params: redactRequest("anthropic", r.params, call) } : r,
+      );
+      return fn.call(this, { ...body, requests }, reqOptions);
     };
     (wrapped as any)[MARK] = true;
     return wrapped;
@@ -569,14 +592,14 @@ export function protectAnthropic<T>(client: T, options: ProtectClientOptions = {
   }
   patch(c.messages, "stream", (fn) => wrapMessageStream(fn, options));
   patch(c.messages, "countTokens", (fn) => wrapCountTokens(fn, options));
-  warnOnBatches(c.messages, "messages.batches");
+  patchBatches(c.messages, "messages.batches", options);
   // The beta namespace is a second set of the same endpoints.
   const beta = c.beta?.messages;
   if (beta) {
     patch(beta, "create", (fn) => wrapCreate("anthropic", fn, options));
     patch(beta, "stream", (fn) => wrapMessageStream(fn, options));
     patch(beta, "countTokens", (fn) => wrapCountTokens(fn, options));
-    warnOnBatches(beta, "beta.messages.batches");
+    patchBatches(beta, "beta.messages.batches", options);
   }
   patchCopies(c, protectAnthropic, options);
   return client;

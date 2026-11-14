@@ -127,12 +127,26 @@ describe("Anthropic: the beta namespace and token counting", () => {
     expect(last(sent).text).not.toContain("replaced by placeholders"); // no instruction on a count
   });
 
-  it("a batch request warns once", async () => {
+  it("a batch request is sent with masks, and warns once", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      const client = anthropic([]);
-      for (let i = 0; i < 2; i++) await client.messages.batches.create({ requests: [] }).catch(() => {});
-      expect(warn.mock.calls.filter((c) => String(c[0]).includes("messages.batches is not covered")).length).toBe(1);
+      const sent: Sent = [];
+      const client = anthropic(sent);
+      const requests = [
+        { custom_id: "a1", params: { model: "m", max_tokens: 8, system: `mail ${EMAIL}`, messages: ASK, metadata: { user_id: EMAIL } } },
+        { custom_id: "a2", params: { model: "m", max_tokens: 8, messages: [{ role: "user" as const, content: "hello" }] } },
+      ];
+      for (let i = 0; i < 2; i++) await client.messages.batches.create({ requests }).catch(() => {});
+      const { body, text } = last(sent);
+      expect(text).not.toContain(SSN);
+      expect(text).not.toContain(EMAIL);
+      // masks, not placeholders: nothing could put the values back later
+      expect(body.requests[0].params.messages[0].content).toBe("my ssn is [PII]");
+      expect(body.requests[0].params.system).toBe("mail [PII]");
+      expect(body.requests[0].params.metadata).toEqual({ user_id: "[PII]" });
+      expect(body.requests[0].custom_id).toBe("a1");
+      expect(body.requests[1].params.messages[0].content).toBe("hello");
+      expect(warn.mock.calls.filter((c) => String(c[0]).includes("messages.batches requests are sent with one-way masks")).length).toBe(1);
     } finally {
       warn.mockRestore();
     }
@@ -189,5 +203,29 @@ describe("request fields outside the conversation", () => {
     expect(last(sent).body.metadata).toEqual({ user_id: "<EMAIL_1>" });
     await client.messages.create({ model: "m", max_tokens: 8, messages: [{ role: "user", content: "hi" }], metadata: { user_id: "u_8841" } });
     expect(last(sent).body.metadata).toEqual({ user_id: "u_8841" });
+  });
+});
+
+describe("a tool result given as a list of records", () => {
+  it("is redacted in full; protocol parts stay valid", async () => {
+    const sent: Sent = [];
+    await openai(sent).chat.completions.create({
+      model: "m",
+      messages: [
+        { role: "user", content: [{ type: "text", text: `ssn ${SSN}` }, { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } }] },
+        // "name" and "id" are the application's fields here, not protocol
+        { role: "tool", tool_call_id: "t1", content: [{ name: "Alice Lee", id: SSN, status: "active" }] as any },
+      ],
+    });
+    const { body, text } = last(sent);
+    expect(text).not.toContain(SSN);
+    expect(text).not.toContain("Alice Lee");
+    const user = body.messages.find((m: any) => m.role === "user");
+    const tool = body.messages.find((m: any) => m.role === "tool");
+    expect(user.content[0]).toEqual({ type: "text", text: "ssn <SSN_1>" });
+    expect(user.content[1]).toEqual({ type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } });
+    expect(tool.tool_call_id).toBe("t1");
+    expect(tool.content[0].id).toBe("<SSN_1>");
+    expect(tool.content[0].status).toBe("active");
   });
 });

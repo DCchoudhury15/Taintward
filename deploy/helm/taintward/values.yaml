@@ -210,7 +210,9 @@ gateway:
   # collector Service of this release.
   otlpEndpoint: ""
 
-  # Gateway config (gateway.yaml), see docs/mcp-gateway.md.
+  # Gateway config (gateway.yaml), see docs/mcp-gateway.md. The default is
+  # the example HR server that ships in the image, so the chart starts on
+  # its own. Replace `upstreams` and `tools` with your own before real use.
   config:
     service_name: taintward-mcp-gateway
     upstreams:

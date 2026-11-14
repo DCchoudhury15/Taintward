@@ -62,11 +62,12 @@ identifiers ``user`` and ``safety_identifier`` (an identifier that is an
 email address is personal data too; an opaque id is left as it is).
 
 The patch is applied to one client object and the copies made from it.
-Other clients and the batch endpoints are not covered (a batch answer comes
-back in another call, so it could not be restored; the first batch request
-on a protected client logs a warning). The answers of the
-``with_raw_response`` / ``with_streaming_response`` helpers are not
-restored.
+Anthropic batch requests (``messages.batches.create``) are sent with one-way
+masks instead of placeholders: a batch answer comes back in another call,
+so it could not be restored. The first one logs a warning. OpenAI batches
+are built from an uploaded file and are not covered, like other clients.
+The answers of the ``with_raw_response`` / ``with_streaming_response``
+helpers are not restored.
 """
 
 from __future__ import annotations
@@ -652,38 +653,74 @@ def _patch_count_tokens(resource: Any, provider: str, system: str,
     return True
 
 
-def _warn_on_batches(resource: Any, what: str) -> None:
-    """Batch requests are not redacted (their answers come back in another
-    call and could not be restored). Say so once, on first use."""
-    batches = getattr(resource, "batches", None) if resource is not None else None
-    original = getattr(batches, "create", None)
-    if original is None or getattr(original, _PATCHED_MARK, False):
-        return
-    warned = []
+def _wrap_batches_create(original: Callable, provider: str, system: str,
+                         fields: tuple[str, ...], ward: Ward, what: str) -> Callable:
+    """A batch answer comes back later, in another call, so it could not be
+    restored: placeholders would stay in it. The requests are sent with
+    one-way masks instead, and the first call says so."""
+    warned: list[bool] = []
 
-    def warn() -> None:
+    def guard(kwargs: dict) -> tuple[GuardedCall, list]:
         if not warned:
             warned.append(True)
-            log.warning("taintward: %s is not covered by the protected client; this "
-                        "batch request is sent as it is, without redaction", what)
+            log.warning("taintward: %s requests are sent with one-way masks ([PII], "
+                        "[SECRET]), not placeholders: a batch answer cannot be restored", what)
+        requests = [to_plain(r) for r in (kwargs.get("requests") or [])]
+        content = [{k: p[k] for k in fields if k in p}
+                   for p in ((r.get("params") or {}) if isinstance(r, Mapping) else {}
+                             for r in requests)]
+        structure, payload = structure_redactor(None), payload_redactor(None)
+
+        def redact(value: Any, destination: str) -> Any:
+            return [{k: (payload if k in _DATA_FIELDS and isinstance(v, Mapping)
+                         else structure)(v, destination) for k, v in item.items()}
+                    for item in value]
+        call = GuardedCall(
+            f"batch {what}", destination=DEST_LLM, jurisdiction=ward.llm_jurisdiction,
+            tracer=ward.tracer, kwargs={"requests": content}, redact=redact,
+            input_attr="gen_ai.input.messages", output_attr="gen_ai.output.messages",
+            input_view=lambda _a, kw: kw, kind=trace.SpanKind.CLIENT,
+            attributes={"gen_ai.operation.name": "batch", "gen_ai.provider.name": system,
+                        "taintward.framework": provider})
+        return call, requests
+
+    def send(call: GuardedCall, requests: list) -> list:
+        out = []
+        for r, redacted in zip(requests, call.kwargs["requests"]):
+            if isinstance(r, Mapping) and isinstance(r.get("params"), Mapping):
+                r = {**r, "params": {**r["params"], **redacted}}
+            out.append(r)
+        return out
 
     if inspect.iscoroutinefunction(inspect.unwrap(original)):
         @functools.wraps(original)
         async def acreate(*args, **kwargs):
-            warn()
-            return await original(*args, **kwargs)
-        wrapped: Callable = acreate
-    else:
-        @functools.wraps(original)
-        def create(*args, **kwargs):
-            warn()
-            return original(*args, **kwargs)
-        wrapped = create
-    setattr(wrapped, _PATCHED_MARK, True)
+            call, requests = guard(kwargs)
+            with call:
+                return await original(*args, **{**kwargs, "requests": send(call, requests)})
+        setattr(acreate, _PATCHED_MARK, True)
+        return acreate
+
+    @functools.wraps(original)
+    def create(*args, **kwargs):
+        call, requests = guard(kwargs)
+        with call:
+            return original(*args, **{**kwargs, "requests": send(call, requests)})
+    setattr(create, _PATCHED_MARK, True)
+    return create
+
+
+def _patch_batches(resource: Any, provider: str, system: str, fields: tuple[str, ...],
+                   ward: Ward, what: str) -> None:
+    batches = getattr(resource, "batches", None) if resource is not None else None
+    original = getattr(batches, "create", None)
+    if original is None or getattr(original, _PATCHED_MARK, False):
+        return
     try:
-        batches.create = wrapped
+        batches.create = _wrap_batches_create(original, provider, system, fields, ward, what)
     except Exception:  # noqa: BLE001 - a resource that cannot be patched
-        pass
+        log.warning("taintward: could not patch %s.create; batch requests are not "
+                    "redacted", what)
 
 
 def _patch_copies(client: Any, protect: Callable, ward: Ward) -> None:
@@ -748,7 +785,7 @@ def protect_anthropic(client: Any, *, ward: Ward | None = None) -> Any:
     if not patched and not _already(client, "anthropic"):
         raise TypeError("client has no messages.create")
     _patch_count_tokens(messages, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w)
-    _warn_on_batches(messages, "messages.batches")
+    _patch_batches(messages, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w, "messages.batches")
     # The beta namespace is a second set of the same endpoints.
     try:
         beta = getattr(getattr(client, "beta", None), "messages", None)
@@ -758,7 +795,8 @@ def protect_anthropic(client: Any, *, ward: Ward | None = None) -> Any:
         if _patch(beta, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w):
             _patch_message_stream(beta, w)
         _patch_count_tokens(beta, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w)
-        _warn_on_batches(beta, "beta.messages.batches")
+        _patch_batches(beta, "anthropic", "anthropic", _ANTHROPIC_FIELDS, w,
+                       "beta.messages.batches")
     _patch_copies(client, protect_anthropic, w)
     return client
 
