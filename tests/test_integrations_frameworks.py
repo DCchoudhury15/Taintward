@@ -258,6 +258,40 @@ class TestLlamaIndex:
         # CustomLLM.chat calls complete: still one llm span per request
         assert len([n for n, a in spans(otel[1], "llamaindex")]) == 2
 
+    def test_messages_and_prompt_given_by_name(self, ward, otel):
+        """LlamaIndex's tool-calling helpers (and FunctionAgent on top of
+        them) call ``llm.astream_chat(messages=...)``, by name. The wrapper
+        took the value by position only, so the documented FunctionAgent
+        example raised TypeError with a real model."""
+        import asyncio
+
+        from llama_index.core.llms import ChatMessage
+
+        from taintward.sdk.integrations.llamaindex import protect_llm
+        sent = []
+        llm = protect_llm(self._llm(lambda: "To <EMAIL_1> re <SSN_1>", sent), ward=ward)
+        msgs = [ChatMessage(role="user", content=ASK)]
+
+        async def by_name():
+            r = await llm.achat(messages=msgs)
+            last = None
+            async for last in await llm.astream_chat(messages=msgs):
+                pass
+            return r, last
+
+        with ward.run():
+            r1 = llm.chat(messages=msgs)
+            r2 = llm.complete(prompt=f"to {EMAIL}")
+            last = list(llm.stream_complete(prompt=f"to {EMAIL}"))[-1]
+            r3, alast = asyncio.run(by_name())
+        assert r1.message.content == r3.message.content == f"To {EMAIL} re {SSN}"
+        assert r2.text == f"To {EMAIL} re {SSN}"
+        assert last.text == f"Mail {EMAIL} now"
+        assert alast is not None and EMAIL in alast.message.content
+        assert sent and all(no_raw(s) for s in sent)
+        with pytest.raises(TypeError):
+            llm.chat()
+
     def test_stream_deltas_restore_a_split_placeholder(self, ward, otel):
         from taintward.sdk.integrations.llamaindex import protect_llm
         llm = protect_llm(self._llm(lambda: "", []), ward=ward)

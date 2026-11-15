@@ -246,12 +246,25 @@ class _Request:
             finish_llm(self.call, self.ward, self.pmap, _view(last), spaced=False)
 
 
+def _take(field: str, args: tuple, kwargs: dict) -> tuple[Any, tuple, dict]:
+    """The messages or the prompt of a call, given by position or by name.
+    LlamaIndex's own helpers (``chat_with_tools`` and the agents on top of
+    it) call ``llm.astream_chat(messages=...)``, by name."""
+    if args:
+        return args[0], args[1:], kwargs
+    if field in kwargs:
+        rest = dict(kwargs)
+        return rest.pop(field), (), rest
+    raise TypeError(f"missing required argument: {field!r}")
+
+
 def _llm_class(base: type) -> type:
     def plain(name: str, field: str):
         original = getattr(base, name)
 
         @functools.wraps(original)
-        def method(self, value, *args, **kwargs):
+        def method(self, *args, **kwargs):
+            value, args, kwargs = _take(field, args, kwargs)
             if _INSIDE.get():
                 return original(self, value, *args, **kwargs)
             tok = _INSIDE.set(True)
@@ -266,7 +279,8 @@ def _llm_class(base: type) -> type:
         original = getattr(base, name)
 
         @functools.wraps(original)
-        async def method(self, value, *args, **kwargs):
+        async def method(self, *args, **kwargs):
+            value, args, kwargs = _take(field, args, kwargs)
             if _INSIDE.get():
                 return await original(self, value, *args, **kwargs)
             tok = _INSIDE.set(True)
@@ -281,7 +295,8 @@ def _llm_class(base: type) -> type:
         original = getattr(base, name)
 
         @functools.wraps(original)
-        def method(self, value, *args, **kwargs):
+        def method(self, *args, **kwargs):
+            value, args, kwargs = _take(field, args, kwargs)
             if _INSIDE.get():
                 return original(self, value, *args, **kwargs)
             req = _Request(self, field, value)
@@ -308,7 +323,8 @@ def _llm_class(base: type) -> type:
         original = getattr(base, name)
 
         @functools.wraps(original)
-        async def method(self, value, *args, **kwargs):
+        async def method(self, *args, **kwargs):
+            value, args, kwargs = _take(field, args, kwargs)
             if _INSIDE.get():
                 return await original(self, value, *args, **kwargs)
             req = _Request(self, field, value)

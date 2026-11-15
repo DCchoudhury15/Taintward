@@ -311,6 +311,13 @@
   or under a phone key; it now runs only on those parts. 80 KB of spaced
   digits went from 1.9 s to 0.17 s, 500 KB from 12 s to 1 s. The
   detections are the same (checked on 10,000 texts).
+- LlamaIndex: a protected model took its messages by position only, but
+  LlamaIndex's tool-calling helpers and `FunctionAgent` pass them by name
+  (`astream_chat(messages=...)`). The call raised `TypeError`, so the
+  `FunctionAgent` example in the docs did not run with a real model.
+- `constraints.txt` pinned a `python-dateutil` version that the pinned
+  `boto3` does not accept, so the `aws` extra could not be installed with
+  the pins.
 - `collector/config.yaml` pointed at a policy path on one developer
   machine; it is relative now (run the collector from `collector/`).
 - The demo's `--llm real --provider anthropic` called OpenAI. The option is

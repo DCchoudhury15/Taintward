@@ -107,7 +107,7 @@ Pygments==2.21.0
 PyJWT==2.15.1
 pymdown-extensions==12.3
 pytest==9.1.1
-python-dateutil==3.0.0
+python-dateutil==2.9.0.post0
 python-multipart==0.0.32
 PyYAML==6.0.3
 pyyaml_env_tag==1.1

@@ -182,6 +182,10 @@ with taintward.run("turn", conversation_id=chat_id):
     ...
 ```
 
+A stored vault needs its own encryption key: set `TAINTWARD_VAULT_KEY` (hex,
+32, 48 or 64 characters, not the same as `TAINTWARD_FPE_KEY`) or a key ring
+in `TAINTWARD_KEYS`, or `get_vault` raises ([key management](key-management.md)).
+
 The placeholders are stored through the normal vault API (encrypted at rest
 with `SQLiteVault`). Vault keys hold only keyed hashes (HMAC) of the value and
 the conversation id, never the value itself. Each entry is tagged with the

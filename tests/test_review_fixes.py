@@ -707,6 +707,53 @@ def test_gateway_fail_closed(broken_model, monkeypatch):
     assert hr_server.OUTBOX == []
 
 
+def test_gateway_fail_closed_when_detection_breaks_during_the_call(monkeypatch):
+    """Detection is healthy when the call comes in and breaks while this
+    call's arguments are scanned. It then finds nothing, so the arguments
+    would be forwarded unredacted: with fail closed on, the call is refused."""
+    pytest.importorskip("mcp")
+    import anyio
+    from mcp import Client, MCPError
+
+    from taintward.gateway import Gateway, parse_config
+    from taintward.gateway.examples import hr_server
+
+    monkeypatch.setattr(instr, "FAIL_CLOSED", True)
+    detect._reset_engine()
+    assert detect.health()["ok"]          # healthy before the call
+
+    real = detect._analyze
+
+    def breaks_on_this_call(items, threshold):
+        # healthy for everything the gateway scans before the call
+        if any(SSN in text for text, _ in items):
+            raise RuntimeError("detector broke")
+        return real(items, threshold)
+
+    monkeypatch.setattr(detect, "_analyze", breaks_on_this_call)
+    c = parse_config({
+        "upstreams": [{"name": "hr", "command": "python",
+                       "args": ["-m", "taintward.gateway.examples.hr_server"]}],
+        "tools": [{"match": "send_email", "destination": "external", "mode": "redact"}],
+    })
+    c.upstreams[0].server_object = hr_server.mcp
+    tracer, _ = _tracer()
+    server = Gateway(c, tracer=tracer).build_server()
+    before = len(hr_server.OUTBOX)
+
+    async def main():
+        async with Client(server) as client:
+            with pytest.raises(MCPError, match="detection failed during this call"):
+                await client.call_tool("send_email", {
+                    "to": "a@b.c", "subject": "s", "body": f"SSN {SSN}"})
+    try:
+        anyio.run(main)
+        assert len(hr_server.OUTBOX) == before      # nothing reached the tool
+    finally:
+        monkeypatch.undo()
+        detect._reset_engine()
+
+
 # Enum members and payloads that contain themselves
 # ---------------------------------------------------------------------------
 def test_enum_member_is_checked_by_its_value():
