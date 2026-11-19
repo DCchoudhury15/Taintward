@@ -51,7 +51,7 @@ import sqlite3
 import threading
 import time
 from contextlib import contextmanager
-from typing import Any, Iterator, Protocol, runtime_checkable
+from typing import Any, Iterator, NamedTuple, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 from cryptography.exceptions import InvalidTag
@@ -144,6 +144,16 @@ _MAGIC = b"tw1"
 log = logging.getLogger("taintward.sdk")
 
 
+class _Keys(NamedTuple):
+    """One version of the vault keys. Replaced as a whole on rotation, so a
+    thread never seals with one key while naming another."""
+    ring: KeyRing
+    aeads: dict
+    index_keys: dict
+    aead: AESGCM
+    index_key: bytes
+
+
 class _Sealer:
     """AES-GCM sealing and the subject blind index, shared by every
     persistent backend so they all give the same guarantees.
@@ -184,11 +194,31 @@ class _Sealer:
         fpe_keys = set(keyset.fpe.keys.values()) if keyset.fpe else set()
         if fpe_keys & set(ring.keys.values()):
             raise ValueError("TAINTWARD_VAULT_KEY must not be the same as TAINTWARD_FPE_KEY")
-        self.ring = ring
-        self._aeads = {kid: AESGCM(k) for kid, k in ring.keys.items()}
-        self._index_keys = {kid: self._index_key(k) for kid, k in ring.keys.items()}
-        self.aead = self._aeads[ring.active]
-        self.index_key = self._index_keys[ring.active]
+        aeads = {kid: AESGCM(k) for kid, k in ring.keys.items()}
+        index_keys = {kid: self._index_key(k) for kid, k in ring.keys.items()}
+        # One assignment: seal() on another thread sees the old keys or the
+        # new ones, never the new key id with the old key.
+        self._k = _Keys(ring, aeads, index_keys, aeads[ring.active], index_keys[ring.active])
+
+    @property
+    def ring(self) -> KeyRing:
+        return self._k.ring
+
+    @property
+    def aead(self) -> AESGCM:
+        return self._k.aead
+
+    @property
+    def index_key(self) -> bytes:
+        return self._k.index_key
+
+    @property
+    def _aeads(self) -> dict:
+        return self._k.aeads
+
+    @property
+    def _index_keys(self) -> dict:
+        return self._k.index_keys
 
     def refresh(self) -> None:
         """Pick up a rotated ring (at most once per TAINTWARD_KEYS_RELOAD_SECONDS).
@@ -219,13 +249,14 @@ class _Sealer:
     def seal(self, token: str, original: str,
              subject: str | None = None) -> tuple[bytes, bytes]:
         self.refresh()
+        k = self._k
         nonce = os.urandom(12)
-        kid = self.ring.active.encode()
+        kid = k.ring.active.encode()
         sub = (subject or "").encode()
         if len(sub) > 0xFFFF:
             raise ValueError("subject is longer than 65535 bytes")
         plain = len(sub).to_bytes(2, "big") + sub + original.encode()
-        ct = self.aead.encrypt(nonce, plain, token.encode())
+        ct = k.aead.encrypt(nonce, plain, token.encode())
         return _MAGIC + bytes([len(kid)]) + kid + nonce, ct
 
     @staticmethod
@@ -243,17 +274,18 @@ class _Sealer:
         """(original, subject, subject known). Legacy rows do not hold the
         subject, so for them the last value is False."""
         self.refresh()
+        k = self._k
         nf, ct, aad = bytes(nonce), bytes(ct), token.encode()
         kid = self.sealed_by(nf)
         if kid is not None:
-            aead = self._aeads.get(kid)
+            aead = k.aeads.get(kid)
             if aead is None:
                 raise VaultError(f"vault row sealed with key {kid!r}, which is not in "
                                  "the vault key ring")
             plain = aead.decrypt(nf[-12:], ct, aad)
             n = int.from_bytes(plain[:2], "big")
             return plain[2 + n:].decode(), plain[2:2 + n].decode() or None, True
-        for aead in [self.aead, *self._aeads.values()]:
+        for aead in [k.aead, *k.aeads.values()]:
             try:
                 return aead.decrypt(nf, ct, aad).decode(), None, False
             except InvalidTag:
@@ -289,9 +321,10 @@ class _Sealer:
         """The subject's index under every key in the ring (active first), so
         erasure also finds rows written before a rotation."""
         self.refresh()
-        out = [self.subject_idx(subject)]
-        for k in self._index_keys.values():
-            idx = hmac.new(k, subject.encode(), hashlib.sha256).hexdigest()
+        keys = self._k
+        out = [hmac.new(keys.index_key, subject.encode(), hashlib.sha256).hexdigest()]
+        for key in keys.index_keys.values():
+            idx = hmac.new(key, subject.encode(), hashlib.sha256).hexdigest()
             if idx not in out:
                 out.append(idx)
         return out

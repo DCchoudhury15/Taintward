@@ -143,6 +143,7 @@ function isRecord(x: unknown): boolean {
  */
 function redactStructure(value: unknown, map: PlaceholderMap | undefined, key = "", depth = 0): unknown {
   if (depth > 64) return value;
+  if (depth === 0) map?.reserve(value); // before any value gets a name
   if (typeof value === "string") return redactString(value, "llm", { placeholders: map, key });
   if (Array.isArray(value)) return value.map((v) => redactStructure(v, map, key, depth + 1));
   if (isObject(value)) {

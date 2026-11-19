@@ -253,7 +253,7 @@ Two things to read carefully:
 
 ### False alarms
 
-7. **`DATE_TIME`, `ORGANIZATION`, `URL`, `NRP` and `MEDICAL_LICENSE` are not
+7. **`DATE_TIME`, `ORGANIZATION`, `URL`, `NRP`, `MEDICAL_LICENSE` and `UUID` are not
    sensitive by default.** On this dataset they made up nearly all false
    alarms: `DATE_TIME` fired on integer IDs, zip codes and timestamps;
    `ORGANIZATION` on UUIDs and words like "SSN"; `URL` on the domain inside

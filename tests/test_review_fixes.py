@@ -882,3 +882,27 @@ def test_allow_given_as_one_name_is_one_name():
     assert _to_policy({"destination": "external", "allow": "to"}).allow == frozenset({"to"})
     assert _to_policy({"destination": "external", "allow": ["to", "cc"]}).allow == {"to", "cc"}
     assert _to_policy({"destination": "external", "allow": None}).allow == frozenset()
+
+
+
+def test_policy_refresh_swaps_tool_map_and_default_together():
+    """Found in the thread-safety review: apply_policy set the tool map and
+    the default destination one after the other, so a call on another thread
+    in between paired the new map with the old default. Here "crm" moves from
+    an explicit external entry to the (new) external default; no reader may
+    ever see it as internal."""
+    from taintward.sdk.integrations import Ward
+
+    class Watched(Ward):
+        watch = False
+        seen: list = []
+
+        def __setattr__(self, name, value):
+            super().__setattr__(name, value)
+            if self.watch:  # what a call on another thread would see now
+                self.seen.append(self.policy_for("crm").destination)
+
+    ward = Watched({"crm": "external"}, default_destination="internal")
+    ward.watch = True
+    ward.apply_policy({"destinations": {}, "default_destination": "external"})
+    assert ward.seen and "internal" not in ward.seen, ward.seen

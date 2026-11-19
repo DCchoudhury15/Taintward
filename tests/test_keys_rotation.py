@@ -277,3 +277,51 @@ def test_vault_kv_write_conflict_is_an_error(clean_env, kms, capsys):
             assert K.main(["rotate", "--keys", "vault-kv:secret/taintward",
                            "--purpose", "vault"]) == 1
         assert "changed after it was read" in capsys.readouterr().err
+
+
+def test_rotation_during_seal_never_names_one_key_and_uses_another():
+    # Found in the thread-safety review: a rotation that landed inside seal()
+    # gave a row the new key id but the old key's ciphertext, so it could
+    # never be opened again (about a third of rows in this test before).
+    import sys
+    import threading
+    from types import SimpleNamespace
+
+    from taintward.sdk.vault import _Sealer
+
+    s = _Sealer(os.urandom(32).hex(), "test")
+    keys = [os.urandom(32) for _ in range(2)]
+    ring = {K.key_id_for(k): k for k in keys}
+    rings = [K.KeyRing("vault", K.key_id_for(k), ring) for k in keys]
+    no_fpe = SimpleNamespace(fpe=None)
+    stop, bad = threading.Event(), []
+
+    def rotate():
+        i = 0
+        while not stop.is_set():
+            s._use(rings[i % 2], no_fpe)
+            i += 1
+
+    def work(w):
+        for n in range(1500):
+            nonce, ct = s.seal(f"t{w}-{n}", "value")
+            try:
+                s.open(f"t{w}-{n}", nonce, ct)
+            except Exception as exc:  # noqa: BLE001
+                bad.append(exc)
+
+    old = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+    try:
+        r = threading.Thread(target=rotate)
+        r.start()
+        ws = [threading.Thread(target=work, args=(w,)) for w in range(4)]
+        for t in ws:
+            t.start()
+        for t in ws:
+            t.join()
+        stop.set()
+        r.join()
+    finally:
+        sys.setswitchinterval(old)
+    assert bad == []

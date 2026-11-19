@@ -86,6 +86,11 @@ _TOLERANT_RE = re.compile(
     rf"|(?<![\w\\])(?P<ulabel>{_WORD}(?:\\?[_＿]{_WORD})*?)\\?[_＿](?P<unum>\d{{1,6}})(?!\w)"
     rf"|(?<![\w\\])(?P<slabel>[A-Za-z]+)[ \-](?P<snum>\d{{1,3}})(?![\w])(?![.,]\d)"
 )
+# The exact form <PERSON_1> on its own (what the redactor writes).
+_EXACT_RE = re.compile(r"(?:<|&lt;)\s*[A-Za-z][A-Za-z0-9_]*?_\d{1,6}\s*(?:>|&gt;)")
+# A bare form glued to a word before or after it ("EXAMPLEPERSON_1",
+# "PERSON_1ghp_..."), see reserve().
+_GLUED_RE = re.compile(r"([^\W\d_][^\W\d]{0,39})\\?[_＿](\d{1,6})")
 # <PERSON> with no number: the model dropped the number (never restored).
 _NUMBERLESS_RE = re.compile(r"(?:<|&lt;|\[)\s*([A-Za-z][A-Za-z_]*)\s*(?:>|&gt;|\])")
 
@@ -258,6 +263,10 @@ class PlaceholderMap:
         self._by_value: dict[str, str] = {}
         self._by_placeholder: dict[str, _Entry] = {}
         self._counts: dict[str, int] = {}
+        # Placeholder names that were already in the input text (a document
+        # about <SSN_1>): never given to a value, so restore leaves them as
+        # they are. See reserve().
+        self._reserved: set[str] = set()
         self._known_re: re.Pattern | None = None
         self._vault = vault
         self.tolerant = tolerant
@@ -330,7 +339,7 @@ class PlaceholderMap:
                     n = 0
             n = (n or 0) + 1
             ph = f"<{label}_{n}>"
-            while ph in self._by_placeholder:  # never reuse a number
+            while ph in self._by_placeholder or ph in self._reserved:  # never reuse a number
                 n += 1
                 ph = f"<{label}_{n}>"
             self._counts[label] = n
@@ -342,6 +351,40 @@ class PlaceholderMap:
                 self._vput("i:" + self._hash(value), ph)
                 self._vput("n:" + label, str(n))
             return ph
+
+    def reserve(self, value: Any) -> None:
+        """Mark the placeholder names already written in ``value`` (input
+        text, before it is redacted) as taken.
+
+        Without this, a text holding a literal ``<SSN_1>`` next to a real SSN
+        gave the SSN that same name, and restore turned both into the SSN.
+        A name the map already gave to a value is left as it is."""
+        found = set()
+        for s in _strings_and_json(value):
+            for m in _TOLERANT_RE.finditer(s):
+                if m.group("exact"):
+                    label, num = m.group("elabel"), m.group("enum")
+                elif m.group("blabel"):
+                    label, num = m.group("blabel"), m.group("bnum")
+                elif m.group("ulabel"):
+                    label, num = m.group("ulabel"), m.group("unum")
+                else:
+                    continue  # "Person 1": only restored when unambiguous
+                found.add(f"<{_norm_label(label)}_{int(num)}>")
+            # "EXAMPLEPERSON_1", "PERSON_1ghp_...": a bare form glued to a
+            # word is not one, but becomes one when that word is redacted.
+            # Reserve every label the letters may end with, and every number
+            # the digits may start with.
+            for m in _GLUED_RE.finditer(s):
+                run, digits = m.group(1), m.group(2)
+                for i in range(len(run)):
+                    label = _norm_label(run[i:])
+                    if label and label[0].isalpha():
+                        found.update(f"<{label}_{int(digits[:k])}>"
+                                     for k in range(1, len(digits) + 1))
+        if found:
+            with self._lock:
+                self._reserved |= found - self._by_placeholder.keys()
 
     def lookup(self, placeholder: str) -> str | None:
         """Real value for a placeholder (any spacing/case variant), or None."""
@@ -457,7 +500,14 @@ class PlaceholderMap:
             if glued and m.start() == 0 and (m.group("ulabel") or m.group("slabel")):
                 return m.group(0)
             value = self._classify(m, ok)[0]
-            return encode(value) if value is not None and not blocked(m) else m.group(0)
+            if value is None or blocked(m):
+                return m.group(0)
+            if (m.group("open") or "")[:1] == "\\" and _EXACT_RE.fullmatch(m.group(0), 1):
+                # "\<SSN_1>": the backslash was in the text before the value
+                # ("C:\Users\<PERSON_1>"), not a markdown escape, which also
+                # escapes the "_" or the ">". Keep it.
+                return "\\" + encode(value)
+            return encode(value)
 
         return _TOLERANT_RE.sub(tolerant_sub, text)
 
@@ -669,6 +719,7 @@ class PlaceholderMap:
             self._by_value.clear()
             self._by_placeholder.clear()
             self._counts.clear()
+            self._reserved.clear()
             self._known_re = None
 
     def forget_conversation(self) -> int:
@@ -913,6 +964,22 @@ def instruction_for(names: list[str]) -> str:
     shown = names[:_INSTRUCTION_MAX]
     text = ", ".join(shown) + (", ..." if len(names) > len(shown) else "")
     return INSTRUCTION.format(names=text)
+
+
+def _strings_and_json(value: Any) -> Iterator[str]:
+    """Every string in ``value`` that may hold a placeholder form, and the
+    strings inside one that is a JSON document (tool call arguments): restore
+    reads those parsed, where "\\nPERSON_1" is a bare PERSON_1."""
+    for s in _strings(value):
+        if not _TOLERANT_RE.search(s) and not _GLUED_RE.search(s) and "\\" not in s:
+            continue
+        yield s
+        if s.lstrip()[:1] in ("{", "[") and "\\" in s:
+            try:
+                doc = json.loads(s)
+            except ValueError:
+                continue
+            yield from _strings(doc)
 
 
 def _strings(value: Any, depth: int = 0) -> Iterator[str]:

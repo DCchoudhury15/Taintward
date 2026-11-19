@@ -107,7 +107,10 @@ _NEEDS_CONTEXT = frozenset({"UK_NHS"})
 # benchmark they made up most false alarms: DATE_TIME fired on plain integer
 # IDs, zip codes and timestamps, ORGANIZATION on UUIDs and words like "SSN",
 # URL on the domain inside every email address, MEDICAL_LICENSE on git SHAs.
-NOISE_TYPES_DEFAULT = frozenset({"DATE_TIME", "ORGANIZATION", "URL", "NRP", "MEDICAL_LICENSE"})
+# UUID: Presidio 2.2.366 added a UUID recognizer; a UUID is a record or trace
+# id, not personal data, and counting it dropped benchmark precision to 0.96.
+NOISE_TYPES_DEFAULT = frozenset({"DATE_TIME", "ORGANIZATION", "URL", "NRP", "MEDICAL_LICENSE",
+                                 "UUID"})
 
 
 def _env_types(name: str) -> frozenset:

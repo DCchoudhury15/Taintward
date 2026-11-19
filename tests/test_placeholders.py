@@ -641,3 +641,72 @@ class TestOpenAIAgentsPlaceholders:
         _no_raw(seen["send_email"]["body"])
         assert _reverse(seen["store"].split()[1]) == SSN
         _no_raw_in_spans(exporter)
+
+
+def test_placeholder_names_already_in_the_input_are_not_reused():
+    # Found by fuzzing: a text that already held "<SSN_1>" gave the real SSN
+    # that same name, and restore turned the literal one into the SSN too.
+    m = PlaceholderMap()
+    text = f"SSN {SSN}, the doc mentions <SSN_1> and [SSN_2]"
+    out = redact_payload({"a": text}, DEST_LLM, placeholders=m)["a"]
+    assert SSN not in out
+    assert out.startswith("SSN <SSN_3>,")
+    assert m.restore_text(out) == text
+    # a name the map already gave out is still its own placeholder
+    assert redact_payload(f"again {SSN} <SSN_3>", DEST_LLM, placeholders=m) == "again <SSN_3> <SSN_3>"
+
+
+def test_placeholder_names_inside_json_arguments_are_reserved_too():
+    # "\nSSN_1" in raw JSON is a bare SSN_1 once the JSON is parsed, and
+    # restore reads tool call arguments parsed.
+    m = PlaceholderMap()
+    args = json.dumps({"note": f"SSN {SSN}\nSSN_1"})
+    out = redact_payload(args, DEST_LLM, placeholders=m)
+    assert SSN not in out
+    assert json.loads(m.restore_text(out)) == {"note": f"SSN {SSN}\nSSN_1"}
+
+
+def test_glued_bare_form_is_reserved_and_json_escapes_are_not_doubled():
+    from taintward.sdk.redact import get_redactor
+
+    # "...EXAMPLEEMAIL_1" is part of a word until the key before it is
+    # redacted; then it is a bare EMAIL_1.
+    m = PlaceholderMap()
+    aws = "AKIA" + "IOSFODNN7EXAMPLE"  # AWS docs example key, split on purpose
+    for text in (f"{aws}EMAIL_1 and {EMAIL}",
+                 f"{EMAIL} ghp_{'a1B2' * 9}EMAIL_1",  # glued after a digit
+                 f"{EMAIL} EMAIL_1ghp_{'a1B2' * 9}"):  # glued before a token
+        m = PlaceholderMap()
+        out = redact_payload(text, DEST_LLM, placeholders=m)
+        assert m.restore_text(out) == text, out
+    # A value inside JSON text with an escape ("\\n") is kept unescaped, so
+    # restore inside the parsed JSON does not double the backslash.
+    from taintward.sdk import detect
+
+    m = PlaceholderMap()
+    args = json.dumps({"note": "lives at 12 Main St\nSpringfield"})
+    start = args.index("12 Main")
+    end = args.index("field") + len("field")
+    det = detect.Detection("LOCATION", start, end, 0.9, Sensitivity.PII, "x")
+    out = get_redactor().redact_text(args, [det], DEST_LLM, placeholders=m)
+    assert out == '{"note": "lives at <LOCATION_1>"}'
+    assert json.loads(m.restore_text(out)) == json.loads(args)
+
+
+def test_a_span_never_cuts_a_json_escape_in_two():
+    # Found by fuzzing: a span ending between "\" and "n" left a backslash in
+    # the stored value; one starting there left "\<PERSON_1>" (bad JSON).
+    from taintward.sdk import detect
+    from taintward.sdk.redact import get_redactor
+
+    args = json.dumps({"note": "Alice Lee\nBob été \U0001F600Ann"}, ensure_ascii=True)
+    cut = args.index("\\") + 1
+    pair = args.index("\\ude00")  # second half of the emoji's surrogate pair
+    for start, end in [(args.index("Alice"), cut), (cut, cut + 4),
+                       (args.index("Bob"), args.index("u00e9") + 2),
+                       (pair + 1, args.index("Ann") + 3)]:
+        m = PlaceholderMap()
+        det = detect.Detection("PERSON", start, end, 0.9, Sensitivity.PII, "x")
+        out = get_redactor().redact_text(args, [det], DEST_LLM, placeholders=m)
+        json.loads(out)
+        assert json.loads(m.restore_text(out)) == json.loads(args), (start, end, out)

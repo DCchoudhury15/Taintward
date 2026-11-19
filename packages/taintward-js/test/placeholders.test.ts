@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PlaceholderMap, StreamRestorer, instructionFor } from "../src/placeholders.js";
+import { redactPayload, redactText } from "../src/redact.js";
 
 function map() {
   const m = new PlaceholderMap();
@@ -162,5 +163,78 @@ describe("no restore inside link addresses (gap G1)", () => {
     const m = new PlaceholderMap({ restoreInUrls: true });
     m.placeholderFor("Alice Lee", "PERSON");
     expect(m.restoreText("https://crm.example/u/<PERSON_1>")).toBe("https://crm.example/u/Alice Lee");
+  });
+});
+
+describe("found by fuzzing", () => {
+  it("keeps a backslash that was in the text before a placeholder", () => {
+    const m = map();
+    expect(m.restoreText("C:\\Users\\<EMAIL_1>\\x")).toBe(
+      "C:\\Users\\alice.lee@example.com\\x",
+    );
+    expect(m.restoreText("\\<PERSON\\_1\\>")).toBe("Alice Lee"); // a real markdown escape
+  });
+
+  it("does not reuse a placeholder name already in the input", () => {
+    const m = new PlaceholderMap();
+    const text = "SSN 234-12-1234, the doc mentions <SSN_1> and [SSN_2]";
+    const out = redactPayload({ a: text }, "llm", { placeholders: m }).a;
+    expect(out).toBe("SSN <SSN_3>, the doc mentions <SSN_1> and [SSN_2]");
+    expect(m.restoreText(out)).toBe(text);
+  });
+
+  it("reserves names inside JSON arguments too", () => {
+    const m = new PlaceholderMap();
+    const args = JSON.stringify({ note: "SSN 234-12-1234\nSSN_1" });
+    const out = redactPayload(args, "llm", { placeholders: m });
+    expect(out).not.toContain("234-12-1234");
+    expect(JSON.parse(m.restoreText(out))).toEqual({ note: "SSN 234-12-1234\nSSN_1" });
+  });
+
+  it("reserves a bare form glued to a word that gets redacted", () => {
+    const m = new PlaceholderMap();
+    const text = `${"AKIA" + "IOSFODNN7EXAMPLE"}EMAIL_1 and alice.lee@example.com`; // AWS docs example key
+    const out = redactPayload(text, "llm", { placeholders: m });
+    expect(m.restoreText(out)).toBe(text);
+    const m2 = new PlaceholderMap();
+    const text2 = `alice.lee@example.com ghp_${"a1B2".repeat(9)}EMAIL_1`; // glued after a digit
+    expect(m2.restoreText(redactPayload(text2, "llm", { placeholders: m2 }))).toBe(text2);
+    const m3 = new PlaceholderMap();
+    const text3 = `alice.lee@example.com EMAIL_1ghp_${"a1B2".repeat(9)}`; // glued before a token
+    expect(m3.restoreText(redactPayload(text3, "llm", { placeholders: m3 }))).toBe(text3);
+  });
+
+  it("keeps a JSON value unescaped so restore does not double escapes", () => {
+    const m = new PlaceholderMap();
+    const args = JSON.stringify({ note: "lives at 12 Main St\nSpringfield" });
+    const start = args.indexOf("12 Main");
+    const end = args.indexOf("field") + "field".length;
+    const out = redactText(args, [{ start, end, entityType: "LOCATION", sensitivity: "pii", score: 0.9 }], "llm", {
+      placeholders: m,
+    });
+    expect(out).toBe('{"note":"lives at <LOCATION_1>"}');
+    expect(JSON.parse(m.restoreText(out))).toEqual(JSON.parse(args));
+  });
+
+  it("never cuts a JSON escape in two", () => {
+    const args = JSON.stringify({ note: "Alice Lee\nBob été \u{1F600}Ann" })
+      .replace(/é/g, "\\u00e9")
+      .replace("\u{1F600}", "\\ud83d\\ude00");
+    const cut = args.indexOf("\\") + 1;
+    const pair = args.indexOf("\\ude00"); // second half of the emoji's surrogate pair
+    const cases: [number, number][] = [
+      [args.indexOf("Alice"), cut],
+      [cut, cut + 4],
+      [args.indexOf("Bob"), args.indexOf("u00e9") + 2],
+      [pair + 1, args.indexOf("Ann") + 3],
+    ];
+    for (const [start, end] of cases) {
+      const m = new PlaceholderMap();
+      const out = redactText(args, [{ start, end, entityType: "PERSON", sensitivity: "pii", score: 0.9 }], "llm", {
+        placeholders: m,
+      });
+      expect(() => JSON.parse(out)).not.toThrow();
+      expect(JSON.parse(m.restoreText(out))).toEqual(JSON.parse(args));
+    }
   });
 });

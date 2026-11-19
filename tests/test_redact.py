@@ -128,3 +128,38 @@ class TestRedaction(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class TestFirstRedactorIsShared(unittest.TestCase):
+    # Found in the thread-safety review: threads that asked for the first
+    # redactor at the same time each made one, with its own random key when
+    # TAINTWARD_FPE_KEY is unset, so some internal tokens never reversed.
+    def test_threads_get_one_redactor_and_one_process_key(self):
+        import os
+        import threading
+        import time
+        from unittest import mock
+
+        from taintward.sdk import redact as R
+
+        real_init = R.Redactor.__init__
+
+        def slow_init(self, *a, **kw):
+            time.sleep(0.05)
+            real_init(self, *a, **kw)
+
+        got = []
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("TAINTWARD_FPE_KEY", "TAINTWARD_KEYS", "TAINTWARD_ALLOW_DEMO_KEY")}
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(R, "_DEFAULT", None), \
+                mock.patch.object(R, "_PROCESS_KEY", None), \
+                mock.patch.object(R.Redactor, "__init__", slow_init), \
+                self.assertWarns(RuntimeWarning):
+            ts = [threading.Thread(target=lambda: got.append(R.get_redactor()))
+                  for _ in range(8)]
+            for t in ts:
+                t.start()
+            for t in ts:
+                t.join()
+        self.assertEqual(len({id(r) for r in got}), 1)
+        self.assertEqual(len({r.key for r in got}), 1)

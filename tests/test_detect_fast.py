@@ -74,6 +74,14 @@ class TestNewRecognizers(unittest.TestCase):
         self.assertEqual(_types(detect.detect_mapping({"password": "****"})), set())
 
 
+class TestUuidNotSensitive(unittest.TestCase):
+    # Presidio 2.2.366 reports UUIDs as their own entity type. A UUID is an id,
+    # so it must not taint, whatever Presidio version is installed.
+    def test_uuid_type_is_ignored_by_default(self):
+        self.assertIn("UUID", detect.ignored_types())
+        self.assertFalse(detect._classify("UUID").is_sensitive)
+
+
 @unittest.skipUnless(_analyzer_available(), "Presidio / spaCy model not installed")
 class TestNoiseTypes(unittest.TestCase):
     def setUp(self):

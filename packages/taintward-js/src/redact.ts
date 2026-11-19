@@ -69,6 +69,7 @@ export function redactValue(value: string, sensitivity: Sensitivity, destination
  */
 export function redactText(text: string, spans: readonly Span[], destination: string, opts: RedactOptions = {}): string {
   if (!text) return text;
+  if (opts.placeholders && destination === DEST_LLM) opts.placeholders.reserve(text);
   const sorted = [...spans].sort(
     (a, b) =>
       a.start - b.start ||
@@ -91,20 +92,75 @@ export function redactText(text: string, spans: readonly Span[], destination: st
     }
     kept.push(d);
   }
+  const first = text.trimStart()[0];
+  const spansOut = text.includes("\\") && (first === "{" || first === "[") ? wholeEscapes(text, kept) : kept;
   let out = text;
-  for (const d of kept.reverse()) {
+  for (const d of spansOut.reverse()) {
     const original = text.slice(d.start, d.end);
     // A value that was not scanned (too large, or a recognizer threw on it)
     // is masked, never passed raw or turned into an FF1 token as a whole.
     const redacted =
       opts.placeholders && destination === DEST_LLM
-        ? opts.placeholders.placeholderFor(original, d.entityType, d.sensitivity)
+        ? opts.placeholders.placeholderFor(jsonUnescaped(text, original), d.entityType, d.sensitivity)
         : isWholeValue(d.entityType)
           ? MASK_TOKEN.secret
           : redactValue(original, d.sensitivity, destination, opts);
     out = out.slice(0, d.start) + redacted + out.slice(d.end);
   }
   return out;
+}
+
+/**
+ * Widen spans of a JSON document so none cuts an escape ("\\n", "\\u00e9")
+ * in two. A span ending inside one left a backslash in the value; one
+ * starting inside one left "\\<SSN_1>", which is not valid JSON.
+ */
+function wholeEscapes(text: string, kept: Span[]): Span[] {
+  const esc: [number, number][] = [];
+  for (const m of text.matchAll(/\\u[dD][89abAB][0-9a-fA-F]{2}\\u[dD][c-fC-F][0-9a-fA-F]{2}|\\(?:u[0-9a-fA-F]{4}|[\s\S])/g)) esc.push([m.index!, m.index! + m[0].length]);
+  const inside = (pos: number) => {
+    let lo = 0;
+    let hi = esc.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const [a, b] = esc[mid]!;
+      if (pos <= a) hi = mid - 1;
+      else if (pos >= b) lo = mid + 1;
+      else return esc[mid]!;
+    }
+    return undefined;
+  };
+  const merged: Span[] = [];
+  for (const d of kept) {
+    const s = inside(d.start)?.[0] ?? d.start;
+    const e = inside(d.end)?.[1] ?? d.end;
+    const last = merged[merged.length - 1];
+    if (last && s < last.end) {
+      const secret = d.sensitivity === "secret" && last.sensitivity !== "secret";
+      merged[merged.length - 1] = { ...(secret ? d : last), start: last.start, end: Math.max(last.end, e) };
+      continue;
+    }
+    merged.push({ ...d, start: s, end: e });
+  }
+  return merged;
+}
+
+/**
+ * The real value of a span of a JSON document: "12 Main St\\nX" there is
+ * "12 Main St" + newline + "X". The placeholder map keeps the real value;
+ * restore escapes it again where it writes into JSON. Otherwise the value
+ * came back with its escapes doubled.
+ */
+function jsonUnescaped(text: string, value: string): string {
+  const first = text.trimStart()[0];
+  if (!value.includes("\\") || (first !== "{" && first !== "[")) return value;
+  try {
+    JSON.parse(text);
+    const real: unknown = JSON.parse(`"${value}"`);
+    return typeof real === "string" ? real : value;
+  } catch {
+    return value; // not JSON, or the span is not inside one JSON string
+  }
 }
 
 /** Detect and redact one string. `key` is its JSON key (context). */
@@ -175,6 +231,8 @@ function walk(value: unknown, destination: string, opts: RedactOptions, found: M
  * payload is redacted everywhere in it. Object keys are redacted like values.
  */
 export function redactPayload<T>(value: T, destination: string, opts: RedactOptions = {}): T {
+  // before any value gets a name
+  if (opts.placeholders && destination === DEST_LLM) opts.placeholders.reserve(value);
   const found = detectPayload(value);
   return walk(value, destination, opts, found, 0) as T;
 }

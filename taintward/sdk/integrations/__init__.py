@@ -82,10 +82,12 @@ class Ward:
         placeholder_strict: bool = False,
         placeholder_restore_in_urls: bool | None = None,
     ) -> None:
-        self.default = ToolPolicy(default_destination, default_jurisdiction)
-        self.policies: dict[str, ToolPolicy] = {
-            name: _to_policy(v) for name, v in (destinations or {}).items()
-        }
+        # (tool map, default) as one value: the policy refresh thread swaps
+        # both at once, so a call never pairs the new map with the old default.
+        self._policy: tuple[dict[str, ToolPolicy], ToolPolicy] = (
+            {name: _to_policy(v) for name, v in (destinations or {}).items()},
+            ToolPolicy(default_destination, default_jurisdiction),
+        )
         self.llm_jurisdiction = llm_jurisdiction
         self.tracer = tracer
         self.placeholders = placeholders
@@ -112,11 +114,28 @@ class Ward:
         default = ToolPolicy(policy.get("default_destination") or DEFAULT_DESTINATION,
                              policy.get("default_jurisdiction") or "")
         policies = {name: _to_policy(v) for name, v in (policy.get("destinations") or {}).items()}
-        self.policies, self.default = policies, default
+        self._policy = (policies, default)
         self.llm_jurisdiction = policy.get("llm_jurisdiction") or ""
 
+    @property
+    def policies(self) -> dict[str, ToolPolicy]:
+        return self._policy[0]
+
+    @policies.setter
+    def policies(self, value: dict[str, ToolPolicy]) -> None:
+        self._policy = (value, self._policy[1])
+
+    @property
+    def default(self) -> ToolPolicy:
+        return self._policy[1]
+
+    @default.setter
+    def default(self, value: ToolPolicy) -> None:
+        self._policy = (self._policy[0], value)
+
     def policy_for(self, tool_name: str) -> ToolPolicy:
-        return self.policies.get(tool_name, self.default)
+        policies, default = self._policy
+        return policies.get(tool_name, default)
 
     def is_mapped(self, tool_name: str) -> bool:
         return tool_name in self.policies

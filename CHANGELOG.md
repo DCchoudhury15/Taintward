@@ -46,6 +46,27 @@
   `id` were read as protocol fields there and sent as they were. Protocol
   parts (`{"type": "text", ...}`, `{"role": ...}`) are handled as before.
   Python and TypeScript.
+- Vault key rotation is safe while other threads write. Rotation replaced
+  the key id and the key one after the other, so a row sealed in between
+  named the new key but was encrypted with the old one and could never be
+  opened again. In a stress test about a third of the rows written during
+  rotation were lost.
+- A control plane policy refresh swaps the tool map and the default
+  destination together. A tool call in between could pair the new map with
+  the old default, and so treat a tool as `internal` for a moment.
+- Threads that ask for the first redactor at the same time share one. With
+  `TAINTWARD_FPE_KEY` unset, each made its own random key, so some
+  `internal` tokens could not be reversed.
+- A text that already holds a placeholder name (`<SSN_1>`, `[SSN_2]`,
+  `SSN_1`, also inside JSON arguments or glued to a word that gets
+  redacted) no longer gets that name reused for a real value; restore used
+  to turn the literal one into the real value too. Python and TypeScript.
+- A backslash just before a placeholder (`C:\Users\<PERSON_1>`) is kept on
+  restore; it was read as a markdown escape and dropped. A value inside
+  JSON text is stored unescaped, and a detected span is widened so it never
+  cuts a JSON escape (`\n`, `\u00e9`, an emoji's surrogate pair) in two;
+  before, the value came back with doubled escapes, or the request held
+  invalid JSON. Python and TypeScript. Found by fuzzing.
 - A fresh install without the spaCy model no longer ends your program.
   Presidio tried to download the missing `en_core_web_sm` with pip during
   the first call, and when that failed (no network, or no pip in the
@@ -318,6 +339,17 @@
 - `constraints.txt` pinned a `python-dateutil` version that the pinned
   `boto3` does not accept, so the `aws` extra could not be installed with
   the pins.
+- Presidio 2.2.366 reports UUIDs as a new `UUID` type, which counted as
+  PII, so record and trace ids were redacted and benchmark precision fell
+  from 1.00 to 0.96. `UUID` is now in the default ignored set (turn it back
+  on with `TAINTWARD_PII_EXTRA_TYPES=UUID`).
+- Pinned versions with known vulnerabilities were raised: `cryptography`
+  50.0.2, `pyasn1` 0.6.5, OpenTelemetry 1.45.2, `presidio-anonymizer`
+  2.2.366, and in the adapter set also `filelock`, `oauthlib`, `starlette`
+  and `google-adk` (now 2.x; no 1.x release works with the fixed
+  `starlette` and OpenTelemetry). The TypeScript package's build tool
+  `esbuild` is 0.28.2 (dev only). `chromadb`, pulled in by CrewAI in the
+  adapter set only, has open advisories with no fixed release yet.
 - `collector/config.yaml` pointed at a policy path on one developer
   machine; it is relative now (run the collector from `collector/`).
 - The demo's `--llm real --provider anthropic` called OpenAI. The option is

@@ -19,6 +19,7 @@ import type { Sensitivity } from "./detect/index.js";
 export const PLACEHOLDER_SOURCE = String.raw`(?:<|&lt;)\s*([A-Za-z][A-Za-z0-9_]*?)_(\d{1,6})\s*(?:>|&gt;)`;
 const PLACEHOLDER_G = new RegExp(PLACEHOLDER_SOURCE, "g");
 const PLACEHOLDER_FULL = new RegExp(`^${PLACEHOLDER_SOURCE}$`);
+const EXACT_FULL = new RegExp(`^${PLACEHOLDER_SOURCE}$`);
 const PLACEHOLDER_ANY = new RegExp(PLACEHOLDER_SOURCE);
 
 // Tolerant restore: forms real models write instead of <PERSON_1> (measured
@@ -41,6 +42,9 @@ const TOLERANT_SOURCE =
   String.raw`|(?<![\p{L}\p{N}_\\])(?<ulabel>${WORD}(?:\\?[_＿]${WORD})*?)\\?[_＿](?<unum>\d{1,6})(?![\p{L}\p{N}_])`;
 const TOLERANT_G = new RegExp(TOLERANT_SOURCE, "gu");
 const TOLERANT_ANY = new RegExp(TOLERANT_SOURCE, "u");
+/** A bare form glued to a word before or after it ("EXAMPLEPERSON_1", "PERSON_1ghp_..."), see reserve(). */
+const GLUED_G = /(\p{L}[\p{L}_]{0,39})\\?[_＿](\d{1,6})/gu;
+const GLUED_ANY = new RegExp(GLUED_G.source, "u");
 /** <PERSON> with no number: the model dropped the number (never restored). */
 const NUMBERLESS_G = /(?:<|&lt;|\[)\s*([A-Za-z][A-Za-z_]*)\s*(?:>|&gt;|\])/g;
 
@@ -218,6 +222,9 @@ export class PlaceholderMap {
   private byValue = new Map<string, string>();
   private byPlaceholder = new Map<string, Entry>();
   private counts = new Map<string, number>();
+  // Placeholder names that were already in the input text: never given to a
+  // value, so restore leaves them as they are. See reserve().
+  private reserved = new Set<string>();
   private knownRe: RegExp | null = null;
   readonly restoreInUrls: boolean;
 
@@ -232,7 +239,7 @@ export class PlaceholderMap {
     const label = labelFor(entityType, sensitivity);
     let n = (this.counts.get(label) ?? 0) + 1;
     let ph = `<${label}_${n}>`;
-    while (this.byPlaceholder.has(ph)) {
+    while (this.byPlaceholder.has(ph) || this.reserved.has(ph)) {
       n += 1;
       ph = `<${label}_${n}>`;
     }
@@ -241,6 +248,41 @@ export class PlaceholderMap {
     this.byValue.set(value, ph);
     this.knownRe = null;
     return ph;
+  }
+
+  /**
+   * Mark the placeholder names already written in `value` (input text, before
+   * it is redacted) as taken. Without this, a text holding a literal <SSN_1>
+   * next to a real SSN gave the SSN that same name, and restore turned both
+   * into the SSN. A name the map already gave to a value is left as it is.
+   */
+  reserve(value: unknown): void {
+    for (const s of stringsAndJson(value)) {
+      for (const m of s.matchAll(TOLERANT_G)) {
+        const g = m.groups ?? {};
+        const label = g.elabel ?? g.blabel ?? g.ulabel;
+        const num = g.enum ?? g.bnum ?? g.unum;
+        if (label === undefined || num === undefined) continue;
+        const ph = `<${normLabel(label)}_${parseInt(num, 10)}>`;
+        if (!this.byPlaceholder.has(ph)) this.reserved.add(ph);
+      }
+      // "EXAMPLEPERSON_1", "PERSON_1ghp_...": a bare form glued to a word is
+      // not one, but becomes one when that word is redacted. Reserve every
+      // label the letters may end with, and every number the digits may
+      // start with.
+      for (const m of s.matchAll(GLUED_G)) {
+        const run = m[1]!;
+        const digits = m[2]!;
+        for (let i = 0; i < run.length; i++) {
+          const label = normLabel(run.slice(i));
+          if (!label || !/^\p{L}/u.test(label)) continue;
+          for (let k = 1; k <= digits.length; k++) {
+            const ph = `<${label}_${parseInt(digits.slice(0, k), 10)}>`;
+            if (!this.byPlaceholder.has(ph)) this.reserved.add(ph);
+          }
+        }
+      }
+    }
   }
 
   /** Real value for a placeholder (any spacing / case variant), or undefined. */
@@ -363,6 +405,11 @@ export class PlaceholderMap {
         const start = inJson ? jsonStringStart(full, pos) : 0;
         if (inUrl(full.slice(start), pos - start)) return m[0] as string;
       }
+      const whole = m[0] as string;
+      // "\<SSN_1>": the backslash was in the text before the value
+      // ("C:\Users\<PERSON_1>"), not a markdown escape, which also escapes
+      // the "_" or the ">". Keep it.
+      if (groups.open?.startsWith("\\") && EXACT_FULL.test(whole.slice(1))) return "\\" + encode(value);
       return encode(value);
     });
   }
@@ -443,6 +490,7 @@ export class PlaceholderMap {
     this.byValue.clear();
     this.byPlaceholder.clear();
     this.counts.clear();
+    this.reserved.clear();
     this.knownRe = null;
   }
 
@@ -559,6 +607,28 @@ export function mergeReports(reports: readonly RestoreReport[]): RestoreReport {
   const out: RestoreReport = { repaired: [], lost: [], unknown: [], blocked: [] };
   for (const r of reports) for (const k of keys) out[k].push(...(r[k] ?? []));
   for (const k of keys) out[k] = [...new Set(out[k])];
+  return out;
+}
+
+/**
+ * Every string in `value` that may hold a placeholder form, and the strings
+ * inside one that is a JSON document (tool call arguments): restore reads
+ * those parsed, where "\\nPERSON_1" is a bare PERSON_1.
+ */
+function stringsAndJson(value: unknown): string[] {
+  const out: string[] = [];
+  for (const s of stringsIn(value, 0)) {
+    if (!TOLERANT_ANY.test(s) && !GLUED_ANY.test(s) && !s.includes("\\")) continue;
+    out.push(s);
+    const first = s.trimStart()[0];
+    if ((first === "{" || first === "[") && s.includes("\\")) {
+      try {
+        out.push(...stringsIn(JSON.parse(s), 0));
+      } catch {
+        // not JSON
+      }
+    }
+  }
   return out;
 }
 

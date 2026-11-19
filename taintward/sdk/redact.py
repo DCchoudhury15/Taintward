@@ -40,12 +40,15 @@ once per process and a warning is logged: tokens then differ after a restart.
 
 from __future__ import annotations
 
+import bisect
 import enum
+import json
 import logging
 import os
 import re
 import string
 import sys
+import threading
 import warnings
 from typing import Mapping
 
@@ -115,6 +118,9 @@ _TWEAK_DOMAIN = b"taintward-ff1-v1"
 _ALPHA_RE = re.compile(r"[0-9A-Za-z]")
 
 _PROCESS_KEY: str | None = None  # random fallback key, generated once per process
+# Two threads making the first redactor at the same time must not make two
+# random keys: tokens from the one thrown away could not be reversed.
+_INIT_LOCK = threading.RLock()
 
 
 def _resolve_key(key_hex: str | None) -> tuple[str, str | None]:
@@ -147,14 +153,15 @@ def _fallback_key() -> str:
         log.warning("taintward: using the PUBLIC demo FPE key (TAINTWARD_ALLOW_DEMO_KEY=1). "
                     "Do not use this outside demos.")
         return _DEMO_KEY
-    if _PROCESS_KEY is None:
-        _PROCESS_KEY = os.urandom(32).hex()
-        msg = ("taintward: TAINTWARD_FPE_KEY is not set; generated a random per-process "
-               "FPE key. Tokens will NOT be stable across restarts or between processes. "
-               "Set TAINTWARD_FPE_KEY for real use.")
-        log.warning(msg)
-        warnings.warn(msg, RuntimeWarning, stacklevel=4)
-    return _PROCESS_KEY
+    with _INIT_LOCK:
+        if _PROCESS_KEY is None:
+            _PROCESS_KEY = os.urandom(32).hex()
+            msg = ("taintward: TAINTWARD_FPE_KEY is not set; generated a random per-process "
+                   "FPE key. Tokens will NOT be stable across restarts or between processes. "
+                   "Set TAINTWARD_FPE_KEY for real use.")
+            log.warning(msg)
+            warnings.warn(msg, RuntimeWarning, stacklevel=4)
+        return _PROCESS_KEY
 
 
 def _radix_for(s: str) -> int | None:
@@ -317,6 +324,8 @@ class Redactor:
         """
         if not text:
             return text
+        if placeholders is not None and destination == DEST_LLM:
+            placeholders.reserve(text)
         sens = [d for d in detections if d.is_sensitive]
         # Keep the longest detection at any point; drop spans overlapping a
         # longer, already-kept span.
@@ -336,12 +345,15 @@ class Redactor:
                         kept[-1][2] = d
                 continue
             kept.append([d.start, d.end, d])
+        if "\\" in text and text.lstrip()[:1] in ("{", "["):
+            kept = _whole_escapes(text, kept)
         out = text
         for start, end, d in reversed(kept):
             original = text[start:end]
             if placeholders is not None and destination == DEST_LLM:
                 redacted = placeholders.placeholder_for(
-                    original, getattr(d, "entity_type", None), d.sensitivity)
+                    _json_unescaped(text, original), getattr(d, "entity_type", None),
+                    d.sensitivity)
             elif getattr(d, "entity_type", None) in (_OVERSIZE, _UNSCANNED):
                 # not scanned (too large, gap G10, or a recognizer raised on
                 # it): masked, never FF1 over the whole value
@@ -389,10 +401,55 @@ class Redactor:
 _DEFAULT: Redactor | None = None
 
 
+# A surrogate pair ("\\ud83d\\ude00", one emoji) is one escape.
+_JSON_ESCAPE = re.compile(
+    r"\\u[dD][89abAB][0-9a-fA-F]{2}\\u[dD][c-fC-F][0-9a-fA-F]{2}|\\(?:u[0-9a-fA-F]{4}|.)", re.S)
+
+
+def _whole_escapes(text: str, kept: list[list]) -> list[list]:
+    """Widen spans of a JSON document so none cuts an escape ("\\n",
+    "\\u00e9") in two. A span ending inside one left a backslash in the value;
+    one starting inside one left "\\<SSN_1>", which is not valid JSON."""
+    esc = [(m.start(), m.end()) for m in _JSON_ESCAPE.finditer(text)]
+    starts = [a for a, _ in esc]
+    for span in kept:
+        for i in (0, 1):
+            j = bisect.bisect_left(starts, span[i]) - 1
+            if j >= 0 and esc[j][0] < span[i] < esc[j][1]:
+                span[i] = esc[j][0] if i == 0 else esc[j][1]
+    merged: list[list] = []
+    for span in kept:  # still sorted by start
+        if merged and span[0] < merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], span[1])
+            if (span[2].sensitivity == Sensitivity.SECRET
+                    and merged[-1][2].sensitivity != Sensitivity.SECRET):
+                merged[-1][2] = span[2]
+            continue
+        merged.append(span)
+    return merged
+
+
+def _json_unescaped(text: str, value: str) -> str:
+    """The real value of a span of a JSON document: "12 Main St\\nX" there is
+    "12 Main St" + newline + "X". The placeholder map keeps the real value;
+    restore escapes it again where it writes into JSON. Otherwise the value
+    came back with its escapes doubled."""
+    if "\\" not in value or text.lstrip()[:1] not in ("{", "["):
+        return value
+    try:
+        json.loads(text)
+        real = json.loads(f'"{value}"')
+    except ValueError:
+        return value  # not JSON, or the span is not inside one JSON string
+    return real if isinstance(real, str) else value
+
+
 def get_redactor() -> Redactor:
     global _DEFAULT
     if _DEFAULT is None:
-        _DEFAULT = Redactor()
+        with _INIT_LOCK:
+            if _DEFAULT is None:
+                _DEFAULT = Redactor()
     return _DEFAULT
 
 
@@ -475,6 +532,8 @@ def redact_payload(value, destination: str, redactor: "Redactor | None" = None, 
     from taintward.sdk import detect as _detect
 
     r = redactor or get_redactor()
+    if placeholders is not None and destination == DEST_LLM:
+        placeholders.reserve(value)  # before any value gets a name
     try:
         if ((isinstance(value, Mapping) or _walk.is_collection(value))
                 and not _detect.in_detection_scope()):

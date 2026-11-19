@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from taintward.sdk import _walk
-from taintward.sdk.destinations import DEST_LOG
+from taintward.sdk.destinations import DEST_LLM, DEST_LOG
 from taintward.sdk.redact import redact_payload
 
 # Protocol keys. Their value is protocol data when it is a plain value
@@ -118,6 +118,8 @@ def redact_structure(value: Any, destination: str, placeholders=None) -> Any:
     ``placeholders`` (a PlaceholderMap) switches the ``llm`` destination from
     masks to stable placeholders (see ``taintward.sdk.placeholders``)."""
     value = to_plain(value)
+    if placeholders is not None and destination == DEST_LLM:
+        placeholders.reserve(value)  # before any value gets a name
     if isinstance(value, str):
         return redact_payload(value, destination, placeholders=placeholders)
     if isinstance(value, Mapping):
