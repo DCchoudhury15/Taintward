@@ -241,8 +241,9 @@ def restore_message(msg: Any, placeholders) -> Any:
 
 def _message_view(msg: BaseMessage) -> dict:
     view: dict[str, Any] = {"role": msg.type, "content": msg.content}
-    if getattr(msg, "tool_calls", None):
-        view["tool_calls"] = msg.tool_calls
+    calls = getattr(msg, "tool_calls", None)  # only AIMessage has it
+    if calls:
+        view["tool_calls"] = calls
     return view
 
 
@@ -394,7 +395,7 @@ class _Chunks:
             for pos, tc in enumerate(calls):
                 fn = tc.get("function") if isinstance(tc, dict) else None
                 args = fn.get("arguments") if isinstance(fn, dict) else None
-                if isinstance(args, str) and args:
+                if isinstance(fn, dict) and isinstance(args, str) and args:
                     idx = tc.get("index", pos)
                     r = self.p.push(("ak_tool", idx), args, "json")
                     if r != args:

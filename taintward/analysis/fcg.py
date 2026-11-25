@@ -192,7 +192,7 @@ def paths(g: FCG, *, max_hops: int = 3) -> list[tuple[str, ...]]:
     (AgentRaft's BFS over the graph), shortest first."""
     found: list[tuple[str, ...]] = []
     for src in sorted(n for n, t in g.tools.items() if t.is_source):
-        queue = deque([(src,)])
+        queue: deque[tuple[str, ...]] = deque([(src,)])
         while queue:
             path = queue.popleft()
             if len(path) > 1 and g.tools[path[-1]].is_sink:

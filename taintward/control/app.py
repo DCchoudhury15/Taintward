@@ -116,7 +116,11 @@ class App:
             raise ValueError("give a config or a config_path")
         self._path = Path(config_path) if config_path else None
         self._mtime = self._path.stat().st_mtime_ns if self._path else 0
-        self.config = config if config is not None else load_config(self._path)
+        if config is None:
+            if self._path is None:  # config_path was an empty string
+                raise ValueError("give a config or a config_path")
+            config = load_config(self._path)
+        self.config = config
         self._lock = threading.Lock()
 
     def _maybe_reload(self) -> None:

@@ -105,7 +105,7 @@ def audit(tools_doc: Any, policy: Policy, *, spans: Iterable[Any] | None = None,
     found = paths(g, max_hops=max_hops)
     flows = observed_flows(spans) if spans is not None else {}
     home_set = {h.lower() for h in home}
-    rows = []
+    rows: list[dict[str, Any]] = []
     for p in found:
         sink = g.tools[p[-1]]
         seen = flows.get((p[0], p[-1]))

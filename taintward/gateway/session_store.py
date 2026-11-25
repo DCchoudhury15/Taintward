@@ -24,7 +24,7 @@ from __future__ import annotations
 import re
 import time
 import uuid
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from taintward.core.doe import Sensitivity
 from taintward.sdk import taint as tnt
@@ -45,7 +45,9 @@ class SessionStoreError(RuntimeError):
 
 
 def valid_session_id(sid: str | None) -> bool:
-    return bool(sid) and _SESSION_ID_RE.match(sid) is not None
+    if not sid:
+        return False
+    return _SESSION_ID_RE.match(sid) is not None
 
 
 def new_session_id() -> str:
@@ -130,10 +132,12 @@ class MemorySessionStore:
 
     async def get(self, sid: str) -> tnt.TaintLabel:
         row = self._row(sid, True)
+        assert row is not None  # create=True always returns a row
         return _label(row[1], row[0])
 
     async def merge(self, sid: str, label: tnt.TaintLabel) -> tnt.TaintLabel:
         row = self._row(sid, True)
+        assert row is not None  # create=True always returns a row
         if label.is_tainted:
             row[0].update(c.value for c in label.classes)
             if row[1] is None:
@@ -184,8 +188,8 @@ class RedisSessionStore:
         self.prefix = prefix
         self._socket_timeout = socket_timeout
         self._max_connections = max_connections
-        self._r = None
-        self._merge = None
+        self._r: Any = None  # redis.asyncio.Redis once open
+        self._merge: Any = None
         self._users = 0  # open() / close() pairs, one per server lifespan
 
     async def open(self) -> None:
@@ -212,11 +216,16 @@ class RedisSessionStore:
             r, self._r, self._merge = self._r, None, None
             await r.aclose()
 
+    def _client(self) -> Any:
+        if self._r is None:
+            raise SessionStoreError("RedisSessionStore is not open")
+        return self._r
+
     async def _call(self, fn, *args, **kwargs):
         import redis
 
-        if self._r is None:
-            raise SessionStoreError("RedisSessionStore is not open")
+        self._client()  # raises when not open
+
         try:
             return await fn(*args, **kwargs)
         except (redis.ConnectionError, redis.TimeoutError) as exc:
@@ -235,7 +244,7 @@ class RedisSessionStore:
         await self._call(self._merge, keys=self._keys(sid), args=[self._ttl_ms(), ""])
 
     async def exists(self, sid: str) -> bool:
-        return bool(await self._call(self._r.exists, self._keys(sid)[1]))
+        return bool(await self._call(self._client().exists, self._keys(sid)[1]))
 
     async def get(self, sid: str) -> tnt.TaintLabel:
         return await self.merge(sid, tnt.TaintLabel.of(set()))
@@ -248,7 +257,7 @@ class RedisSessionStore:
         return _label(taint_id, classes)
 
     async def delete(self, sid: str) -> None:
-        await self._call(self._r.delete, *self._keys(sid))
+        await self._call(self._client().delete, *self._keys(sid))
 
 
 def make_session_store(spec: str | None, ttl: float = DEFAULT_SESSION_TTL) -> SessionStore:

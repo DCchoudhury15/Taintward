@@ -26,8 +26,8 @@ from taintward.sdk.recognizers_intl import INTL_KEY_PATTERNS, INTL_RECOGNIZERS
 try:
     from presidio_analyzer import Pattern, PatternRecognizer
 except Exception:  # noqa: BLE001 - presidio missing or broken: regex-only fallback
-    Pattern = None  # type: ignore[assignment]
-    PatternRecognizer = None  # type: ignore[assignment]
+    Pattern = None  # type: ignore[assignment, misc]
+    PatternRecognizer = None  # type: ignore[assignment, misc]
 
 # Secret entity types added here; taintward.sdk.detect classifies them as SECRET.
 EXTRA_SECRET_TYPES = frozenset({"JWT", "PRIVATE_KEY"})

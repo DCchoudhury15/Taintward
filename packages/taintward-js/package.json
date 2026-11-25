@@ -81,6 +81,7 @@
     "@mastra/core": "1.79.0",
     "@types/node": "24.19.2",
     "ai": "7.0.137",
+    "fast-check": "4.10.2",
     "openai": "7.41.0",
     "tsup": "8.5.1",
     "typescript": "6.0.3",

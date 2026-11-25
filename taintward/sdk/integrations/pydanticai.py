@@ -223,7 +223,7 @@ class _Events:
         """The restored copy of part ``index`` of a ``get()`` snapshot."""
         field = _FIELDS.get(type(part))
         value = getattr(part, field) if field else None
-        if (index in self.sent and index not in self.ended and isinstance(value, str)
+        if (field and index in self.sent and index not in self.ended and isinstance(value, str)
                 and self.p.raw(index) == value):  # still streaming: what was sent
             return dataclasses.replace(part, **{field: self.sent[index]})
         return _restore_part(part, self.pmap)

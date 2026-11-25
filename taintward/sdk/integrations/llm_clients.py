@@ -266,7 +266,7 @@ class _AnthropicEvents:
             if field == "text":
                 mode = self.text_mode
             value = get(ev.delta, field) if field else None
-            if isinstance(value, str) and value:
+            if field and mode and isinstance(value, str) and value:
                 key = (ev.index, field)
                 ev = clone(ev)
                 setattr(ev.delta, field, self.p.push(key, value, mode))
@@ -714,7 +714,7 @@ def _patch_batches(resource: Any, provider: str, system: str, fields: tuple[str,
                    ward: Ward, what: str) -> None:
     batches = getattr(resource, "batches", None) if resource is not None else None
     original = getattr(batches, "create", None)
-    if original is None or getattr(original, _PATCHED_MARK, False):
+    if batches is None or original is None or getattr(original, _PATCHED_MARK, False):
         return
     try:
         batches.create = _wrap_batches_create(original, provider, system, fields, ward, what)

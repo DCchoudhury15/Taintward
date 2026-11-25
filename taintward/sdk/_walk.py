@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Mapping, Sequence, Set
-from typing import Any, Iterable
+from typing import Any, Iterable, TypeGuard
 
 # Never walked into: text and binary values are leaves, and a range is a
 # leaf too (walking a large range item by item would be slow for no gain).
@@ -20,7 +20,7 @@ def is_mapping(value: Any) -> bool:
     return isinstance(value, Mapping)
 
 
-def is_collection(value: Any) -> bool:
+def is_collection(value: Any) -> TypeGuard[Iterable[Any]]:
     """A list, tuple (including namedtuples), set, frozenset or other
     Sequence / Set that should be walked item by item."""
     if isinstance(value, (list, tuple, set, frozenset)):

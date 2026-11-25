@@ -39,7 +39,7 @@ from __future__ import annotations
 import hmac
 import json
 import logging
-from typing import Any
+from typing import Any, Sequence
 
 from taintward.gateway.session_store import (
     SessionStore,
@@ -78,7 +78,7 @@ def _handshake_versions() -> list[str]:
     return list(HANDSHAKE_PROTOCOL_VERSIONS)
 
 
-async def _send_json(send, status: int, body: Any, headers: list[tuple[bytes, bytes]] = ()) -> None:
+async def _send_json(send, status: int, body: Any, headers: Sequence[tuple[bytes, bytes]] = ()) -> None:
     data = json.dumps(body).encode() if body is not None else b""
     hdrs = [(b"content-length", str(len(data)).encode())]
     if body is not None:
@@ -88,7 +88,7 @@ async def _send_json(send, status: int, body: Any, headers: list[tuple[bytes, by
 
 
 async def _rpc_error(send, status: int, code: int, message: str, data: Any = None,
-                     headers: list[tuple[bytes, bytes]] = ()) -> None:
+                     headers: Sequence[tuple[bytes, bytes]] = ()) -> None:
     err: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
         err["data"] = data
@@ -302,6 +302,8 @@ def serve_http(gateway, host: str, port: int, *, token: str | None = None,
     app = build_http_app(gateway, host=host, token=token, client_tokens=client_tokens)
     config = uvicorn.Config(
         app, host=host, port=port, lifespan="on", log_level=log_level.lower(),
-        timeout_graceful_shutdown=shutdown_timeout, access_log=False,
+        # uvicorn types it as int but hands it to asyncio.wait_for, which takes a float.
+        timeout_graceful_shutdown=shutdown_timeout,  # type: ignore[arg-type]
+        access_log=False,
     )
     _Server(config).run()

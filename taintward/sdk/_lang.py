@@ -12,6 +12,7 @@ as before.
 from __future__ import annotations
 
 import re
+from typing import cast
 
 _FUNCTION_WORDS = {
     "en": "the and of to is in for with your you this that are be we please our have will "
@@ -50,7 +51,7 @@ def guess(text: str) -> str | None:
         return "en"
     if best < 2:
         return None
-    return max(counts, key=counts.get)
+    return max(counts, key=counts.__getitem__)
 
 
 # Capitalized words that start sentences, greet, or label a form field in
@@ -120,13 +121,18 @@ def stop_words() -> frozenset:
         words: set = set()
         try:
             spec = importlib.util.find_spec("spacy")
-            base = Path(next(iter(spec.submodule_search_locations or ())))
+            if spec is None:
+                raise ImportError("spacy")
+            base: Path | None = Path(next(iter(spec.submodule_search_locations or ())))
         except Exception:  # noqa: BLE001 - spaCy missing
             base = None
         for lang in _STOP_LANGS if base is not None else ():
             try:
+                # base is set here: the loop is empty when it is None.
                 file_spec = importlib.util.spec_from_file_location(
-                    f"_taintward_stop_words_{lang}", base / "lang" / lang / "stop_words.py")
+                    f"_taintward_stop_words_{lang}", cast(Path, base) / "lang" / lang / "stop_words.py")
+                if file_spec is None or file_spec.loader is None:
+                    raise ImportError(lang)
                 mod = importlib.util.module_from_spec(file_spec)
                 file_spec.loader.exec_module(mod)
                 words |= {w.lower() for w in mod.STOP_WORDS}

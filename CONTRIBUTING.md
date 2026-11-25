@@ -21,6 +21,9 @@ cd collector/processor/taintpolicy && go test ./...   # Go policy processor
 
 All three must pass. CI runs the same commands.
 
+`tests/test_fuzz_restore.py` runs a small number of generated cases by
+default. For a longer run: `TAINTWARD_FUZZ_EXAMPLES=3000 python -m pytest tests/test_fuzz_restore.py`.
+
 ## Guidelines
 
 - Use fake data only, in tests, examples and issues. Never paste real

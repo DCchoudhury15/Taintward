@@ -186,7 +186,8 @@ def stamp_and_mask(doc: dict, tenant: str, fp_key: bytes) -> tuple[int, int]:
                 if not isinstance(s, dict):
                     continue
                 n_spans += 1
-                found, inputs = [], []
+                found = []
+                inputs: list = []
                 s["attributes"] = _mask_attrs(s.get("attributes"), found, inputs=inputs,
                                               drop=_OWN_ATTRS)
                 for part in ("events", "links"):

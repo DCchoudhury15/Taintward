@@ -79,8 +79,8 @@ _PRESIDIO_IMPORT_ERROR: str | None = None
 try:
     from presidio_analyzer import Pattern, PatternRecognizer
 except Exception as _exc:  # noqa: BLE001
-    Pattern = None  # type: ignore[assignment]
-    PatternRecognizer = None  # type: ignore[assignment]
+    Pattern = None  # type: ignore[assignment, misc]
+    PatternRecognizer = None  # type: ignore[assignment, misc]
     _PRESIDIO_IMPORT_ERROR = f"{type(_exc).__name__}: {_exc}"
 
 # Sensitivity mapping for Presidio built-in entity types.
@@ -366,8 +366,8 @@ try:
         REGEX_TIMEOUT_SECONDS as _REGEX_TIMEOUT,
     )
 except Exception:  # noqa: BLE001 - presidio missing or broken
-    _PatternRecognizer = None  # type: ignore[assignment]
-    _REGEX_TIMEOUT = None
+    _PatternRecognizer = None  # type: ignore[assignment, misc]
+    _REGEX_TIMEOUT = None  # type: ignore[assignment]
 
 # False when Presidio cannot be imported: detection then uses the
 # standard-library recognizers in taintward.sdk.regex_fallback.
@@ -628,7 +628,7 @@ class _Engine:
             except Exception:  # noqa: BLE001
                 # It raised on the joined text. Run it on each value alone, so
                 # one bad value cannot switch this recognizer off for the rest.
-                found = ()
+                found = []
                 redo.update(range(len(group)))
             for etype, a, b, score in found:
                 i = bisect.bisect_right(starts, a) - 1
@@ -1094,9 +1094,10 @@ def detection_scope() -> Iterator[dict]:
     detecting again. ``instrument_tool`` opens one around its input and its
     output handling.
     """
-    token = _SCOPE.set({})
+    scope: dict = {}
+    token = _SCOPE.set(scope)
     try:
-        yield _SCOPE.get()
+        yield scope
     finally:
         _SCOPE.reset(token)
 

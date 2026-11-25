@@ -36,6 +36,7 @@ from taintward.gateway.http import parse_listen  # noqa: E402
 from taintward.gateway.session_store import (  # noqa: E402
     MemorySessionStore,
     RedisSessionStore,
+    SessionStoreError,
     make_session_store,
     valid_session_id,
 )
@@ -252,6 +253,22 @@ def test_session_store_config_and_factory():
     with pytest.raises(ValueError):
         parse_listen("8811")
     assert not valid_session_id("bad id\r\nX-Injected: 1")
+
+
+def test_redis_session_store_not_open_fails_closed():
+    # Every call on a store that is not open (before open(), or after the
+    # last close()) must raise SessionStoreError, which the gateway turns
+    # into a 503 or ignores on cleanup. exists() and delete() used to raise
+    # AttributeError on the missing client instead.
+    pytest.importorskip("redis")
+    s = RedisSessionStore("redis://127.0.0.1:1/0")
+
+    async def main():
+        for name in ("exists", "delete", "create", "get"):
+            with pytest.raises(SessionStoreError, match="not open"):
+                await getattr(s, name)("s1")
+
+    anyio.run(main)
 
 
 def test_redis_session_store_merge_ttl_delete(redis_db):

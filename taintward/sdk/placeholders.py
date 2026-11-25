@@ -282,7 +282,7 @@ class PlaceholderMap:
             self._index_key = index_key
             conv = self._hash(conversation_id or "")[:24]
             self._prefix = f"taintward-ph:{conv}:"
-            self.subject = f"taintward-conversation:{conversation_id}"
+            self.subject: str | None = f"taintward-conversation:{conversation_id}"
         else:
             self._index_key = b""
             self._prefix = ""

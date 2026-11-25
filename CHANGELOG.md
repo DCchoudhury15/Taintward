@@ -248,6 +248,14 @@
 - CI job `detection-bench` runs the outside-data benchmark and fails when a
   score drops under its floor. `bench/external/run_external.py --split dev`
   gives rows that are never in the reported sample, for tuning rules.
+- Property tests (`tests/test_fuzz_restore.py`, Hypothesis, in the `dev`
+  extra) for detection, placeholder redaction and restore, streaming
+  included. `TAINTWARD_FUZZ_EXAMPLES` sets how many cases each test runs.
+- The same property tests for the TypeScript SDK
+  (`packages/taintward-js/test/fuzz.test.ts`, fast-check), plus a
+  `redactPayload` round trip. `TAINTWARD_FUZZ_EXAMPLES` works there too.
+- The Python package passes mypy (`[tool.mypy]` in `pyproject.toml`), and
+  the CI test job runs `python -m mypy taintward`.
 
 ### Changed
 
@@ -289,6 +297,10 @@
   check for link addresses (gap G1) now looks only at the JSON string the
   placeholder is in, so a link in another argument no longer keeps a
   placeholder unrestored.
+- Gateway `RedisSessionStore`: `exists()` and `delete()` on a store that
+  is not open raised `AttributeError` instead of `SessionStoreError`, so
+  the gateway did not answer 503 and the session cleanup after a failed
+  request raised.
 
 ### Fixed
 

@@ -51,7 +51,7 @@ import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import AbstractSet, Any, Iterable
 
 from taintward.evidence import compliance
 from taintward.evidence.merkle import LogCorruptError, MerkleLog, violation_record
@@ -348,12 +348,13 @@ def _evidence_section_inner(violations: list[Span], *, evidence_dir: str | None,
     )
     from taintward.evidence.shards import ShardedLog
 
-    log = ShardedLog(evidence_dir)
+    assert evidence_dir is not None  # the caller returns early when both are unset
+    slog = ShardedLog(evidence_dir)
     index: dict[tuple, tuple[str, str, int]] = {}
-    for t, d in log.list_shards():
-        for i, r in enumerate(log.shard(t, d).records()):
+    for t, d in slog.list_shards():
+        for i, r in enumerate(slog.shard(t, d).records()):
             index[(r.get("trace_id"), r.get("span_id"))] = (t, d, i)
-    cps = list_checkpoints(log.checkpoint_dir)
+    cps = list_checkpoints(slog.checkpoint_dir)
     cp_info = None
     signed_sizes: dict[tuple[str, str], int] = {}
     if cps:
@@ -377,11 +378,11 @@ def _evidence_section_inner(violations: list[Span], *, evidence_dir: str | None,
     from taintward.evidence.shards import utc_day
 
     first, last = utc_day(start_ns), utc_day(max(start_ns, end_ns - 1))
-    shards = [h.to_dict() for h in log.heads() if first <= h.day <= last]
+    shards = [h.to_dict() for h in slog.heads() if first <= h.day <= last]
     return {
         "kind": "sharded",
         "path": str(evidence_dir),
-        "records": sum(h.size for h in log.heads()),
+        "records": sum(h.size for h in slog.heads()),
         "root": None,
         "violations_in_window": len(wanted),
         "violations_found_in_log": len(found),
@@ -753,7 +754,7 @@ def _n(v: int | None) -> str:
     return "n/a" if v is None else f"{v:,}"
 
 
-def _table(headers: list[str], rows: list[list[Any]], numeric: set[int] = frozenset(),
+def _table(headers: list[str], rows: list[list[Any]], numeric: AbstractSet[int] = frozenset(),
            empty: str = "None.") -> str:
     if not rows:
         return f"<p class='explain'>{_e(empty)}</p>"

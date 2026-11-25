@@ -35,7 +35,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, cast
 
 from opentelemetry import baggage
 
@@ -233,4 +233,5 @@ def current(context=None) -> TaintLabel | None:
     from opentelemetry import context as context_api
 
     ctx = context if context is not None else context_api.get_current()
-    return TaintLabel.from_baggage(baggage.get_all(ctx))
+    # Only taint keys are read and they are always set as strings.
+    return TaintLabel.from_baggage(cast("Mapping[str, str]", baggage.get_all(ctx)))

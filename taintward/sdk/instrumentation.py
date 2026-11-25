@@ -36,7 +36,7 @@ import logging
 import os
 import threading
 import traceback
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Callable, Iterable, Literal, Mapping
 
 from opentelemetry import baggage, trace
 from opentelemetry import context as context_api
@@ -252,12 +252,12 @@ class GuardedCall:
         self._passthrough = frozenset(passthrough)
         self.args: list = []
         self.kwargs: dict = {}
-        self.span = None
+        self.span: Any = None  # the OTel span, set by __enter__
         self.merged_in: tnt.TaintLabel | None = None
         self.merged_out: tnt.TaintLabel | None = None
-        self._cm = None
+        self._cm: Any = None
         self._parent: GuardedCall | None = None
-        self._call_token = None
+        self._call_token: contextvars.Token | None = None
         self._nested: tnt.TaintLabel | None = None
         self._nested_lock = threading.Lock()
 
@@ -383,12 +383,14 @@ class GuardedCall:
             )
             # always masked here, also with TAINTWARD_MASK_IN_SDK=0 (gap G5)
             stored = mask_value(seen)
+        assert self.merged_in is not None  # set by __enter__
         self.merged_out = self.merged_in.merge(output_label)
         self.span.set_attribute(self._output_attr, _jsonable(stored))
 
     # -- exit: violation flag, end span, carry taint forward ---------------
-    def __exit__(self, exc_type, exc, tb) -> bool:
+    def __exit__(self, exc_type, exc, tb) -> Literal[False]:
         span = self.span
+        assert self.merged_in is not None  # set by __enter__
         if self._call_token is not None:
             try:
                 _CURRENT_CALL.reset(self._call_token)
@@ -532,7 +534,7 @@ class _RunFrame:
         self.root = root
         self.otel_token = otel_token
         self.box_token = box_token
-        self.stack_token = None
+        self.stack_token: Any = None  # set by begin_run right after
 
 
 # All run state lives in context variables, not in threading.local: asyncio

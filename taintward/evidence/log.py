@@ -317,13 +317,13 @@ def _single(args) -> int:
         if not 0 <= m <= len(log):
             print(f"old size {m} out of range (log has {len(log)} leaves)", file=sys.stderr)
             return 1
-        proof = log.consistency_proof(m)
+        cproof = log.consistency_proof(m)
         old_root = bytes.fromhex(args.old_root) if args.old_root else log.prefix_root(m)
-        ok = verify_consistency(m, len(log), old_root, log.root(), proof)
+        ok = verify_consistency(m, len(log), old_root, log.root(), cproof)
         print(json.dumps({
             "old_size": m, "old_root": old_root.hex(),
             "new_size": len(log), "new_root": log.root().hex(),
-            "proof": [h.hex() for h in proof],
+            "proof": [h.hex() for h in cproof],
             "verified": ok,
         }, indent=2))
         return 0 if ok else 2

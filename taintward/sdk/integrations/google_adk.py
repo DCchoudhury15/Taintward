@@ -192,7 +192,7 @@ class _Partials:
 
     def held(self) -> list:
         """Extra partial chunks with the held text, before the stream ends."""
-        out = []
+        out: list = []
         for key in self.p.holding():
             rest = self.p.flush(key)
             if rest and self.last is not None:

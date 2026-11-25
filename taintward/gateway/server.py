@@ -34,7 +34,7 @@ import logging
 import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, cast
 
 import anyio
 import mcp_types as types
@@ -234,6 +234,7 @@ class GatewaySession:
             return Client(u.server_object)
         if u.url:
             return Client(u.url)
+        assert u.command is not None  # the config sets exactly one of command and url
         env = {**get_default_environment(), **u.env}
         return Client(StdioServerParameters(command=u.command, args=u.args, env=env, cwd=u.cwd))
 
@@ -320,7 +321,8 @@ class GatewaySession:
         else:
             logger.warning("tool %r from upstream %r changed (%s, expected %s)%s", name,
                            upstream, fp, expected, "; it is hidden" if hidden else "")
-        attrs = {ATTR_TOOL_NAME: name, ATTR_UPSTREAM: upstream, ATTR_TOOL_HIDDEN: hidden}
+        attrs: dict[str, str | bool] = {
+            ATTR_TOOL_NAME: name, ATTR_UPSTREAM: upstream, ATTR_TOOL_HIDDEN: hidden}
         if fp:
             attrs[ATTR_TOOL_FP] = fp
             attrs[ATTR_TOOL_FP_EXPECTED] = expected
@@ -404,12 +406,13 @@ class GatewaySession:
         blocked = policy.mode == MODE_BLOCK and pre.is_violation
 
         # Passthrough values are forwarded as is but still masked on the span.
-        stored_passthrough = (await anyio.to_thread.run_sync(mask_value, passthrough)
+        # mask_value returns a dict for a dict.
+        stored_passthrough = (cast(dict, await anyio.to_thread.run_sync(mask_value, passthrough))
                               if passthrough else {})
         if policy.mode == MODE_AUDIT or blocked:
             forwarded = arguments
             # Never store raw values on the span: mask them for the span only.
-            stored_args = {**await anyio.to_thread.run_sync(mask_value, scanned),
+            stored_args = {**cast(dict, await anyio.to_thread.run_sync(mask_value, scanned)),
                            **stored_passthrough}
         else:
             redacted = await anyio.to_thread.run_sync(
@@ -583,7 +586,7 @@ class Gateway:
                 await session.connect(stack)
                 return await session.fingerprints()
         except BaseExceptionGroup as group:  # the MCP client's task group wraps it
-            config = group.subgroup(ConfigError)
+            config: BaseException | None = group.subgroup(ConfigError)
             if config is None:
                 raise
             while isinstance(config, BaseExceptionGroup):

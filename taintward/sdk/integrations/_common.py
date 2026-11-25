@@ -15,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import copy
-from typing import Any, AsyncIterator, Callable, Iterator
+from typing import Any, AsyncGenerator, AsyncIterator, Callable, Generator, Iterator
 
 from opentelemetry import trace
 
@@ -121,7 +121,7 @@ def is_protected(obj: Any) -> bool:
 # reaches the caller. Taint still flows on: inside a run it goes to the run's
 # shared box.
 
-def isolated_iter(gen: Iterator[Any]) -> Iterator[Any]:
+def isolated_iter(gen: Generator[Any, Any, Any]) -> Iterator[Any]:
     ctx = contextvars.copy_context()
     try:
         while True:
@@ -134,7 +134,7 @@ def isolated_iter(gen: Iterator[Any]) -> Iterator[Any]:
         ctx.run(gen.close)
 
 
-async def isolated_aiter(agen: AsyncIterator[Any]) -> AsyncIterator[Any]:
+async def isolated_aiter(agen: AsyncGenerator[Any, Any]) -> AsyncIterator[Any]:
     ctx = contextvars.copy_context()
     try:
         while True:

@@ -181,13 +181,13 @@ class _Sealer:
             keyset = load_keys("env")
         else:
             keyset = load_keys()
-            ring = keyset.vault
-            if ring is None:
+            if keyset.vault is None:
                 raise ValueError(
                     f"{backend} needs an encryption key: set TAINTWARD_VAULT_KEY "
                     "(hex, 32/48/64 chars), separate from TAINTWARD_FPE_KEY, "
                     "or a vault key ring in TAINTWARD_KEYS"
                 )
+            ring = keyset.vault
         self._use(ring, keyset)
 
     def _use(self, ring: KeyRing, keyset) -> None:
@@ -914,7 +914,8 @@ class TenantVault:
     def reseal(self) -> int:
         """Reseal this tenant's rows only: another tenant's rows are sealed
         with keys this tenant does not hold."""
-        return self.inner.reseal(token_prefix=self._prefix)
+        # get_vault wraps only the SQL and Redis backends, which all have reseal.
+        return self.inner.reseal(token_prefix=self._prefix)  # type: ignore[attr-defined]
 
     def __getattr__(self, name):
         # purge_expired, close, ...: shared maintenance, passed through

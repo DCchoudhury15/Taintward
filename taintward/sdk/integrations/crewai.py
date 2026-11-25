@@ -94,7 +94,7 @@ def _llm_scope(llm: BaseLLM, messages: Any):
     ward = ward_of(llm)
     pmap = ward.llm_placeholder_map()
     own = pmap is not None and ph.current() is not pmap
-    tok = ph.activate(pmap) if own else None  # tools run inside call() see it
+    tok = ph.activate(pmap) if own and pmap is not None else None  # tools run inside call() see it
     try:
         with llm_call(ward, str(getattr(llm, "model", "")), FRAMEWORK, "crewai",
                       {"messages": messages}, pmap) as call:
@@ -105,7 +105,9 @@ def _llm_scope(llm: BaseLLM, messages: Any):
             box: dict = {"messages": _messages(sent, line)}
             yield box
             out = box.get("out")
-            if finish_llm(call, ward, pmap, out if isinstance(out, (str, dict, list)) else str(out)):
+            # finish_llm returns False when pmap is None
+            if finish_llm(call, ward, pmap, out if isinstance(out, (str, dict, list)) else str(out)) \
+                    and pmap is not None:
                 box["out"] = pmap.restore(out) if isinstance(out, (str, dict, list)) \
                     else pmap.restore_inplace(out)
     finally:

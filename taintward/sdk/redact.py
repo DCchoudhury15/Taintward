@@ -50,6 +50,7 @@ import string
 import sys
 import threading
 import warnings
+from types import FrameType
 from typing import Mapping
 
 from taintward.core.doe import Sensitivity
@@ -72,7 +73,7 @@ audit_log = logging.getLogger("taintward.audit")
 
 def _caller() -> str:
     """module:function:line of the first frame outside the taintward package."""
-    f = sys._getframe(1)
+    f: FrameType | None = sys._getframe(1)
     while f is not None and f.f_globals.get("__name__", "").startswith("taintward."):
         f = f.f_back
     if f is None:
@@ -88,7 +89,7 @@ def record_reversal(kind: str, *, found: int, key_id: str | None = None) -> None
     were found, the key id and the caller; never a value or a token."""
     from opentelemetry import trace
 
-    attrs = {"taintward.reverse.kind": kind, "taintward.reverse.found": found,
+    attrs: dict[str, str | int] = {"taintward.reverse.kind": kind, "taintward.reverse.found": found,
              "taintward.reverse.caller": _caller()}
     if key_id:
         attrs["taintward.key_id"] = key_id

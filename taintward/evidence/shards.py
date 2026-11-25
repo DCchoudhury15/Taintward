@@ -99,7 +99,7 @@ class ShardedLog:
 
     def list_shards(self) -> list[tuple[str, str]]:
         """Every (tenant, day) shard on disk, sorted."""
-        out = []
+        out: list[tuple[str, str]] = []
         if not self.root.exists():
             return out
         for tdir in sorted(self.root.iterdir()):
