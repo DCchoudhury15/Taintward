@@ -324,6 +324,9 @@ def test_record_without_a_service_reads_every_service(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 
 PHONE = "212-736-5000"
+# A number with no phone format: only a phone word or key makes it a phone.
+# (A formatted one such as PHONE is found on its own since the NANP rule.)
+BARE_PHONE = "2127365000"
 
 
 def _phones(text: str, key: str = "") -> list[str]:
@@ -345,15 +348,15 @@ def test_phone_is_found_after_a_phone_word_anywhere_in_a_long_value(monkeypatch)
 
 
 def test_phone_under_a_phone_key_needs_no_word():
-    assert _phones(PHONE, key="phone") == [PHONE]
-    assert _phones(f"x {PHONE} y", key="number") == [PHONE]   # only the cut-up recognizer
-    assert _phones(f"x {PHONE} y", key="note") == []        # no word, no key: as before
+    assert _phones(BARE_PHONE, key="phone") == [BARE_PHONE]
+    assert _phones(f"x {BARE_PHONE} y", key="number") == [BARE_PHONE]   # only the cut-up recognizer
+    assert _phones(f"x {BARE_PHONE} y", key="note") == []        # no word, no key: as before
 
 
 def test_phone_far_after_its_word_is_still_not_counted():
     # 64 characters is how far back a context word is looked for
-    assert _phones("phone " + "x" * 80 + " " + PHONE) == []
-    assert _phones("phone " + "x" * 40 + " " + PHONE) == [PHONE]
+    assert _phones("phone " + "x" * 80 + " " + BARE_PHONE) == []
+    assert _phones("phone " + "x" * 40 + " " + BARE_PHONE) == [BARE_PHONE]
 
 
 def test_context_pieces_cover_what_the_context_check_can_see():

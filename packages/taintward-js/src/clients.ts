@@ -77,6 +77,32 @@ const FREE = new Set([
 ]);
 // Every key that is kept as it is (not redacted as data).
 const STRUCTURAL = new Set([...LEAF, ...OPAQUE, "source"]);
+// The values of "role" and "type" that mark a protocol part or message
+// (OpenAI chat and responses, Anthropic, LangChain, the AI SDK). In a list
+// under a free key, an object whose role or type is anything else is the
+// application's own record ({ role: "manager", name, id }), and all of it is
+// redacted. A part type missing here is therefore redacted in full too: only
+// values that look like personal data change in it. Same lists as the
+// Python SDK (taintward/sdk/integrations/_payload.py).
+const PART_ROLES = new Set([
+  "ai", "assistant", "chat", "developer", "function", "human", "model", "system", "tool", "user",
+]);
+const PART_TYPES = new Set([
+  "AIMessageChunk", "HumanMessageChunk", "ai", "apply_patch_call", "apply_patch_call_output", "audio",
+  "bash_code_execution_tool_result", "chat", "citation", "code_execution_tool_result",
+  "code_interpreter_call", "compaction", "computer_call", "computer_call_output", "container_upload",
+  "custom_tool_call", "custom_tool_call_output", "document", "file", "file_search_call", "function",
+  "function_call", "function_call_output", "human", "image", "image_generation_call", "image_url",
+  "input_audio", "input_file", "input_image", "input_text", "invalid_tool_call", "item_reference",
+  "local_shell_call", "local_shell_call_output", "mcp_approval_request", "mcp_approval_response", "mcp_call",
+  "mcp_list_tools", "mcp_tool_result", "mcp_tool_use", "message", "non_standard", "output_text", "reasoning",
+  "reasoning_text", "redacted-reasoning", "redacted_thinking", "refusal", "search_result", "server_tool_call",
+  "server_tool_result", "server_tool_use", "shell_call", "shell_call_output", "source", "summary_text",
+  "system", "text", "text-plain", "text_editor_code_execution_tool_result", "thinking", "tool",
+  "tool-approval-request", "tool-approval-response", "tool-call", "tool-result", "tool_call",
+  "tool_call_chunk", "tool_reference", "tool_result", "tool_search_tool_result", "tool_use",
+  "web_fetch_tool_result", "web_search_call", "web_search_tool_result",
+]);
 
 type Kind = "openai.chat" | "openai.responses" | "anthropic";
 type AnyFn = (...args: any[]) => any;
@@ -130,9 +156,10 @@ function redactItem(k: string, v: unknown, map: PlaceholderMap | undefined, dept
   return redactStructure(v, map, k, depth + 1);
 }
 
-/** An object that is not a protocol part: no string `type` and no string `role`. */
+/** An object that is not a protocol part: its `type` is not a part type and its `role` is not a message role. */
 function isRecord(x: unknown): boolean {
-  return isObject(x) && typeof x.type !== "string" && typeof x.role !== "string";
+  if (!isObject(x)) return false;
+  return !((typeof x.type === "string" && PART_TYPES.has(x.type)) || (typeof x.role === "string" && PART_ROLES.has(x.role)));
 }
 
 /**

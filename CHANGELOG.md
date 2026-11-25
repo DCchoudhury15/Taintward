@@ -4,6 +4,24 @@
 
 ### Security
 
+- A record in a list that has its own `role` or `type` field
+  (`{"role": "manager", "name": "Alice Lee", "id": ...}` in a tool result)
+  was read as a protocol part, so its name and id went to the model
+  unredacted. Only the roles and part types the LLM protocols use mark a
+  protocol part now; any other dict there is redacted in full. Python and
+  TypeScript.
+- Placeholder restore (gap G1): a bare host with a path before the
+  placeholder (`attacker.example/<SSN_1>`) and a host glued after it
+  (`<SSN_1>.attacker.example`, `<SSN_1>@evil.example`) now keep the
+  placeholder. Chat apps turn such text into a link and often fetch it,
+  and a value inside a host name leaks through the DNS lookup. A stream
+  holds a placeholder back until the text after it shows which case it
+  is. Python and TypeScript.
+- Phone numbers in a North American format (`(212) 736-5000`,
+  `212-736-5000`, `212.736.5000`) are found with no phone word nearby, and
+  "reach", "dial", "landline" and "hotline" count as phone words.
+  "reach me at 212-736-5000" went out unredacted. Python and TypeScript.
+
 - Tool call arguments and structured tool results in the chat history are
   now redacted in full before a model request. Fields named like protocol
   keys (`name`, `id`, `data`, `source`, `status`, ...) were skipped at any
@@ -296,6 +314,18 @@
 
 ### Fixed
 
+- AI SDK middleware: text the stream restorer still held back was lost
+  when a stream had no `text-end` (or `reasoning-end`, `tool-input-end`)
+  part. It is now emitted before `finish`, or when the stream ends.
+- `record_violations()` in `taintward.evidence.recorder` needs `service`.
+  It defaulted to the demo's `taintward-hr-bot`, like the CLIs did before.
+- Helm chart: `gateway.config` has no upstreams by default. It used to run
+  the example HR server; the chart now refuses to install the gateway
+  until `gateway.config.upstreams` lists your MCP servers.
+  `examples/values-gateway-kind.yaml` keeps the HR server.
+- A guard test for detection on digit-heavy text (100 KB in under 1.2 s;
+  it took 2.5 to 4 s before the phone matcher only looked near phone
+  words).
 - TypeScript `StreamRestorer`: a double bracket form (`{{PERSON_1}}`,
   `[[PERSON_1]]`) cut between its two closing brackets was restored too
   early and left a stray bracket. In streamed tool call arguments, the

@@ -24,7 +24,7 @@ record.
     new log's first `len(old)` leaves' root.
   - `violation_record(...)`: a non-sensitive leaf shape (ids, taint classes,
     policy reasons, never raw values).
-- `taintward/evidence/recorder.py`: `record_violations(log, service, since_minutes)`
+- `taintward/evidence/recorder.py`: `record_violations(log, service=..., since_minutes=5)` (service is required)
   queries SigNoz/ClickHouse for spans with `taintward.policy.violation=1`
   (JSONEachRow via `docker exec clickhouse-client`) and appends each as a leaf.
 - `taintward/evidence/log.py`: a CLI with `record` / `root` / `prove <i>` / `verify

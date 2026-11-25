@@ -107,6 +107,19 @@ class TestLatency(unittest.TestCase):
         self.assertLess(median, LATENCY_BOUND_MS,
                         f"1 KB wrapped call median {median:.1f} ms >= {LATENCY_BOUND_MS} ms")
 
+    def test_digit_heavy_text_stays_fast(self):
+        """Text that is mostly digits ("1 1 1 ...", a table of numbers) cost
+        about 24 ms per KB (12 s at the 500 KB cap) in the phone matcher.
+        It is about 2 ms per KB now; the bound leaves a wide margin."""
+        detect.detect_text("warm up 212-736-5000")
+        for unit in ("1 ", "12 34 ", "1-"):
+            text = unit * (100_000 // len(unit))
+            detect.clear_cache()
+            t0 = time.perf_counter()
+            detect.detect_text(text)
+            took = time.perf_counter() - t0
+            self.assertLess(took, 1.2, f"100 KB of {unit!r}: {took:.2f} s")
+
 
 if __name__ == "__main__":
     unittest.main()

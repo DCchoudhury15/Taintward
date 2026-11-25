@@ -308,6 +308,7 @@ export function keyedId(text: string, keyWords: string): RawHit[] {
 const INTL_PHONE = new RegExp(`(?<![${W_IN}+])\\+[0-9]{1,3}(?:[ .\\-/]?\\(?[0-9]{1,5}\\)?){1,7}(?!${W})`, "gu");
 export const PHONE_WORD = new RegExp(
   `(?:phone|telephone|tel${B}|tel\\.|mobile|cell|fax|whatsapp|sms|contact|call${B}|calling` +
+    "|reach|dial|landline|hotline" +
     `|telefon|rufnummer|handy|mobil|anrufen|rufen|téléphone|tél${B}|tél\\.|portable|appeler` +
     "|contacter|teléfono|telefono|móvil|celular|llamar|contactar|cellulare|chiamare|chiamaci" +
     `|contattare|contattaci|telefoon|mobiel|gsm|bellen|mobilnummer|mobiltelefon|ringa|ring${B})`,

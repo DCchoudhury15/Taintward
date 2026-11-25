@@ -102,7 +102,8 @@ def build_fallback_recognizers(secret_patterns: Iterable[tuple[str, str, str, fl
         RegexRecognizer("PHONE_NUMBER", [
             (r"(?<![\w+])(?:\+?1[ .-]?)?(?:\(\d{3}\)|\d{3})[ .-]?\d{3}[ .-]\d{4}(?!\w)", 0.6),
             (r"(?<!\w)\+\d{1,3}(?:[ .-]?\d{2,5}){2,4}(?!\w)", 0.6),
-        ], context=["phone", "tel", "mobile", "cell"], check=_phone_check),
+        ], context=["phone", "tel", "mobile", "cell", "contact", "whatsapp", "fax", "sms", "reach",
+                    "dial", "landline", "hotline"], check=_phone_check),
         RegexRecognizer("IBAN_CODE",
                         [(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b", 1.0)],
                         check=_iban_ok),

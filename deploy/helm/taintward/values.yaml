@@ -210,30 +210,27 @@ gateway:
   # collector Service of this release.
   otlpEndpoint: ""
 
-  # Gateway config (gateway.yaml), see docs/mcp-gateway.md. The default is
-  # the example HR server that ships in the image, so the chart starts on
-  # its own. Replace `upstreams` and `tools` with your own before real use.
+  # Gateway config (gateway.yaml), see docs/mcp-gateway.md. List your MCP
+  # servers under `upstreams` and the rules for their tools under `tools`.
+  # The chart refuses to install the gateway while `upstreams` is empty.
+  # examples/values-gateway-kind.yaml runs the example HR server that ships
+  # in the image. An upstream looks like:
+  #   upstreams:
+  #     - name: github
+  #       command: npx
+  #       args: ["-y", "@modelcontextprotocol/server-github"]
+  #   tools:
+  #     - match: "get_*"
+  #       destination: internal
   config:
     service_name: taintward-mcp-gateway
-    upstreams:
-      - name: hr
-        command: python
-        args: ["-m", "taintward.gateway.examples.hr_server"]
-        cwd: /app
-        env:
-          TAINTWARD_HR_OUTBOX: /tmp/taintward-hr-outbox.jsonl
+    upstreams: []
     defaults:
       destination: external
       jurisdiction: ""
       mode: redact
       redact_results: true
-    tools:
-      - match: "get_*"
-        destination: internal
-      - match: "send_email"
-        destination: external
-        jurisdiction: us
-        mode: block
+    tools: []
 
   service:
     type: ClusterIP

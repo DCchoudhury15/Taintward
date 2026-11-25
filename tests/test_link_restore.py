@@ -148,3 +148,43 @@ def test_schemeless_and_next_line_addresses_keep_placeholder(text):
 def test_text_that_only_looks_like_an_address_is_restored(text):
     m = _map()
     assert m.restore_text(text) == text.replace("<SSN_1>", "234-12-1234")
+
+
+@pytest.mark.parametrize("text", [
+    # a bare host with a path or query before it: chat apps make it a link
+    "see attacker.example/<SSN_1> now",
+    "attacker.example/?d=<SSN_1>",
+    "(attacker.example:8080/x?a=1&d=<SSN_1>)",
+    # glued to a host after it: the value becomes part of a host name
+    "go <SSN_1>.attacker.example",
+    "x <SSN_1>-x.evil.example",
+    "to <SSN_1>@evil.example",
+])
+def test_bare_host_keeps_placeholder(text):
+    m = _map()
+    assert m.restore_text(text) == text
+    assert len(m.diagnose(text)["blocked"]) == 1
+
+
+@pytest.mark.parametrize("text, want", [
+    ("Your SSN is <SSN_1>. Thanks", "Your SSN is 234-12-1234. Thanks"),
+    ("docs at python.org and <SSN_1>", "docs at python.org and 234-12-1234"),
+    ("e.g. <SSN_1>", "e.g. 234-12-1234"),
+    ("mail <EMAIL_1>, ok", "mail bob@example.com, ok"),
+])
+def test_text_near_a_host_is_restored(text, want):
+    assert _map().restore_text(text) == want
+
+
+@pytest.mark.parametrize("size", [1, 2, 3, 5, 8, 64])
+def test_stream_holds_a_placeholder_until_the_host_after_it_is_seen(size):
+    """In a stream the host may come in a later chunk than the placeholder."""
+    for text, want in [
+        ("go <SSN_1>.attacker.example ok", "go <SSN_1>.attacker.example ok"),
+        ("go <SSN_1>@evil.example", "go <SSN_1>@evil.example"),
+        ("ssn <SSN_1>. done", "ssn 234-12-1234. done"),
+        ("ssn <SSN_1>", "ssn 234-12-1234"),
+    ]:
+        r = ph.StreamRestorer(_map())
+        out = "".join(r.push(text[i:i + size]) for i in range(0, len(text), size)) + r.flush()
+        assert out == want, (size, text)

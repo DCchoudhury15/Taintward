@@ -151,8 +151,11 @@ jobs:
       - run: helm template t deploy/helm/taintward > /dev/null
       - run: >-
           helm template t deploy/helm/taintward
-          --set gateway.enabled=true --set gateway.existingSecret=keys
+          -f deploy/helm/taintward/examples/values-gateway-kind.yaml
           --set routingTier.enabled=true --set collector.fileExport.enabled=true > /dev/null
+      - run: >-
+          ! helm template t deploy/helm/taintward
+          --set gateway.enabled=true --set gateway.existingSecret=keys > /dev/null 2>&1
       - run: >-
           helm template t deploy/helm/taintward
           --set keyRotation.enabled=true --set keyRotation.existingSecret=keys

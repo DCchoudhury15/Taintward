@@ -149,10 +149,26 @@ kubectl -n taintward create secret generic taintward-keys \
   --from-literal=TAINTWARD_GATEWAY_TOKEN=$(openssl rand -hex 16)
 ```
 
-Then:
+Then list the MCP servers the gateway sits in front of, in a values file
+such as `gateway-values.yaml`:
+
+```yaml
+gateway:
+  config:
+    upstreams:
+      - name: github
+        command: npx
+        args: ["-y", "@modelcontextprotocol/server-github"]
+    tools:
+      - match: "get_*"
+        destination: internal
+```
+
+and turn the gateway on:
 
 ```bash
 helm upgrade taintward oci://ghcr.io/dcchoudhury15/taintward/charts/taintward --version 0.4.0 -n taintward --reuse-values \
+  -f gateway-values.yaml \
   --set gateway.enabled=true \
   --set gateway.existingSecret=taintward-keys \
   --set gateway.sessionStore.redisUrl=redis://my-redis:6379/0
@@ -172,9 +188,10 @@ helm upgrade taintward oci://ghcr.io/dcchoudhury15/taintward/charts/taintward --
   Secret.
 * The upstream MCP servers and tool rules come from `gateway.config` in the
   values (same format as `taintward/gateway/example-config.yaml`, see
-  [mcp-gateway.md](mcp-gateway.md)). The default is the example HR server
-  that ships in the image, so the gateway starts on its own: replace it
-  with your servers before real use.
+  [mcp-gateway.md](mcp-gateway.md)). There is no default upstream: the
+  chart refuses to install the gateway until `gateway.config.upstreams`
+  lists your MCP servers. `examples/values-gateway-kind.yaml` runs the
+  example HR server that ships in the image.
 
 ## 7. Optional: the control plane
 

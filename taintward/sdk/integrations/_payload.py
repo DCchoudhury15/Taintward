@@ -41,6 +41,43 @@ FREE_KEYS = frozenset({
 # Every key that is kept as it is (not redacted as data).
 STRUCTURAL_KEYS = LEAF_KEYS | OPAQUE_KEYS | {"source"}
 
+# The values of "role" and "type" that mark a protocol part or message
+# (OpenAI chat and responses, Anthropic, LangChain, the AI SDK). In a list
+# under a free key, a dict whose role or type is anything else is the
+# application's own record ({"role": "manager", "name": ..., "id": ...}),
+# and all of it is redacted. A part type missing here is therefore redacted
+# in full too: only values that look like personal data change in it.
+PART_ROLES = frozenset({
+    "user", "assistant", "system", "developer", "tool", "function", "model",
+    "human", "ai", "chat",
+})
+PART_TYPES = frozenset({
+    # content parts
+    "text", "image", "image_url", "file", "document", "audio", "input_audio",
+    "input_text", "input_image", "input_file", "output_text", "refusal",
+    "summary_text", "reasoning_text", "text-plain", "search_result", "citation",
+    "container_upload", "source", "non_standard",
+    # reasoning
+    "thinking", "redacted_thinking", "reasoning", "redacted-reasoning",
+    # tool calls and results
+    "tool_use", "tool_result", "server_tool_use", "mcp_tool_use", "mcp_tool_result",
+    "web_search_tool_result", "web_fetch_tool_result", "code_execution_tool_result",
+    "bash_code_execution_tool_result", "text_editor_code_execution_tool_result",
+    "tool_search_tool_result", "tool_reference",
+    "tool_call", "tool_call_chunk", "invalid_tool_call", "server_tool_call",
+    "server_tool_result", "tool-call", "tool-result", "tool-approval-request",
+    "tool-approval-response", "function", "function_call", "function_call_output",
+    "custom_tool_call", "custom_tool_call_output", "computer_call",
+    "computer_call_output", "file_search_call", "web_search_call",
+    "image_generation_call", "code_interpreter_call", "local_shell_call",
+    "local_shell_call_output", "shell_call", "shell_call_output", "apply_patch_call",
+    "apply_patch_call_output", "mcp_call", "mcp_list_tools", "mcp_approval_request",
+    "mcp_approval_response",
+    # whole items and messages
+    "message", "item_reference", "compaction", "human", "ai", "system", "tool",
+    "chat", "AIMessageChunk", "HumanMessageChunk",
+})
+
 
 def to_plain(obj: Any) -> Any:
     """Turn pydantic objects (e.g. a returned ``ChatCompletionMessage`` that the
@@ -100,11 +137,14 @@ def _redact_item(key: Any, v: Any, destination: str, placeholders) -> Any:
 
 
 def _is_record(item: Any) -> bool:
-    """A dict that is not a protocol part: no string ``type`` and no string
-    ``role``."""
+    """A dict that is not a protocol part: its ``type`` is not a part type
+    and its ``role`` is not a message role (or it has neither)."""
     item = to_plain(item)
-    return (isinstance(item, Mapping) and not isinstance(item.get("type"), str)
-            and not isinstance(item.get("role"), str))
+    if not isinstance(item, Mapping):
+        return False
+    kind, role = item.get("type"), item.get("role")
+    return not ((isinstance(kind, str) and kind in PART_TYPES)
+                or (isinstance(role, str) and role in PART_ROLES))
 
 
 def redact_structure(value: Any, destination: str, placeholders=None) -> Any:

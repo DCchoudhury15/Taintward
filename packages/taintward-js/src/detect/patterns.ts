@@ -209,7 +209,7 @@ const PHONE: PatternRecognizer = {
   entity: "PHONE_NUMBER",
   context: [
     "phone", "number", "telephone", "cell", "cellphone", "mobile", "call",
-    "tel", "contact", "whatsapp", "fax", "sms",
+    "tel", "contact", "whatsapp", "fax", "sms", "reach", "dial", "landline", "hotline",
   ],
   find(text) {
     if (!PHONE_HINT.test(text)) return [];
@@ -261,8 +261,29 @@ function secretRecognizers(): PatternRecognizer[] {
   return [...byType].map(([etype, pats]) => regexRecognizer(etype, pats));
 }
 
+// A North American number written in a phone format: "(212) 736-5000",
+// "212-736-5000", "212.736.5000" (the same separator twice), area code and
+// exchange starting with 2-9. The format alone says "phone", so no context
+// word is needed. The same patterns as the Python SDK (recognizers_extra.py).
+const NANP_PARENS = /(?<![\p{L}\p{N}_+(])\(\s?[2-9][0-9]{2}\s?\)\s?[2-9][0-9]{2}[-. ][0-9]{4}(?![\p{L}\p{N}_-]|[.,][0-9])/gu;
+const NANP_SEP = /(?<![\p{L}\p{N}_+./-])(?:\+?1[-. ])?[2-9][0-9]{2}([-.])[2-9][0-9]{2}\1[0-9]{4}(?![\p{L}\p{N}_-]|[.,/][0-9])/gu;
+
+const NANP_PHONE: PatternRecognizer = {
+  entity: "PHONE_NUMBER",
+  context: [],
+  find(text) {
+    const out: RawHit[] = [];
+    for (const re of [NANP_PARENS, NANP_SEP]) {
+      for (const m of text.matchAll(re)) {
+        out.push({ entityType: "PHONE_NUMBER", start: m.index!, end: m.index! + m[0].length, score: 0.6 });
+      }
+    }
+    return out;
+  },
+};
+
 export const PATTERN_RECOGNIZERS: readonly PatternRecognizer[] = [
-  CARD, SSN, EMAIL, IBAN, PHONE, ...secretRecognizers(),
+  CARD, SSN, EMAIL, IBAN, PHONE, NANP_PHONE, ...secretRecognizers(),
 ];
 
 export const SECRET_TYPES: ReadonlySet<string> = new Set([

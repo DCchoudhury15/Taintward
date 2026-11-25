@@ -27,3 +27,25 @@ gateway:
   autoscaling:
     minReplicas: 2
     maxReplicas: 3
+  # The example HR server that ships in the gateway image.
+  config:
+    service_name: taintward-mcp-gateway
+    upstreams:
+      - name: hr
+        command: python
+        args: ["-m", "taintward.gateway.examples.hr_server"]
+        cwd: /app
+        env:
+          TAINTWARD_HR_OUTBOX: /tmp/taintward-hr-outbox.jsonl
+    defaults:
+      destination: external
+      jurisdiction: ""
+      mode: redact
+      redact_results: true
+    tools:
+      - match: "get_*"
+        destination: internal
+      - match: "send_email"
+        destination: external
+        jurisdiction: us
+        mode: block

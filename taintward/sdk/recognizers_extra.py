@@ -34,6 +34,13 @@ EXTRA_SECRET_TYPES = frozenset({"JWT", "PRIVATE_KEY"})
 
 # header.payload.signature, base64url. A JWT header and payload are JSON
 # objects, so both segments start with "eyJ" (base64 of '{"').
+# A North American phone number written in a phone format: "(212) 736-5000",
+# "212-736-5000", "212.736.5000" (the same separator twice), area code and
+# exchange starting with 2-9. The format alone says "phone", so no context
+# word is needed ("reach me at 212-736-5000" was missed).
+_NANP_PARENS = r"(?<![\w+(])\(\s?[2-9]\d{2}\s?\)\s?[2-9]\d{2}[-. ]\d{4}(?![\w-]|[.,]\d)"
+_NANP_SEP = (r"(?<![\w+.\-/])(?:\+?1[-. ])?[2-9]\d{2}([-.])[2-9]\d{2}\1\d{4}"
+             r"(?![\w-]|[.,/]\d)")
 _JWT = r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*"
 
 # The BEGIN line, plus the body and END line when they are present. The body
@@ -64,6 +71,12 @@ def build_extra_recognizers() -> list:
             name="PRIVATE_KEY",
             patterns=[Pattern("pem_private_key", _PEM, 0.95)],
             supported_entity="PRIVATE_KEY",
+        ),
+        PatternRecognizer(
+            name="NANP_PHONE",
+            patterns=[Pattern("nanp_parens", _NANP_PARENS, 0.6),
+                      Pattern("nanp_separated", _NANP_SEP, 0.6)],
+            supported_entity="PHONE_NUMBER",
         ),
     ]
 
@@ -244,5 +257,6 @@ CONTEXT_TYPES = {"US_SSN": "pii", "CREDIT_CARD": "pii", "PHONE_NUMBER": "pii",
 # Presidio matches a context word as a substring of a nearby word, so "tel"
 # here also covers "tel:" and "tel_no".
 EXTRA_CONTEXT = {
-    "PHONE_NUMBER": ["tel", "contact", "whatsapp", "fax", "sms"],
+    "PHONE_NUMBER": ["tel", "contact", "whatsapp", "fax", "sms", "reach", "dial", "landline",
+                     "hotline"],
 }

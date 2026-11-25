@@ -428,7 +428,14 @@
    "out_of_scope": []
   },
   "phone-no-context": {
-   "spans": [],
+   "spans": [
+    {
+     "type": "PHONE_NUMBER",
+     "start": 4,
+     "end": 18,
+     "fingerprint": "460ba65f"
+    }
+   ],
    "out_of_scope": []
   },
   "phone-key": {

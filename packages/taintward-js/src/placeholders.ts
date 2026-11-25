@@ -128,19 +128,32 @@ const URL_ATTR = /\b(?:href|src|srcset|action|formaction|poster|background|cite|
 const REF_DEF = /^[ \t]{0,3}\[[^\]\n]+\]:[ \t]/;
 const BLANK_LINE = /\n[ \t]*\n/g;
 const URL_LOOKBACK = 2000;
+// A bare host with a path or query in the word before ("attacker.example/<SSN_1>").
+const BARE_HOST = /(?<![\p{L}\p{N}_@.-])(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}\.?(?::\d{1,5})?[/?#]/iu;
+// What may follow a placeholder that is part of a host name ("<SSN_1>.attacker.example").
+const HOST_AFTER = /^[a-z0-9-]*[.@][a-z0-9]/i;
+// A tail that may still become HOST_AFTER (a stream holds it back).
+const HOST_AFTER_PARTIAL = /^[a-z0-9-]*[.@]?$/i;
+// Longest host name: a placeholder followed by this much host text is held.
+const HOST_HOLD = 256;
 
 /**
  * Is position `pos` of `text` inside a link or image address? True when the
  * word starts a URL (a scheme, "www.", or a host written as "//host"), when
+ * the word before holds a bare host and a path ("attacker.example/"), when
  * the line is a markdown reference definition, or when a markdown link target
  * or an HTML URL attribute is still open. Those may start on the next line,
- * so the check looks back over the paragraph, not only the line.
+ * so the check looks back over the paragraph, not only the line. `end` is
+ * where the placeholder ends: glued to a host after it
+ * ("<SSN_1>.attacker.example", "<SSN_1>@evil.com") the value would become
+ * part of a host name, which a DNS lookup sends out.
  */
-export function inUrl(text: string, pos: number): boolean {
+export function inUrl(text: string, pos: number, end?: number): boolean {
+  if (end !== undefined && HOST_AFTER.test(text.slice(end, end + 300))) return true;
   const head = text.slice(Math.max(0, pos - URL_LOOKBACK), pos);
   const line = head.slice(head.lastIndexOf("\n") + 1);
   const word = line.slice(Math.max(line.lastIndexOf(" "), line.lastIndexOf("\t")) + 1);
-  if (URL_START.test(word) || REF_DEF.test(line)) return true;
+  if (URL_START.test(word) || REF_DEF.test(line) || BARE_HOST.test(word)) return true;
   // The paragraph so far: a blank line ends a link target or an HTML tag.
   let para = head;
   for (const blank of head.matchAll(BLANK_LINE)) para = head.slice(blank.index! + blank[0].length);
@@ -376,7 +389,7 @@ export class PlaceholderMap {
     }
     for (const m of text.matchAll(TOLERANT_G)) {
       let [value, kind] = this.classify(m);
-      if (value !== undefined && !this.restoreInUrls && inUrl(text, m.index!)) kind = "blocked";
+      if (value !== undefined && !this.restoreInUrls && inUrl(text, m.index!, m.index! + m[0].length)) kind = "blocked";
       if (kind === "repaired" || kind === "lost" || kind === "unknown" || kind === "blocked") {
         out[kind].push(m[0].trim());
       }
@@ -403,7 +416,7 @@ export class PlaceholderMap {
         const full = tail + text;
         const pos = tail.length + offset;
         const start = inJson ? jsonStringStart(full, pos) : 0;
-        if (inUrl(full.slice(start), pos - start)) return m[0] as string;
+        if (inUrl(full.slice(start), pos - start, pos - start + (m[0] as string).length)) return m[0] as string;
       }
       const whole = m[0] as string;
       // "\<SSN_1>": the backslash was in the text before the value
@@ -565,9 +578,27 @@ function holdFrom(text: string, maxHold: number): number {
     const c = text[i]!;
     if (!OPENERS.has(c)) continue;
     const rest = text.slice(i);
-    if (PARTIAL_ENTITY.test(rest) || PARTIAL.test(rest) || PARTIAL_DOUBLE.test(rest)) return i;
+    if (PARTIAL_ENTITY.test(rest) || PARTIAL.test(rest) || PARTIAL_DOUBLE.test(rest)) {
+      cut = i;
+      break;
+    }
   }
-  return cut;
+  return holdHost(text, cut);
+}
+
+/**
+ * Do not emit a placeholder before the text after it shows whether it is part
+ * of a host name ("<SSN_1>" then ".attacker.example"): hold from the last
+ * placeholder when what follows it, up to `cut`, may still become one.
+ */
+function holdHost(text: string, cut: number): number {
+  const from = Math.max(0, text.length - HOST_HOLD);
+  let last: RegExpMatchArray | undefined;
+  for (const m of text.slice(from, cut).matchAll(TOLERANT_G)) last = m;
+  if (last === undefined) return cut;
+  const start = from + last.index!;
+  const end = start + last[0].length;
+  return HOST_AFTER_PARTIAL.test(text.slice(end, cut)) ? start : cut;
 }
 
 // Short on purpose: it is added to every request that has placeholders. The

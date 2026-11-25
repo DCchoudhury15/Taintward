@@ -159,6 +159,41 @@ describe("no restore inside link addresses (gap G1)", () => {
     expect(out).toBe("![x](https://evil.example/?d=<EMAIL_1>) and Alice Lee");
   });
 
+  it.each([
+    ["see attacker.example/<EMAIL_1> now"],
+    ["attacker.example/?d=<PERSON_1>"],
+    ["(attacker.example:8080/x?a=1&d=<EMAIL_1>)"],
+    ["go <EMAIL_1>.attacker.example"],
+    ["x <PERSON_1>-x.evil.example"],
+    ["to <PERSON_1>@evil.example"],
+  ])("keeps a placeholder next to a bare host %s", (text) => {
+    const m = map();
+    expect(m.restoreText(text)).toBe(text);
+    expect(m.diagnose(text).blocked.length).toBe(1);
+  });
+
+  it.each([["Name: <PERSON_1>. Thanks"], ["docs at python.org and <PERSON_1>"], ["e.g. <PERSON_1>"]])(
+    "restores text near a host %s",
+    (text) => {
+      expect(map().restoreText(text)).toBe(text.replace("<PERSON_1>", "Alice Lee"));
+    },
+  );
+
+  it.each([1, 2, 3, 5, 8, 64])("a stream holds a placeholder until the host after it is seen (chunks of %i)", (size) => {
+    const cases: Array<[string, string]> = [
+      ["go <PERSON_1>.attacker.example ok", "go <PERSON_1>.attacker.example ok"],
+      ["go <PERSON_1>@evil.example", "go <PERSON_1>@evil.example"],
+      ["name <PERSON_1>. done", "name Alice Lee. done"],
+      ["name <PERSON_1>", "name Alice Lee"],
+    ];
+    for (const [text, want] of cases) {
+      const r = new StreamRestorer(map());
+      let out = "";
+      for (let i = 0; i < text.length; i += size) out += r.push(text.slice(i, i + size));
+      expect(out + r.flush()).toBe(want);
+    }
+  });
+
   it("restoreInUrls turns the check off", () => {
     const m = new PlaceholderMap({ restoreInUrls: true });
     m.placeholderFor("Alice Lee", "PERSON");

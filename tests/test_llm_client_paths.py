@@ -380,3 +380,37 @@ def test_openai_batch_file_it_cannot_read_is_not_sent(ward, bad):
     with pytest.raises(BatchFileError):
         client.files.create(file=bad, purpose="batch")
     assert sent == []
+
+
+def test_record_with_its_own_role_or_type_is_data():
+    """A row such as {"role": "manager", "name": ..., "id": ...} has a string
+    role, so it was read as a protocol message and its name and id were sent
+    raw. Only the roles and part types the protocols use mark a part."""
+    from taintward.sdk.destinations import DEST_LLM
+    from taintward.sdk.integrations._payload import redact_structure
+    from taintward.sdk.placeholders import PlaceholderMap
+
+    pmap = PlaceholderMap()
+    msg = {"role": "tool", "tool_call_id": "t1", "content": [
+        {"role": "manager", "name": "Alice Lee", "id": SSN},
+        {"type": "customer", "name": "Alice Lee", "email": EMAIL},
+        {"type": "text", "text": f"ssn {SSN}"}]}
+    out = redact_structure(msg, DEST_LLM, pmap)
+    assert SSN not in json.dumps(out) and "Alice Lee" not in json.dumps(out)
+    assert EMAIL not in json.dumps(out)
+    assert out["content"][0] == {"role": "manager", "name": "<PERSON_1>", "id": "<SSN_1>"}
+    assert out["content"][1]["name"] == "<PERSON_1>" and out["content"][1]["type"] == "customer"
+    assert out["content"][2] == {"type": "text", "text": "ssn <SSN_1>"}
+
+
+def test_part_lists_are_the_same_in_python_and_typescript():
+    import pathlib
+    import re
+
+    from taintward.sdk.integrations._payload import PART_ROLES, PART_TYPES
+
+    ts = (pathlib.Path(__file__).parent.parent / "packages/taintward-js/src/clients.ts").read_text()
+    for name, values in (("PART_ROLES", PART_ROLES), ("PART_TYPES", PART_TYPES)):
+        body = re.search(rf"const {name} = new Set\(\[(.*?)\]\);", ts, re.S)
+        assert body, name
+        assert set(re.findall(r'"([^"]+)"', body.group(1))) == set(values), name

@@ -296,6 +296,7 @@ def keyed_id(text: str, key_words: str) -> list[tuple]:
 _INTL_PHONE = re.compile(r"(?<![\w+])\+\d{1,3}(?:[ .\-/]?\(?\d{1,5}\)?){1,7}(?!\w)")
 _PHONE_WORD = re.compile(
     r"(?i)(?:phone|telephone|tel\b|tel\.|mobile|cell|fax|whatsapp|sms|contact|call\b|calling"
+    r"|reach|dial|landline|hotline"
     r"|telefon|rufnummer|handy|mobil|anrufen|rufen|téléphone|tél\b|tél\.|portable|appeler"
     r"|contacter|teléfono|telefono|móvil|celular|llamar|contactar|cellulare|chiamare|chiamaci"
     r"|contattare|contattaci|telefoon|mobiel|gsm|bellen|mobilnummer|mobiltelefon|ringa|ring\b)")

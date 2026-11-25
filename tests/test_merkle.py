@@ -615,11 +615,24 @@ class TestCliProofs(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             log = MerkleLog(os.path.join(td, "v.logl"))
             with mock.patch("taintward.evidence.recorder._query_clickhouse", return_value=rows):
-                self.assertEqual(record_violations(log), 1)
-                self.assertEqual(record_violations(log), 0)  # overlapping window
+                self.assertEqual(record_violations(log, service="my-agent"), 1)
+                self.assertEqual(record_violations(log, service="my-agent"), 0)  # overlapping window
                 rows.append(dict(rows[0], span_id="s2"))
-                self.assertEqual(record_violations(log), 1)
+                self.assertEqual(record_violations(log, service="my-agent"), 1)
             self.assertEqual(len(MerkleLog(os.path.join(td, "v.logl"))), 2)
+
+    def test_record_needs_a_service(self):
+        """No default service: it was the demo's name, taintward-hr-bot."""
+        from taintward.evidence.recorder import record_violations
+
+        with tempfile.TemporaryDirectory() as td:
+            log = MerkleLog(os.path.join(td, "v.logl"))
+            with mock.patch("taintward.evidence.recorder._query_clickhouse",
+                            return_value=[]) as query:
+                with self.assertRaises(TypeError):
+                    record_violations(log)  # type: ignore[call-arg]
+                record_violations(log, service="my-agent")
+            query.assert_called_once_with("my-agent", 5)
 
 if __name__ == "__main__":
     unittest.main()

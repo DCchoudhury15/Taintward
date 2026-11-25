@@ -173,6 +173,41 @@ describe("stream", () => {
     expect(out).toBe(`Mail sent to ${EMAIL} and ${SSN} ok`);
   });
 
+  it("emits held text when the stream has no text-end part", async () => {
+    // The last delta ends in "<EMAIL_1>" plus a short word run, which the
+    // restorer holds back until it knows more. Without a "text-end" part it
+    // used to be dropped.
+    const inner = streamModel([
+      { type: "text-start", id: "t" },
+      { type: "text-delta", id: "t", delta: "Mail sent to " },
+      { type: "text-delta", id: "t", delta: "<EMAIL_1> ok" },
+      { type: "finish", finishReason: stop, usage },
+    ]);
+    const model = wrapLanguageModel({ model: inner, middleware: taintwardMiddleware() });
+    const result = streamText({ model, prompt: ASK });
+    let out = "";
+    for await (const t of result.textStream) out += t;
+    expect(out).toBe(`Mail sent to ${EMAIL} ok`);
+  });
+
+  it("emits held text when the stream ends with no finish part", async () => {
+    const mw = taintwardMiddleware();
+    const params = (await mw.transformParams!({ type: "stream", params: { prompt: [{ role: "user", content: [{ type: "text", text: ASK }] }] } as any, model: {} as any })) as any;
+    const parts: LanguageModelV4StreamPart[] = [
+      { type: "text-start", id: "t" },
+      { type: "text-delta", id: "t", delta: "Mail sent to <EMAIL_1> ok" },
+    ];
+    const { stream } = await mw.wrapStream!({
+      doStream: async () => ({ stream: convertArrayToReadableStream(parts) }) as any,
+      doGenerate: async () => ({}) as any,
+      params,
+      model: {} as any,
+    });
+    let out = "";
+    for await (const p of stream as any) if (p.type === "text-delta") out += p.delta;
+    expect(out).toBe(`Mail sent to ${EMAIL} ok`);
+  });
+
   it("restores streamed tool input", async () => {
     let received: unknown;
     const inner = streamModel([

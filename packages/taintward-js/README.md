@@ -59,8 +59,9 @@ model answers     : Hi, this is a note for <EMAIL_1> ...
 | **Clients** | `protectOpenAI` and `protectAnthropic` for the official JS clients, and Mastra agents through the middleware |
 | **Embeddings** | texts sent to an embedding model are masked (`taintwardEmbeddingMiddleware`, OpenAI `embeddings.create`) |
 
-It finds emails, phone numbers (also with a `+` country code, or after a
-phone word in seven languages), US SSNs, cards and IBANs (checksums
+It finds emails, phone numbers (also with a `+` country code, in a North
+American format such as `(212) 736-5000`, or after a phone word in seven
+languages), US SSNs, cards and IBANs (checksums
 checked), national ids with a check digit (Aadhaar, PAN, codice fiscale,
 DNI / NIE, French NIR, Swiss AHV, UK National Insurance), ids after an id
 word ("Passnummer", "passport"), US and European street addresses, AWS keys,

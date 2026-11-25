@@ -309,3 +309,33 @@ describe("OpenAI batch files", () => {
     expect(uploads).toEqual([]);
   });
 });
+
+describe("records in a list", () => {
+  it("a record with its own role or type is data", async () => {
+    const sent: Sent = [];
+    const client = openai(sent);
+    await client.chat.completions.create({
+      model: "m",
+      messages: [
+        { role: "user", content: "look it up" },
+        {
+          role: "tool",
+          tool_call_id: "t1",
+          content: [
+            { role: "manager", name: "Alice Lee", id: SSN },
+            { type: "customer", name: "Alice Lee", email: EMAIL },
+            { type: "text", text: `ssn ${SSN}` },
+          ] as any,
+        },
+      ],
+    });
+    const { text, body } = last(sent);
+    expect(text).not.toContain(SSN);
+    expect(text).not.toContain(EMAIL);
+    expect(text).not.toContain("Alice Lee");
+    const tool = body.messages.find((m: any) => m.role === "tool");
+    expect(tool.content[0]).toEqual({ role: "manager", name: "<PERSON_1>", id: "<SSN_1>" });
+    expect(tool.content[1].type).toBe("customer");
+    expect(tool.content[2]).toEqual({ type: "text", text: "ssn <SSN_1>" });
+  });
+});

@@ -69,10 +69,10 @@ def _query_clickhouse(service: str, since_minutes: int) -> list[dict]:
     return rows
 
 
-def record_violations(log: MerkleLog, *, service: str = "taintward-hr-bot",
-                      since_minutes: int = 5) -> int:
-    """Append every recent collector violation to ``log``; return how many
-    were new. A violation already in the log (same trace_id and span_id) is
+def record_violations(log: MerkleLog, *, service: str, since_minutes: int = 5) -> int:
+    """Append every recent collector violation of ``service`` to ``log``;
+    return how many were new. ``service`` has no default: it used to be the
+    demo's service name, so a call without it read the wrong service. A violation already in the log (same trace_id and span_id) is
     skipped, so recording overlapping time windows adds no duplicates."""
     rows = _query_clickhouse(service, since_minutes)
     added = 0

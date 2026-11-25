@@ -379,8 +379,10 @@ checks that.
   dropped. A stricter rule, keeping a one-word name only after a title or
   greeting, was tried and dropped: on the dev sample it removed more real
   first names (248) than false ones (201).
-* **Phone numbers**: a `+` country code with 9 to 15 digits, or a local
-  number after a phone word in one of the seven languages.
+* **Phone numbers**: a `+` country code with 9 to 15 digits, a North
+  American number in a phone format (`(212) 736-5000`, `212-736-5000`,
+  `212.736.5000`), or a local number after a phone word in one of the seven
+  languages.
 * **Street addresses** in the usual European forms ("Musterstraße 12",
   "12 rue de la Paix", "Via Roma 10", "Calle Mayor 5", "Kerkstraat 12a"),
   joined with a flat number and the postal code and city right after them,

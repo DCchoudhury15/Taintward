@@ -152,7 +152,13 @@ _MIN_KNOWN_LEN = 3
 # * its line is a markdown reference definition ("[1]: ..."),
 # * it sits in a markdown link target or an HTML URL attribute that is still
 #   open. Those may hold spaces and may start on the next line, so the check
-#   looks back over the paragraph, not only the line.
+#   looks back over the paragraph, not only the line,
+# * the word before it holds a bare host and a path or query
+#   ("attacker.example/<SSN_1>"): chat apps turn such text into a link and
+#   often fetch it for a preview,
+# * it is glued to the host part of a word after it ("<SSN_1>.attacker.example",
+#   "<SSN_1>-x.evil.com", "<SSN_1>@evil.com"): the value would become part
+#   of a host name, which a DNS lookup of that name sends out.
 _URL_START = re.compile(
     r"(?i)[a-z][a-z0-9+.\-]*://|\bwww\.|(?<![a-z])(?:mailto|data):"
     r"""|(?:^|[=<("'\[])[/\\]{2}(?=[^\s/\\])""")
@@ -160,6 +166,15 @@ _URL_ATTR = re.compile(
     r"""(?i)\b(?:href|src|srcset|action|formaction|poster|background|cite|ping|data)"""
     r"""\s*=\s*(["']?)""")
 _REF_DEF = re.compile(r"[ \t]{0,3}\[[^\]\n]+\]:[ \t]")
+_BARE_HOST = re.compile(
+    r"(?<![\w@.\-])(?:[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?\.)+[a-z]{2,63}\.?(?::\d{1,5})?[/?#]",
+    re.I)
+# What may follow a placeholder that is part of a host name.
+_HOST_AFTER = re.compile(r"[a-z0-9\-]*[.@][a-z0-9]", re.I)
+# A tail that may still become _HOST_AFTER (a stream holds it back).
+_HOST_AFTER_PARTIAL = re.compile(r"[a-z0-9\-]*[.@]?", re.I)
+# Longest host name: a placeholder followed by this much host text is held.
+_HOST_HOLD = 256
 _BLANK_LINE = re.compile(r"\n[ \t]*\n")
 _URL_LOOKBACK = 2000
 
@@ -169,12 +184,16 @@ def restore_in_urls_default() -> bool:
     return env_flag("TAINTWARD_RESTORE_IN_URLS", False)
 
 
-def in_url(text: str, pos: int) -> bool:
-    """Is position ``pos`` of ``text`` inside a link or image address?"""
+def in_url(text: str, pos: int, end: int | None = None) -> bool:
+    """Is position ``pos`` of ``text`` inside a link or image address? ``end``
+    is where the placeholder that starts at ``pos`` ends: the text after it
+    is checked too (part of a host name)."""
+    if end is not None and _HOST_AFTER.match(text, end):
+        return True
     head = text[max(0, pos - _URL_LOOKBACK):pos]
     line = head[head.rfind("\n") + 1:]
     word = line[max(line.rfind(" "), line.rfind("\t")) + 1:]
-    if _URL_START.search(word) or _REF_DEF.match(line):
+    if _URL_START.search(word) or _REF_DEF.match(line) or _BARE_HOST.search(word):
         return True
     # The paragraph so far: a blank line ends a link target or an HTML tag.
     para = head
@@ -481,11 +500,11 @@ class PlaceholderMap:
         def blocked(m: re.Match) -> bool:
             if self.restore_in_urls:
                 return False
-            full, pos = tail + text, len(tail) + m.start()
+            full, pos, end = tail + text, len(tail) + m.start(), len(tail) + m.end()
             if in_json:
                 start = _json_string_start(full, pos)
-                return in_url(full[start:], pos - start)
-            return in_url(full, pos)
+                return in_url(full[start:], pos - start, end - start)
+            return in_url(full, pos, end)
 
         if not self.tolerant:
             def sub(m: re.Match) -> str:
@@ -635,13 +654,13 @@ class PlaceholderMap:
                     label = _norm_label(m.group(1))
                     if self._unknown_kind(label) == "unknown":
                         out["unknown"].append(m.group(0))
-                elif not self.restore_in_urls and in_url(text, m.start()):
+                elif not self.restore_in_urls and in_url(text, m.start(), m.end()):
                     out["blocked"].append(m.group(0))
         else:
             ok = self._spaced_ok(text) if spaced else {}
             for m in _TOLERANT_RE.finditer(text):
                 value, kind = self._classify(m, ok)
-                if value is not None and not self.restore_in_urls and in_url(text, m.start()):
+                if value is not None and not self.restore_in_urls and in_url(text, m.start(), m.end()):
                     kind = "blocked"
                 if kind in out:
                     out[kind].append(m.group(0).strip())
@@ -833,7 +852,21 @@ def _hold_from(text: str, max_hold: int) -> int:
             rest = text[i:]
             if (_PARTIAL_ENTITY.fullmatch(rest) or _PARTIAL.fullmatch(rest)
                     or _PARTIAL_DOUBLE.fullmatch(rest)):
-                return i
+                cut = i
+                break
+    return _hold_host(text, cut)
+
+
+def _hold_host(text: str, cut: int) -> int:
+    """Do not emit a placeholder before the text after it shows whether it
+    is part of a host name ("<SSN_1>" then ".attacker.example"): hold from
+    the last placeholder when what follows it, up to ``cut``, may still
+    become one (see ``in_url``)."""
+    last = None
+    for m in _TOLERANT_RE.finditer(text, max(0, len(text) - _HOST_HOLD), cut):
+        last = m
+    if last is not None and _HOST_AFTER_PARTIAL.fullmatch(text, last.end(), cut):
+        return last.start()
     return cut
 
 

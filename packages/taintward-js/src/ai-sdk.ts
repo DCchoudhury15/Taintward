@@ -193,6 +193,8 @@ export function taintwardMiddleware(options: TaintwardMiddlewareOptions = {}): L
       const map = maps.get(params);
       if (!map || map.size === 0) return result;
       const restorers = new Map<string, StreamRestorer>();
+      // The delta part type and id each open restorer emits.
+      const kinds = new Map<string, { type: "text-delta" | "reasoning-delta" | "tool-input-delta"; id: string }>();
       const raw = new Map<string, string>();
       const texts: string[] = [];
       const restorer = (id: string, mode: "text" | "json") => {
@@ -203,20 +205,44 @@ export function taintwardMiddleware(options: TaintwardMiddlewareOptions = {}): L
       const endPiece = (id: string): string => {
         const rest = restorers.get(id)?.flush() ?? "";
         restorers.delete(id);
+        kinds.delete(id);
         const t = raw.get(id);
         if (t !== undefined) texts.push(t);
         raw.delete(id);
         return rest;
       };
 
+      // A stream can end without the "-end" part of a text (a provider that
+      // leaves it out, or a cut stream). Emit what each restorer still holds
+      // before "finish", or at the end of the stream: it used to be lost.
+      const drain = (ctrl: TransformStreamDefaultController<LanguageModelV4StreamPart>): void => {
+        for (const key of [...restorers.keys()]) {
+          const kind = kinds.get(key)!;
+          const rest = endPiece(key);
+          if (rest) ctrl.enqueue({ type: kind.type, id: kind.id, delta: rest } as LanguageModelV4StreamPart);
+        }
+      };
+      let finished = false;
+
       const stream = result.stream.pipeThrough(
         new TransformStream<LanguageModelV4StreamPart, LanguageModelV4StreamPart>({
+          flush(ctrl) {
+            drain(ctrl);
+            if (!finished) {
+              try {
+                finish(map, texts);
+              } catch (e) {
+                ctrl.enqueue({ type: "error", error: e });
+              }
+            }
+          },
           transform(part, ctrl) {
             switch (part.type) {
               case "text-delta":
               case "reasoning-delta":
               case "tool-input-delta": {
                 const key = `${part.type.split("-")[0]}:${part.id}`;
+                kinds.set(key, { type: part.type, id: part.id });
                 raw.set(key, (raw.get(key) ?? "") + part.delta);
                 const out = restorer(key, part.type === "tool-input-delta" ? "json" : "text").push(part.delta);
                 if (out) ctrl.enqueue({ ...part, delta: out });
@@ -239,6 +265,8 @@ export function taintwardMiddleware(options: TaintwardMiddlewareOptions = {}): L
                 ctrl.enqueue({ ...part, input: map.restoreText(part.input) });
                 return;
               case "finish":
+                drain(ctrl);
+                finished = true;
                 try {
                   finish(map, texts);
                 } catch (e) {
