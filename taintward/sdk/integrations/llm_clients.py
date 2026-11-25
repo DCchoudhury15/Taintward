@@ -65,7 +65,11 @@ The patch is applied to one client object and the copies made from it.
 Anthropic batch requests (``messages.batches.create``) are sent with one-way
 masks instead of placeholders: a batch answer comes back in another call,
 so it could not be restored. The first one logs a warning. OpenAI batches
-are built from an uploaded file and are not covered, like other clients.
+are built from an uploaded JSONL file: ``files.create(purpose="batch")``
+masks the content of each line the same way before the upload. A batch
+file it cannot read, or with a line for an endpoint it does not know, is
+not sent (``BatchFileError``). Large files sent in parts with
+``client.uploads`` are not covered.
 The answers of the ``with_raw_response`` / ``with_streaming_response``
 helpers are not restored.
 """
@@ -74,7 +78,9 @@ from __future__ import annotations
 
 import functools
 import inspect
+import json
 import logging
+import os
 from typing import Any, Callable, Mapping
 
 from opentelemetry import trace
@@ -653,6 +659,32 @@ def _patch_count_tokens(resource: Any, provider: str, system: str,
     return True
 
 
+def _warn_batch_once(warned: list, what: str) -> None:
+    if not warned:
+        warned.append(True)
+        log.warning("taintward: %s are sent with one-way masks ([PII], [SECRET]), not "
+                    "placeholders: a batch answer cannot be restored", what)
+
+
+def _batch_call(what: str, provider: str, system: str, ward: Ward,
+                content: list[dict]) -> GuardedCall:
+    """One guarded call over the content fields of every request in a batch,
+    redacted with one-way masks (no placeholder map)."""
+    structure, payload = structure_redactor(None), payload_redactor(None)
+
+    def redact(value: Any, destination: str) -> Any:
+        return [{k: (payload if k in _DATA_FIELDS and isinstance(v, Mapping)
+                     else structure)(v, destination) for k, v in item.items()}
+                for item in value]
+    return GuardedCall(
+        f"batch {what}", destination=DEST_LLM, jurisdiction=ward.llm_jurisdiction,
+        tracer=ward.tracer, kwargs={"requests": content}, redact=redact,
+        input_attr="gen_ai.input.messages", output_attr="gen_ai.output.messages",
+        input_view=lambda _a, kw: kw, kind=trace.SpanKind.CLIENT,
+        attributes={"gen_ai.operation.name": "batch", "gen_ai.provider.name": system,
+                    "taintward.framework": provider})
+
+
 def _wrap_batches_create(original: Callable, provider: str, system: str,
                          fields: tuple[str, ...], ward: Ward, what: str) -> Callable:
     """A batch answer comes back later, in another call, so it could not be
@@ -661,28 +693,12 @@ def _wrap_batches_create(original: Callable, provider: str, system: str,
     warned: list[bool] = []
 
     def guard(kwargs: dict) -> tuple[GuardedCall, list]:
-        if not warned:
-            warned.append(True)
-            log.warning("taintward: %s requests are sent with one-way masks ([PII], "
-                        "[SECRET]), not placeholders: a batch answer cannot be restored", what)
+        _warn_batch_once(warned, f"{what} requests")
         requests = [to_plain(r) for r in (kwargs.get("requests") or [])]
         content = [{k: p[k] for k in fields if k in p}
                    for p in ((r.get("params") or {}) if isinstance(r, Mapping) else {}
                              for r in requests)]
-        structure, payload = structure_redactor(None), payload_redactor(None)
-
-        def redact(value: Any, destination: str) -> Any:
-            return [{k: (payload if k in _DATA_FIELDS and isinstance(v, Mapping)
-                         else structure)(v, destination) for k, v in item.items()}
-                    for item in value]
-        call = GuardedCall(
-            f"batch {what}", destination=DEST_LLM, jurisdiction=ward.llm_jurisdiction,
-            tracer=ward.tracer, kwargs={"requests": content}, redact=redact,
-            input_attr="gen_ai.input.messages", output_attr="gen_ai.output.messages",
-            input_view=lambda _a, kw: kw, kind=trace.SpanKind.CLIENT,
-            attributes={"gen_ai.operation.name": "batch", "gen_ai.provider.name": system,
-                        "taintward.framework": provider})
-        return call, requests
+        return _batch_call(what, provider, system, ward, content), requests
 
     def send(call: GuardedCall, requests: list) -> list:
         out = []
@@ -721,6 +737,130 @@ def _patch_batches(resource: Any, provider: str, system: str, fields: tuple[str,
     except Exception:  # noqa: BLE001 - a resource that cannot be patched
         log.warning("taintward: could not patch %s.create; batch requests are not "
                     "redacted", what)
+
+
+# An OpenAI batch is a JSONL file uploaded with files.create(purpose="batch"):
+# one request per line, {"custom_id", "method", "url", "body"}. The url says
+# which fields of the body are content.
+_OPENAI_BATCH_FIELDS: dict[str, tuple[str, ...]] = {
+    "/v1/chat/completions": _OPENAI_CHAT_FIELDS,
+    "/v1/responses": _OPENAI_RESPONSES_FIELDS,
+    "/v1/embeddings": ("input", "user"),
+    "/v1/completions": ("prompt", "suffix", "user"),
+    "/v1/moderations": ("input",),
+}
+
+
+class BatchFileError(ValueError):
+    """A batch file Taintward cannot read. It is not sent: sending it as it is
+    would send its content unredacted."""
+
+
+def _read_upload(file: Any) -> tuple[str, bytes, tuple]:
+    """(file name, bytes, the rest of a tuple form) of any file form the
+    OpenAI SDK takes: bytes, a path, an open file, or (name, content, ...)."""
+    name, rest, in_tuple = "", (), isinstance(file, tuple) and len(file) >= 2
+    if in_tuple:
+        name, rest, file = str(file[0] or ""), tuple(file[2:]), file[1]
+    data: Any = None
+    if in_tuple and isinstance(file, str):
+        data = file  # text content in the tuple form
+    elif isinstance(file, (bytes, bytearray, memoryview)):
+        data = bytes(file)
+    elif isinstance(file, os.PathLike):
+        with open(os.fspath(file), "rb") as fh:
+            data = fh.read()
+        name = name or os.path.basename(os.fspath(file))
+    elif callable(getattr(file, "read", None)):
+        data = file.read()
+        name = name or os.path.basename(str(getattr(file, "name", "") or ""))
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    if isinstance(data, (bytes, bytearray)):
+        return name or "batch.jsonl", bytes(data), rest
+    raise BatchFileError(f"taintward: cannot read a batch file given as {type(file).__name__}; "
+                         "it was not sent")
+
+
+def _parse_batch_file(data: bytes) -> list[dict]:
+    try:
+        lines = data.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        raise BatchFileError("taintward: the batch file is not UTF-8 text; it was not sent") from None
+    requests = []
+    for n, line in enumerate(lines, 1):
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except ValueError:
+            raise BatchFileError(f"taintward: line {n} of the batch file is not JSON; "
+                                 "the file was not sent") from None
+        url = item.get("url") if isinstance(item, dict) else None
+        if not isinstance(item, dict) or not isinstance(item.get("body"), dict):
+            raise BatchFileError(f"taintward: line {n} of the batch file has no request body; "
+                                 "the file was not sent")
+        if url not in _OPENAI_BATCH_FIELDS:
+            raise BatchFileError(f"taintward: line {n} of the batch file is for {url!r}, an "
+                                 "endpoint Taintward does not know; the file was not sent")
+        requests.append(item)
+    return requests
+
+
+def _wrap_files_create(original: Callable, ward: Ward) -> Callable:
+    """Mask the requests of a batch file before it is uploaded. Files for
+    other purposes are passed through."""
+    warned: list[bool] = []
+
+    def guard(kwargs: dict) -> tuple[GuardedCall, Callable[[], dict]] | None:
+        if kwargs.get("purpose") != "batch" or "file" not in kwargs:
+            return None
+        name, data, rest = _read_upload(kwargs["file"])
+        requests = _parse_batch_file(data)
+        _warn_batch_once(warned, "OpenAI batch files")
+        content = [{k: r["body"][k] for k in _OPENAI_BATCH_FIELDS[r["url"]] if k in r["body"]}
+                   for r in requests]
+        call = _batch_call("files", "openai.batch", "openai", ward, content)
+
+        def send() -> dict:
+            lines = [json.dumps({**r, "body": {**r["body"], **masked}}, ensure_ascii=False)
+                     for r, masked in zip(requests, call.kwargs["requests"])]
+            body = ("\n".join(lines) + "\n").encode("utf-8")
+            return {**kwargs, "file": (name, body, *rest)}
+        return call, send
+
+    if inspect.iscoroutinefunction(inspect.unwrap(original)):
+        @functools.wraps(original)
+        async def acreate(*args, **kwargs):
+            guarded = guard(kwargs)
+            if guarded is None:
+                return await original(*args, **kwargs)
+            call, send = guarded
+            with call:
+                return await original(*args, **send())
+        setattr(acreate, _PATCHED_MARK, True)
+        return acreate
+
+    @functools.wraps(original)
+    def create(*args, **kwargs):
+        guarded = guard(kwargs)
+        if guarded is None:
+            return original(*args, **kwargs)
+        call, send = guarded
+        with call:
+            return original(*args, **send())
+    setattr(create, _PATCHED_MARK, True)
+    return create
+
+
+def _patch_batch_files(files: Any, ward: Ward) -> None:
+    original = getattr(files, "create", None) if files is not None else None
+    if original is None or getattr(original, _PATCHED_MARK, False):
+        return
+    try:
+        files.create = _wrap_files_create(original, ward)
+    except Exception:  # noqa: BLE001 - a resource that cannot be patched
+        log.warning("taintward: could not patch files.create; batch files are not redacted")
 
 
 def _patch_copies(client: Any, protect: Callable, ward: Ward) -> None:
@@ -769,6 +909,7 @@ def protect_openai(client: Any, *, ward: Ward | None = None) -> Any:
     patched |= _patch_embeddings(getattr(client, "embeddings", None), w)
     if not patched and not _already(client, "openai"):
         raise TypeError("client has no chat.completions.create or responses.create")
+    _patch_batch_files(getattr(client, "files", None), w)
     _patch_copies(client, protect_openai, w)
     return client
 
@@ -810,4 +951,4 @@ def _already(client: Any, kind: str) -> bool:
     return any(getattr(getattr(r, "create", None), _PATCHED_MARK, False) for r in res)
 
 
-__all__ = ["protect_openai", "protect_anthropic"]
+__all__ = ["BatchFileError", "protect_openai", "protect_anthropic"]

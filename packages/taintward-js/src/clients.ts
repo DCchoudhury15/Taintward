@@ -557,6 +557,120 @@ function patchBatches(resource: any, what: string, options: ProtectClientOptions
   });
 }
 
+// An OpenAI batch is a JSONL file uploaded with files.create({ purpose: "batch" }):
+// one request per line, { custom_id, method, url, body }. The url says which
+// fields of the body are content.
+const BATCH_FIELDS: Record<string, readonly string[]> = {
+  "/v1/chat/completions": FIELDS["openai.chat"],
+  "/v1/responses": FIELDS["openai.responses"],
+  "/v1/embeddings": ["input", "user"],
+  "/v1/completions": ["prompt", "suffix", "user"],
+  "/v1/moderations": ["input"],
+};
+
+/** A batch file Taintward cannot read. It is not sent: sending it as it is would send its content unredacted. */
+export class BatchFileError extends Error {
+  override name = "BatchFileError";
+}
+
+function baseName(p: unknown): string {
+  return typeof p === "string" ? (p.split(/[\\/]/).pop() ?? "") : "";
+}
+
+/** Name, bytes and type of any file form the OpenAI SDK takes. */
+async function readUpload(file: any): Promise<{ name: string; data: Uint8Array; type?: string }> {
+  if (file instanceof Blob) {
+    return { name: baseName((file as any).name), data: new Uint8Array(await file.arrayBuffer()), type: file.type || undefined };
+  }
+  if (file instanceof Response) {
+    return { name: baseName(file.url ? new URL(file.url).pathname : ""), data: new Uint8Array(await file.arrayBuffer()) };
+  }
+  // fs.ReadStream, ReadableStream and other async iterables of parts
+  if (file && typeof file[Symbol.asyncIterator] === "function") {
+    const parts: Uint8Array[] = [];
+    for await (const part of file as AsyncIterable<unknown>) {
+      if (typeof part === "string") parts.push(new TextEncoder().encode(part));
+      else if (part instanceof Uint8Array) parts.push(part);
+      else if (part instanceof ArrayBuffer) parts.push(new Uint8Array(part));
+      else if (part instanceof Blob) parts.push(new Uint8Array(await part.arrayBuffer()));
+      else throw new BatchFileError("taintward: could not read the batch file; it was not sent");
+    }
+    const data = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const p of parts) {
+      data.set(p, at);
+      at += p.length;
+    }
+    return { name: baseName(file.path), data };
+  }
+  throw new BatchFileError("taintward: cannot read a batch file given in this form; it was not sent");
+}
+
+function parseBatchFile(data: Uint8Array): Array<Record<string, any>> {
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(data);
+  } catch {
+    throw new BatchFileError("taintward: the batch file is not UTF-8 text; it was not sent");
+  }
+  const requests: Array<Record<string, any>> = [];
+  text.split(/\r?\n/).forEach((line, i) => {
+    if (!line.trim()) return;
+    let item: unknown;
+    try {
+      item = JSON.parse(line);
+    } catch {
+      throw new BatchFileError(`taintward: line ${i + 1} of the batch file is not JSON; the file was not sent`);
+    }
+    if (!isObject(item) || !isObject(item.body)) {
+      throw new BatchFileError(`taintward: line ${i + 1} of the batch file has no request body; the file was not sent`);
+    }
+    if (typeof item.url !== "string" || !(item.url in BATCH_FIELDS)) {
+      throw new BatchFileError(
+        `taintward: line ${i + 1} of the batch file is for ${JSON.stringify(item.url)}, an endpoint Taintward does not know; the file was not sent`,
+      );
+    }
+    requests.push(item);
+  });
+  return requests;
+}
+
+/** One-way masks on the content fields of a request body (no placeholder map). */
+function maskFields(body: Record<string, any>, fields: readonly string[]): Record<string, any> {
+  const out = { ...body };
+  for (const f of fields) {
+    if (!(f in body)) continue;
+    out[f] = DATA_FIELDS.has(f) && isObject(body[f]) ? redactPayload(body[f], "llm", {}) : redactStructure(body[f], undefined);
+  }
+  return out;
+}
+
+/**
+ * Mask the requests of an OpenAI batch file before it is uploaded. Files for
+ * other purposes are passed through. A file it cannot read is not sent.
+ */
+function patchBatchFiles(files: any): void {
+  let warned = false;
+  patch(files, "create", (fn) => {
+    const wrapped = function (this: unknown, body: any, reqOptions?: any) {
+      if (!isObject(body) || body.purpose !== "batch" || body.file == null) return fn.call(this, body, reqOptions);
+      return (async () => {
+        const { name, data, type } = await readUpload(body.file);
+        const requests = parseBatchFile(data);
+        if (!warned) {
+          warned = true;
+          console.warn("taintward: OpenAI batch files are sent with one-way masks ([PII], [SECRET]), not placeholders: a batch answer cannot be restored");
+        }
+        const lines = requests.map((r) => JSON.stringify({ ...r, body: maskFields(r.body, BATCH_FIELDS[r.url]!) }));
+        const file = new File([lines.join("\n") + "\n"], name || "batch.jsonl", type ? { type } : undefined);
+        return fn.call(this, { ...body, file }, reqOptions);
+      })();
+    };
+    (wrapped as any)[MARK] = true;
+    return wrapped;
+  });
+}
+
 /** client.withOptions(...) builds a new client object: protect that one too. */
 function patchCopies(client: any, protect: (c: any, o: ProtectClientOptions) => any, options: ProtectClientOptions): void {
   patch(client, "withOptions", (fn) => {
@@ -581,6 +695,7 @@ export function protectOpenAI<T>(client: T, options: ProtectClientOptions = {}):
   ok = patch(c?.responses, "create", (fn) => wrapCreate("openai.responses", fn, options)) || ok;
   ok = patch(c?.embeddings, "create", wrapEmbeddings) || ok;
   if (!ok) throw new TypeError("protectOpenAI: client has no chat.completions.create or responses.create");
+  patchBatchFiles(c.files);
   patchCopies(c, protectOpenAI, options);
   return client;
 }

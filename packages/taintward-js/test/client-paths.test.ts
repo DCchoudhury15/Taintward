@@ -9,10 +9,13 @@
 // * request fields outside the conversation: prediction, metadata, user,
 //   the variables of a stored prompt.
 
+import { createReadStream, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { describe, expect, it, vi } from "vitest";
-import { protectAnthropic, protectOpenAI } from "../src/index.js";
+import { BatchFileError, protectAnthropic, protectOpenAI } from "../src/index.js";
 
 const SSN = "234-12-1234";
 const EMAIL = "jo.fox@example.com";
@@ -227,5 +230,82 @@ describe("a tool result given as a list of records", () => {
     expect(tool.tool_call_id).toBe("t1");
     expect(tool.content[0].id).toBe("<SSN_1>");
     expect(tool.content[0].status).toBe("active");
+  });
+});
+
+describe("OpenAI batch files", () => {
+  const FILE = { id: "file-1", object: "file", bytes: 1, created_at: 1, filename: "b.jsonl", purpose: "batch", status: "processed" };
+  const LINES = [
+    { custom_id: "c1", method: "POST", url: "/v1/chat/completions", body: { model: "m", messages: ASK, user: EMAIL, metadata: { name: "Alice Lee", plan: "pro" } } },
+    { custom_id: "r1", method: "POST", url: "/v1/responses", body: { model: "m", input: `mail ${EMAIL}`, instructions: "be short" } },
+    { custom_id: "e1", method: "POST", url: "/v1/embeddings", body: { model: "m", input: [`ssn ${SSN}`, "plain"] } },
+  ];
+  const JSONL = LINES.map((l) => JSON.stringify(l) + "\n").join("");
+
+  type Upload = { name: string; text: string };
+  function filesClient(uploads: Upload[]) {
+    const fetch = async (_url: unknown, init?: { body?: unknown }) => {
+      const f = (init?.body as FormData).get("file") as File;
+      uploads.push({ name: f.name, text: await f.text() });
+      return Response.json(FILE);
+    };
+    return protectOpenAI(new OpenAI({ apiKey: "test", baseURL: "http://fake.local/v1", fetch: fetch as any, maxRetries: 0 }));
+  }
+
+  it("masks the requests in every file form, and warns once", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const uploads: Upload[] = [];
+      const client = filesClient(uploads);
+      const forms: Record<string, () => any> = {
+        file: () => new File([JSONL], "mine.jsonl"),
+        response: () => new Response(JSONL),
+        "async iterable": () => (async function* () { yield JSONL.slice(0, 50); yield new TextEncoder().encode(JSONL.slice(50)); })(),
+        "web stream": () => new Blob([JSONL]).stream(),
+        "fs stream": () => {
+          const path = join(mkdtempSync(join(tmpdir(), "tw-")), "disk.jsonl");
+          writeFileSync(path, JSONL);
+          return createReadStream(path);
+        },
+      };
+      for (const [form, make] of Object.entries(forms)) {
+        await client.files.create({ file: make(), purpose: "batch" });
+        const { text } = uploads[uploads.length - 1]!;
+        expect(text, form).not.toContain(SSN);
+        expect(text, form).not.toContain(EMAIL);
+        const [chat, resp, emb] = text.trim().split("\n").map((l) => JSON.parse(l));
+        expect(chat.custom_id).toBe("c1");
+        expect(chat.url).toBe("/v1/chat/completions");
+        expect(chat.body.model).toBe("m");
+        expect(chat.body.messages[0].content).toBe("my ssn is [PII]");
+        expect(chat.body.user).toBe("[PII]");
+        expect(chat.body.metadata).toEqual({ name: "[PII]", plan: "pro" });
+        expect(resp.body.input).toBe("mail [PII]");
+        expect(resp.body.instructions).toBe("be short");
+        expect(emb.body.input).toEqual(["ssn [PII]", "plain"]);
+      }
+      expect(uploads[0]!.name).toBe("mine.jsonl");
+      expect(uploads[uploads.length - 1]!.name).toBe("disk.jsonl");
+      expect(warn.mock.calls.filter((c) => String(c[0]).includes("OpenAI batch files are sent with one-way masks")).length).toBe(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("passes a file for another purpose through", async () => {
+    const uploads: Upload[] = [];
+    await filesClient(uploads).files.create({ file: new File([`keep me ${SSN}`], "notes.txt"), purpose: "assistants" });
+    expect(uploads[0]!.text).toBe(`keep me ${SSN}`);
+  });
+
+  it.each([
+    ['{"custom_id":"x","url":"/v1/new-thing","body":{"input":"234-12-1234"}}\n'],
+    ['{"custom_id":"x","url":"/v1/chat/completions","body":{"messages":[]}}\nnot json 234-12-1234\n'],
+    ['{"custom_id":"x","url":"/v1/chat/completions"}\n'],
+    [new Uint8Array([0xff, 0xfe, 0x32])],
+  ])("does not send a batch file it cannot read (%#)", async (bad) => {
+    const uploads: Upload[] = [];
+    await expect(filesClient(uploads).files.create({ file: new File([bad], "b.jsonl"), purpose: "batch" })).rejects.toThrow(BatchFileError);
+    expect(uploads).toEqual([]);
   });
 });

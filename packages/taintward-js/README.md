@@ -119,7 +119,9 @@ A client made with `client.withOptions(...)` is protected too. Besides the
 conversation, `prediction`, `metadata`, `user`, `safety_identifier` and the
 variables of a stored prompt are redacted (an opaque id such as `u_8841` is
 left as it is). Anthropic batch requests are sent with one-way masks, since
-a batch answer could not be restored later; OpenAI batch files are not covered.
+a batch answer could not be restored later. OpenAI batch files uploaded with
+`client.files.create({ file, purpose: "batch" })` get the same masks; a batch
+file it cannot read is not sent (`BatchFileError`).
 
 The patch is on that client object. Requests are redacted, answers (also
 streamed ones) are restored, and the calls still return the SDK's own

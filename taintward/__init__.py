@@ -52,6 +52,7 @@ _EXPORTS = {
     "get_ward": "taintward.sdk.integrations",
     "Ward": "taintward.sdk.integrations",
     "health": "taintward.sdk.detect",
+    "BatchFileError": "taintward.sdk.integrations.llm_clients",
 }
 
 __all__ = sorted(_EXPORTS)

@@ -39,8 +39,13 @@
   redacted now. An opaque user id such as `u_8841` is left as it is.
   Anthropic batch requests are sent with one-way masks instead of
   placeholders, because a batch answer comes back in another call and could
-  not be restored; the first one logs a warning. OpenAI batch files are
-  still not covered.
+  not be restored; the first one logs a warning.
+- OpenAI batch files are masked too. `files.create(purpose="batch")` on a
+  protected client reads the JSONL file (bytes, a path, an open file, a
+  stream or a `(name, content)` tuple), masks the content fields of each
+  line and uploads the masked file. It used to go to the provider raw. A
+  batch file it cannot read, or with a line for an endpoint it does not
+  know, is not sent (`BatchFileError`). Python and TypeScript.
 - A tool result given as a list of records (`"content": [{"name": ...,
   "id": ...}]`) is redacted in full before a model request. `name` and
   `id` were read as protocol fields there and sent as they were. Protocol

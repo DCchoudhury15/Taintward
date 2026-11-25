@@ -49,4 +49,4 @@ export {
 } from "./redact.js";
 export { FF1, ff1MinLen } from "./ff1.js";
 export { Tokenizer, type TokenVault, type TokenizerOptions } from "./tokens.js";
-export { protectAnthropic, protectOpenAI, type ProtectClientOptions } from "./clients.js";
+export { BatchFileError, protectAnthropic, protectOpenAI, type ProtectClientOptions } from "./clients.js";

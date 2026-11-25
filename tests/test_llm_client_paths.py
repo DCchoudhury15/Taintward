@@ -39,6 +39,8 @@ RESPONSE = {"id": "r", "object": "response", "created_at": 1, "model": "m", "sta
             "output": [{"id": "o", "type": "message", "role": "assistant", "status": "completed",
                         "content": [{"type": "output_text", "text": "ok", "annotations": []}]}],
             "parallel_tool_calls": True, "tool_choice": "auto", "tools": []}
+FILE = {"id": "file-1", "object": "file", "bytes": 1, "created_at": 1, "filename": "b.jsonl",
+        "purpose": "batch", "status": "processed"}
 
 
 def _has(mod: str) -> bool:
@@ -73,6 +75,8 @@ def _client(sdk: str, sent: list, ward):
         sent.append((path, request.content.decode()))
         if path.endswith("count_tokens"):
             return httpx.Response(200, json={"input_tokens": 7})
+        if path.endswith("/files"):
+            return httpx.Response(200, json=FILE)
         if path.endswith("/responses"):
             return httpx.Response(200, json=RESPONSE)
         return httpx.Response(200, json=CHAT if sdk == "openai" else MESSAGE)
@@ -278,3 +282,101 @@ def test_openai_tool_message_with_a_list_of_records(ward):
         {"role": "user", "content": "look it up"},
         {"role": "tool", "tool_call_id": "t1", "content": [{"name": "Alice Lee", "id": SSN}]}])
     assert SSN not in _last(sent) and "Alice Lee" not in _last(sent)
+
+
+# --- OpenAI batch files -------------------------------------------------------------
+
+def _batch_lines(sent) -> list[dict]:
+    """The JSONL lines of the last multipart upload."""
+    path, text = sent[-1]
+    assert path.endswith("/files")
+    return [json.loads(line) for line in text.splitlines() if line.startswith('{"custom_id"')]
+
+
+def _batch_file() -> bytes:
+    lines = [
+        {"custom_id": "c1", "method": "POST", "url": "/v1/chat/completions",
+         "body": {"model": "m", "messages": ASK, "user": EMAIL,
+                  "metadata": {"name": "Alice Lee", "plan": "pro"}}},
+        {"custom_id": "r1", "method": "POST", "url": "/v1/responses",
+         "body": {"model": "m", "input": f"mail {EMAIL}", "instructions": "be short"}},
+        {"custom_id": "e1", "method": "POST", "url": "/v1/embeddings",
+         "body": {"model": "m", "input": [f"ssn {SSN}", "plain"]}},
+    ]
+    return "".join(json.dumps(x) + "\n" for x in lines).encode()
+
+
+@needs_openai
+def test_openai_batch_file_is_masked_in_every_file_form(ward, caplog, tmp_path):
+    """An OpenAI batch is a JSONL file uploaded with files.create. It used to
+    go to the provider raw. Its requests now get one-way masks, whatever
+    form the file is given in."""
+    import io
+
+    data = _batch_file()
+    path = tmp_path / "mine.jsonl"
+    path.write_bytes(data)
+    forms = {"bytes": data, "path": path, "open file": io.BytesIO(data),
+             "tuple": ("t.jsonl", data, "application/jsonl"),
+             "tuple of text": ("t.jsonl", data.decode())}
+    sent: list = []
+    client = _client("openai", sent, ward)
+    with caplog.at_level(logging.WARNING, logger="taintward.sdk"):
+        for form, file in forms.items():
+            client.files.create(file=file, purpose="batch")
+            assert SSN not in _last(sent) and EMAIL not in _last(sent), form
+            chat, resp, emb = _batch_lines(sent)
+            assert chat["custom_id"] == "c1" and chat["url"] == "/v1/chat/completions", form
+            assert chat["body"]["model"] == "m"
+            assert chat["body"]["messages"][0]["content"] == "my ssn is [PII]"
+            assert chat["body"]["user"] == "[PII]"
+            assert chat["body"]["metadata"] == {"name": "[PII]", "plan": "pro"}
+            assert resp["body"]["input"] == "mail [PII]" and resp["body"]["instructions"] == "be short"
+            assert emb["body"]["input"] == ["ssn [PII]", "plain"]
+    assert 'filename="mine.jsonl"' in sent[1][1]  # a path keeps its own name
+    assert caplog.text.count("OpenAI batch files are sent with one-way masks") == 1
+
+
+@needs_openai
+def test_openai_async_batch_file_is_masked(ward):
+    import asyncio
+
+    import httpx
+    import openai
+
+    sent: list = []
+
+    def handler(request):
+        sent.append((request.url.path, request.content.decode()))
+        return httpx.Response(200, json=FILE)
+    client = protect_openai(openai.AsyncOpenAI(
+        api_key="test", base_url="http://fake.local/v1", max_retries=0,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler))), ward=ward)
+    asyncio.run(client.files.create(file=_batch_file(), purpose="batch"))
+    assert SSN not in _last(sent) and EMAIL not in _last(sent)
+    assert _batch_lines(sent)[0]["body"]["messages"][0]["content"] == "my ssn is [PII]"
+
+
+@needs_openai
+def test_openai_file_for_another_purpose_is_passed_through(ward):
+    sent: list = []
+    client = _client("openai", sent, ward)
+    client.files.create(file=("notes.txt", b"keep me as I am 234-12-1234"), purpose="assistants")
+    assert "keep me as I am 234-12-1234" in _last(sent)
+
+
+@needs_openai
+@pytest.mark.parametrize("bad", [
+    b'{"custom_id": "x", "method": "POST", "url": "/v1/new-thing", "body": {"input": "234-12-1234"}}\n',
+    b'{"custom_id": "x", "url": "/v1/chat/completions", "body": {"messages": []}}\nnot json 234-12-1234\n',
+    b'{"custom_id": "x", "url": "/v1/chat/completions"}\n',
+    b"\xff\xfe 234-12-1234",
+])
+def test_openai_batch_file_it_cannot_read_is_not_sent(ward, bad):
+    from taintward.sdk.integrations.llm_clients import BatchFileError
+
+    sent: list = []
+    client = _client("openai", sent, ward)
+    with pytest.raises(BatchFileError):
+        client.files.create(file=bad, purpose="batch")
+    assert sent == []

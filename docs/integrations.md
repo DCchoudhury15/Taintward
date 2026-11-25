@@ -326,9 +326,16 @@ as `u_8841` is left as it is.
 Anthropic batch requests (`client.messages.batches.create`) are sent with
 one-way masks (`[PII]`, `[SECRET]`) instead of placeholders: a batch answer
 comes back in another call, so nothing could put the real values back. The
-first one logs a warning. OpenAI batches are built from a file you upload,
-so they are not covered: redact that file yourself (`tw.redact_for_rag`
-or `redact_payload`).
+first one logs a warning.
+
+OpenAI batches are built from a JSONL file you upload with
+`client.files.create(file=..., purpose="batch")`. On a protected client
+that call masks the content of each line the same way before the upload
+(chat completions, responses, embeddings, completions and moderations
+lines). The first one logs a warning. A batch file Taintward cannot read,
+or with a line for another endpoint, is not sent: the call raises
+`taintward.BatchFileError`. Files for other purposes are sent as they are. Very
+large files sent in parts with `client.uploads` are not covered.
 
 Each request is redacted for the `llm` destination. Protocol fields such as
 `role`, `type`, ids, `tool_call_id`, `tool_use_id`, tool names and base64
@@ -620,7 +627,7 @@ gateway refuses those calls.
   LiteLLM's object (and the proxy's) with the placeholders. Tool callbacks
   see what the tool got.
 - Not covered: LangChain `generate()` called directly with message lists,
-  OpenAI batch files, other LLM providers, and other clients you create
+  OpenAI files uploaded in parts with `client.uploads`, other LLM providers, and other clients you create
   without `protect_*`. The answers of OpenAI `with_raw_response` /
   `with_streaming_response` are not restored.
 - The OpenAI Agents SDK has its own tracing, which by default uploads tool
