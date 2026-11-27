@@ -698,6 +698,29 @@ function patchBatchFiles(files: any): void {
   });
 }
 
+/**
+ * client.uploads sends a file in parts, each one as soon as it is made, so a
+ * batch file cannot be masked as a whole first. A batch file is at most
+ * 200 MB and files.create takes up to 512 MB: a batch upload is refused with
+ * a pointer there (it masks the file).
+ */
+function patchUploads(uploads: any): void {
+  patch(uploads, "create", (fn) => {
+    const wrapped = function (this: unknown, body: any, reqOptions?: any) {
+      if (isObject(body) && body.purpose === "batch") {
+        return Promise.reject(
+          new BatchFileError(
+            'taintward: a batch file uploaded in parts with client.uploads cannot be masked; upload it with client.files.create({ file, purpose: "batch" }), which masks it. Nothing was sent',
+          ),
+        );
+      }
+      return fn.call(this, body, reqOptions);
+    };
+    (wrapped as any)[MARK] = true;
+    return wrapped;
+  });
+}
+
 /** client.withOptions(...) builds a new client object: protect that one too. */
 function patchCopies(client: any, protect: (c: any, o: ProtectClientOptions) => any, options: ProtectClientOptions): void {
   patch(client, "withOptions", (fn) => {
@@ -723,6 +746,7 @@ export function protectOpenAI<T>(client: T, options: ProtectClientOptions = {}):
   ok = patch(c?.embeddings, "create", wrapEmbeddings) || ok;
   if (!ok) throw new TypeError("protectOpenAI: client has no chat.completions.create or responses.create");
   patchBatchFiles(c.files);
+  patchUploads(c.uploads);
   patchCopies(c, protectOpenAI, options);
   return client;
 }

@@ -314,6 +314,12 @@
 
 ### Fixed
 
+- OpenAI and Anthropic `with_raw_response` / `with_streaming_response`:
+  what `parse()` returns is restored now. It kept the placeholders; only
+  the request was protected. The raw `text` / `json()` keep them.
+- OpenAI `client.uploads.create(purpose="batch")` on a protected client is
+  refused with a pointer to `files.create`: a file sent in parts cannot be
+  masked as a whole, and the parts used to go out raw.
 - AI SDK middleware: text the stream restorer still held back was lost
   when a stream had no `text-end` (or `reasoning-end`, `tool-input-end`)
   part. It is now emitted before `finish`, or when the stream ends.

@@ -292,6 +292,15 @@ describe("OpenAI batch files", () => {
     }
   });
 
+  it("refuses a batch file sent in parts with client.uploads", async () => {
+    const uploads: Upload[] = [];
+    const client = filesClient(uploads);
+    await expect(
+      client.uploads.create({ bytes: 10, filename: "b.jsonl", mime_type: "application/jsonl", purpose: "batch" }),
+    ).rejects.toThrow(BatchFileError);
+    expect(uploads).toEqual([]);
+  });
+
   it("passes a file for another purpose through", async () => {
     const uploads: Upload[] = [];
     await filesClient(uploads).files.create({ file: new File([`keep me ${SSN}`], "notes.txt"), purpose: "assistants" });

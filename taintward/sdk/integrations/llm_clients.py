@@ -68,10 +68,13 @@ so it could not be restored. The first one logs a warning. OpenAI batches
 are built from an uploaded JSONL file: ``files.create(purpose="batch")``
 masks the content of each line the same way before the upload. A batch
 file it cannot read, or with a line for an endpoint it does not know, is
-not sent (``BatchFileError``). Large files sent in parts with
-``client.uploads`` are not covered.
+not sent (``BatchFileError``). ``client.uploads`` sends a file in parts
+as they are made, so it cannot be masked as a whole: a batch upload there
+is refused (``BatchFileError``) with a pointer to ``files.create``.
 The answers of the ``with_raw_response`` / ``with_streaming_response``
-helpers are not restored.
+helpers are restored in what ``parse()`` returns; their raw ``text`` /
+``json()`` keep the placeholders, and so does a raw response of a streamed
+call.
 """
 
 from __future__ import annotations
@@ -419,6 +422,12 @@ def _open_stream(provider: str, system: str, fields: tuple[str, ...], kwargs: di
         raise
 
 
+def _is_raw(resp: Any) -> bool:
+    """A raw response (``with_raw_response`` / ``with_streaming_response``):
+    the SDK object that holds the HTTP response and parses it on ``parse()``."""
+    return hasattr(resp, "http_response") and callable(getattr(resp, "parse", None))
+
+
 def _wrap_create(original: Callable, provider: str, system: str,
                  fields: tuple[str, ...], ward: Ward) -> Callable:
     is_async = inspect.iscoroutinefunction(inspect.unwrap(original))
@@ -465,6 +474,14 @@ def _wrap_create(original: Callable, provider: str, system: str,
                 return stream(sc, kwargs, resp, pmap)
             with _guard_request(provider, system, fields, kwargs, ward, pmap) as call:
                 resp = await original(*args, **{**kwargs, **request(call, pmap)})
+                if _is_raw(resp):
+                    # The SDK keeps the parsed answer, so restoring it in
+                    # place is what every later parse() returns.
+                    parsed = resp.parse()
+                    if inspect.isawaitable(parsed):
+                        parsed = await parsed
+                    finish(call, kwargs, parsed, pmap)
+                    return resp
                 resp = finish(call, kwargs, resp, pmap)
             return resp
         setattr(acreate, _PATCHED_MARK, True)
@@ -483,6 +500,11 @@ def _wrap_create(original: Callable, provider: str, system: str,
             return stream(sc, kwargs, resp, pmap)
         with _guard_request(provider, system, fields, kwargs, ward, pmap) as call:
             resp = original(*args, **{**kwargs, **request(call, pmap)})
+            if _is_raw(resp):
+                # The SDK keeps the parsed answer, so restoring it in place is
+                # what every later parse() returns.
+                finish(call, kwargs, resp.parse(), pmap)
+                return resp
             resp = finish(call, kwargs, resp, pmap)
         return resp
     setattr(create, _PATCHED_MARK, True)
@@ -853,6 +875,34 @@ def _wrap_files_create(original: Callable, ward: Ward) -> Callable:
     return create
 
 
+def _wrap_uploads_create(original: Callable) -> Callable:
+    """``client.uploads`` sends a file in parts, each one as soon as it is
+    made, so a batch file cannot be masked as a whole first. A batch file
+    is at most 200 MB and ``files.create`` takes up to 512 MB, so a batch
+    upload is refused with a pointer there (it masks the file)."""
+    def check(kwargs: dict) -> None:
+        if kwargs.get("purpose") == "batch":
+            raise BatchFileError(
+                "taintward: a batch file uploaded in parts with client.uploads cannot be "
+                "masked; upload it with client.files.create(file=..., purpose=\"batch\"), "
+                "which masks it. Nothing was sent")
+
+    if inspect.iscoroutinefunction(inspect.unwrap(original)):
+        @functools.wraps(original)
+        async def acreate(*args, **kwargs):
+            check(kwargs)
+            return await original(*args, **kwargs)
+        setattr(acreate, _PATCHED_MARK, True)
+        return acreate
+
+    @functools.wraps(original)
+    def create(*args, **kwargs):
+        check(kwargs)
+        return original(*args, **kwargs)
+    setattr(create, _PATCHED_MARK, True)
+    return create
+
+
 def _patch_batch_files(files: Any, ward: Ward) -> None:
     original = getattr(files, "create", None) if files is not None else None
     if original is None or getattr(original, _PATCHED_MARK, False):
@@ -910,6 +960,14 @@ def protect_openai(client: Any, *, ward: Ward | None = None) -> Any:
     if not patched and not _already(client, "openai"):
         raise TypeError("client has no chat.completions.create or responses.create")
     _patch_batch_files(getattr(client, "files", None), w)
+    uploads = getattr(client, "uploads", None)
+    original = getattr(uploads, "create", None)
+    if uploads is not None and original is not None and not getattr(original, _PATCHED_MARK, False):
+        try:
+            uploads.create = _wrap_uploads_create(original)
+        except Exception:  # noqa: BLE001 - a resource that cannot be patched
+            log.warning("taintward: could not patch uploads.create; batch files sent "
+                        "in parts are not refused")
     _patch_copies(client, protect_openai, w)
     return client
 

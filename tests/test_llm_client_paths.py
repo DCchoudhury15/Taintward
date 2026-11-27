@@ -414,3 +414,77 @@ def test_part_lists_are_the_same_in_python_and_typescript():
         body = re.search(rf"const {name} = new Set\(\[(.*?)\]\);", ts, re.S)
         assert body, name
         assert set(re.findall(r'"([^"]+)"', body.group(1))) == set(values), name
+
+
+# --- raw responses ------------------------------------------------------------------
+
+@needs_openai
+def test_openai_raw_response_parse_is_restored(ward):
+    """with_raw_response / with_streaming_response gave back the answer with
+    the placeholders in it: only the request was protected."""
+    sent: list = []
+    client = _client("openai", sent, ward)
+    raw = client.chat.completions.with_raw_response.create(model="m", messages=ASK)
+    assert SSN not in _last(sent)
+    assert raw.parse().choices[0].message.content == f"got {SSN}"
+    with client.chat.completions.with_streaming_response.create(model="m", messages=ASK) as r:
+        assert r.parse().choices[0].message.content == f"got {SSN}"
+
+
+@needs_anthropic
+def test_anthropic_raw_response_parse_is_restored(ward):
+    sent: list = []
+    client = _client("anthropic", sent, ward)
+    raw = client.messages.with_raw_response.create(model="m", max_tokens=8, messages=ASK)
+    assert SSN not in _last(sent)
+    assert raw.parse().content[0].text == f"got {SSN}"
+
+
+@needs_openai
+def test_openai_async_raw_response_parse_is_restored(ward):
+    import asyncio
+
+    import httpx
+    import openai
+
+    sent: list = []
+
+    def handler(request):
+        sent.append((request.url.path, request.content.decode()))
+        return httpx.Response(200, json=CHAT)
+    client = protect_openai(openai.AsyncOpenAI(
+        api_key="test", base_url="http://fake.local/v1", max_retries=0,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler))), ward=ward)
+
+    async def run():
+        raw = await client.chat.completions.with_raw_response.create(model="m", messages=ASK)
+        legacy = raw.parse()
+        async with client.chat.completions.with_streaming_response.create(
+                model="m", messages=ASK) as r:
+            streamed = await r.parse()
+        return legacy, streamed
+    legacy, streamed = asyncio.run(run())
+    assert SSN not in _last(sent)
+    assert legacy.choices[0].message.content == f"got {SSN}"
+    assert streamed.choices[0].message.content == f"got {SSN}"
+
+
+@needs_openai
+def test_openai_batch_upload_in_parts_is_refused(ward):
+    """client.uploads sends each part as it is made, so a batch file there
+    cannot be masked as a whole: it is refused before anything is sent."""
+    from taintward.sdk.integrations.llm_clients import BatchFileError
+
+    sent: list = []
+    client = _client("openai", sent, ward)
+    with pytest.raises(BatchFileError, match="files.create"):
+        client.uploads.create(bytes=10, filename="b.jsonl", mime_type="application/jsonl",
+                              purpose="batch")
+    assert sent == []
+    # other purposes are not touched
+    try:
+        client.uploads.create(bytes=10, filename="a.pdf", mime_type="application/pdf",
+                              purpose="assistants")
+    except Exception:  # noqa: BLE001 - the fake answer is not an upload
+        pass
+    assert sent and sent[-1][0].endswith("/uploads")
